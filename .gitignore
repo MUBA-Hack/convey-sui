@@ -1,0 +1,22 @@
+# deps / builds
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# local runtime state
+logs/
+*.log
+
+# os / editor
+.DS_Store
+
+# playwright scratch
+.playwright-cli/

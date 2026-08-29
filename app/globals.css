@@ -1,0 +1,951 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Convey — light "commerce desk" theme.
+
+   Light IS the product theme (see app/layout.tsx). The surface language is
+   white paper + hairline borders + soft elevation; the only chroma that
+   appears in chrome is Sui brand blue, so every coloured pixel reads as "this
+   settles on Sui". Sui palette anchors: Sea #4DA2FF (brand/graphics), Ocean
+   #011829 (ink), Aqua #C0E6FF (tints). Raw Sea is 2.65:1 on white, so it is
+   used for GRAPHICS ONLY — text and solid buttons use the deepened --sea-ink /
+   --sea-strong ramp, which clears AA.
+
+   Signal colours are semantic, never decorative:
+   YES / NO / UNSURE / SEALED / CHAIN / LIVE.
+--------------------------------------------------------------------------- */
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+    --font-narrow: var(--font-narrow);
+    --font-mono: var(--font-mono);
+
+    /* Landing (v3) surface language — sharp rectangles, one accent blue. */
+    --color-accent-blue: var(--cv-accent);
+    --color-paper: var(--cv-paper);
+    --color-ink: var(--cv-ink);
+
+    /* Sui brand anchors, usable directly: bg-sea/10, text-ocean, bg-aqua. */
+    --color-sea: var(--brand-sea);
+    --color-sea-ink: var(--brand-sea-ink);
+    --color-ocean: var(--brand-ocean);
+    --color-aqua: var(--brand-aqua);
+
+    /* Semantic protocol signals — verdicts, seals and chain events. */
+    --color-yes: var(--signal-yes);
+    --color-no: var(--signal-no);
+    --color-unsure: var(--signal-unsure);
+    --color-sealed: var(--signal-sealed);
+    --color-chain: var(--signal-chain);
+    --color-live: var(--signal-live);
+
+    /* Model-family identity hues (DeepSeek / Kimi / MiniMax). */
+    --color-family-a: var(--family-a);
+    --color-family-b: var(--family-b);
+    --color-family-c: var(--family-c);
+
+    /* Recessed surfaces below --card, for insets, wells and code blocks. */
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+
+    /* Night: the contained deep band the swarm globe lives on. */
+    --color-night: var(--night);
+    --color-night-2: var(--night-2);
+    --color-night-fg: var(--night-fg);
+    --color-night-muted: var(--night-muted);
+    --color-night-line: var(--night-line);
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.5);
+    --radius-md: calc(var(--radius) * 0.7);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.35);
+    --radius-2xl: calc(var(--radius) * 1.7);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.8);
+}
+
+:root {
+    /* --- Landing (v3) foundation ----------------------------------------- */
+    /* One accent blue, one light surface, sharp corners. The product pages
+       inherit these anchors so the whole site reads as one design. */
+    --cv-accent: #0e76ff; /* arrow chips, pins, links, accents */
+    --cv-surface: #f3f3f3; /* chips, buttons, light text on dark */
+    --cv-paper: #f7f7f5; /* body background */
+    --cv-ink: #000000;
+    --cv-line: rgb(0 0 0 / 15%); /* hairlines on light */
+    --cv-line-strong: rgb(0 0 0 / 32%); /* the same hairline, under a pointer */
+    --cv-line-dark: rgb(243 243 243 / 15%); /* hairlines on dark */
+    --cv-fill: rgb(0 0 0 / 3%); /* faint row fills (FAQ) */
+    --cv-navy: #04122b; /* deep section ground */
+    --cv-navy-2: #0a2c5e; /* navy midtone */
+
+    /* --- Sui brand, re-anchored on the landing accent -------------------- */
+    --brand-sea: #0e76ff; /* graphics, fills, rings, glow — never body text */
+    --brand-sea-strong: #0b60d8; /* solid surfaces under white text (5.7:1) */
+    --brand-sea-ink: #0a5ccc; /* blue text and links on white (6.1:1) */
+    --brand-ocean: #04122b; /* ink for headings (17:1) */
+    --brand-aqua: #c4d5e7; /* pale tinted surfaces + highlights */
+
+    /* --- Neutral paper --------------------------------------------------- */
+    --background: #f7f7f5;
+    --foreground: #0b1b28;
+    --card: #ffffff;
+    --card-foreground: #0b1b28;
+    --surface: #f3f3f3;
+    --surface-2: #e6e6e4;
+    --popover: #ffffff;
+    --popover-foreground: #0b1b28;
+
+    --primary: var(--brand-sea-strong);
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #17303f;
+    --muted: #f4f7fa;
+    --muted-foreground: #5a6b7e;
+    --accent: #eef4fb;
+    --accent-foreground: #0b1b28;
+    --destructive: #ce2c2c;
+    --border: rgb(0 0 0 / 12%);
+    --input: rgb(0 0 0 / 16%);
+    --ring: rgb(14 118 255 / 55%);
+
+    /* --- Semantic signals (all AA on white) ------------------------------ */
+    --signal-yes: #0e7a4b;
+    --signal-no: #ce2c2c;
+    --signal-unsure: #a56800;
+    --signal-sealed: #5145cd;
+    --signal-chain: var(--brand-sea-ink);
+    --signal-live: #0e7a4b;
+
+    /* --- Model families --------------------------------------------------- */
+    --family-a: #3455d1; /* DeepSeek */
+    --family-b: #8b2fd6; /* Kimi */
+    --family-c: #0e7490; /* MiniMax */
+
+    --chart-1: var(--brand-sea-strong);
+    --chart-2: #0e7a4b;
+    --chart-3: #5145cd;
+    --chart-4: #a56800;
+    --chart-5: #ce2c2c;
+
+    /* Zero, so every rounded-* utility resolves square. The landing's sharp
+       rectangle is the whole product's language now, not a section's opt-in;
+       `rounded-full` still works, for things that are genuinely round. */
+    --radius: 0rem;
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0b1b28;
+    --sidebar-primary: var(--brand-sea-strong);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #eef4fb;
+    --sidebar-accent-foreground: #0b1b28;
+    --sidebar-border: rgb(0 0 0 / 12%);
+    --sidebar-ring: rgb(14 118 255 / 55%);
+
+    /* --- Ambient shell ---------------------------------------------------- */
+    --grid-line: rgb(0 0 0 / 3.2%);
+    --glow-a: rgb(14 118 255 / 9%);
+    --glow-b: rgb(196 213 231 / 42%);
+
+    /* --- Night band ------------------------------------------------------- */
+    /* Deep navy derivatives, matched to the landing's hero ground. */
+    --night: #04122b;
+    --night-2: #072141;
+    --night-fg: #f3f3f3;
+    --night-muted: #93aac6;
+    --night-line: rgb(243 243 243 / 15%);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+        font-feature-settings: "cv11", "ss01";
+    }
+    html {
+        @apply font-sans;
+        -webkit-font-smoothing: antialiased;
+        /* No CSS smooth scrolling: Lenis writes scroll positions per frame,
+           and native smooth-behavior would animate toward each write —
+           the two easings fight and the page visibly lurches. */
+    }
+    /* Hashes, ids, scores and every numeric readout use tabular mono. */
+    .font-mono {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+    }
+    /* Headings inherit their ink so a section can set one colour for all its
+       type — the landing flips between black and #F3F3F3 constantly. */
+    h1,
+    h2,
+    h3 {
+        text-wrap: balance;
+    }
+    ::selection {
+        background: var(--brand-aqua);
+        color: var(--brand-ocean);
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Ambient surfaces
+--------------------------------------------------------------------------- */
+
+/* Fine engineering grid — the paper the product is printed on. */
+.cv-grid {
+    background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: linear-gradient(to bottom, #000 0, #000 26%, transparent 78%);
+}
+
+/* One soft Sui-blue wash behind the top of the page. Restrained on purpose. */
+.cv-glow::before,
+.cv-glow::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    pointer-events: none;
+}
+.cv-glow::before {
+    top: -320px;
+    height: 720px;
+    background: radial-gradient(52% 46% at 50% 0%, var(--glow-a), transparent 70%);
+}
+.cv-glow::after {
+    top: -180px;
+    height: 520px;
+    background: radial-gradient(38% 40% at 85% 0%, var(--glow-b), transparent 72%);
+}
+
+/* Card elevation — paper on paper, never a glow. */
+/* Flat by design: the surface language is hairlines and ground colour, not
+   elevation. `cv-edge` stays as a hook so callers need no edit; it simply no
+   longer casts a shadow. `cv-lift` answers the pointer by firming its own
+   hairline instead of floating off the page. */
+.cv-edge {
+    box-shadow: none;
+}
+.cv-lift {
+    transition:
+        border-color 0.24s ease,
+        background-color 0.24s ease;
+}
+.cv-lift:hover {
+    border-color: var(--cv-line-strong);
+}
+
+/* Thin scrollbar for dense stream panels. */
+.cv-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--surface-2) transparent;
+}
+.cv-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.cv-scroll::-webkit-scrollbar-thumb {
+    background: var(--surface-2);
+    border-radius: 999px;
+}
+.cv-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Masks the leading/trailing edge of a horizontal rail (marquees). */
+.cv-fade-x {
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        #000 24px,
+        #000 calc(100% - 40px),
+        transparent 100%
+    );
+}
+
+/* Masks the top/bottom of a scrolling log so entries fade rather than clip. */
+.cv-fade-y {
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 14px,
+        #000 calc(100% - 20px),
+        transparent 100%
+    );
+}
+
+/* ---------------------------------------------------------------------------
+   Night band — the contained deep slab the swarm globe is staged on.
+
+   The product identity stays light; these classes exist so exactly two
+   surfaces (the hero stage and the closing CTA) can go deep without any page
+   ever half-migrating into a dark theme.
+--------------------------------------------------------------------------- */
+
+.cv-slab {
+    background:
+        radial-gradient(118% 88% at 76% 12%, rgb(77 162 255 / 22%), transparent 60%),
+        radial-gradient(84% 70% at 8% 96%, rgb(81 69 205 / 26%), transparent 66%),
+        linear-gradient(163deg, #072033 0%, #04121f 54%, #030c17 100%);
+}
+
+/* Hairline lattice over the slab — the same engineering grid, inverted. */
+.cv-slab-grid {
+    background-image:
+        linear-gradient(to right, rgb(146 205 255 / 6%) 1px, transparent 1px),
+        linear-gradient(to bottom, rgb(146 205 255 / 6%) 1px, transparent 1px);
+    background-size: 54px 54px;
+    mask-image: radial-gradient(76% 66% at 50% 42%, #000 0, transparent 78%);
+}
+
+/* Poster plate behind the WebGL canvas: what you see before the chunk lands,
+   and the whole picture if WebGL is unavailable. */
+.cv-globe-plate {
+    background:
+        radial-gradient(circle at 33% 27%, rgb(77 162 255 / 34%), transparent 56%),
+        radial-gradient(circle at 50% 50%, #0c2f4d 0%, #06192b 62%, #030f1c 100%);
+    box-shadow:
+        0 0 110px -28px rgb(77 162 255 / 62%),
+        inset 0 0 60px -22px rgb(192 230 255 / 30%);
+}
+
+/* Heads-up display chips floating over the globe. */
+.cv-hud-chip {
+    border-radius: 0.7rem;
+    border: 1px solid rgb(255 255 255 / 12%);
+    background: rgb(5 20 34 / 68%);
+    padding: 0.4rem 0.6rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 28px -14px rgb(0 0 0 / 80%);
+}
+.cv-hud-stem {
+    display: block;
+    margin-inline: auto;
+    width: 1px;
+    height: 18px;
+    background: linear-gradient(to bottom, rgb(255 255 255 / 42%), transparent);
+}
+
+/* Glass field inside a night slab — inputs, wells and secondary panels. */
+.cv-night-field {
+    border-color: rgb(255 255 255 / 12%) !important;
+    background: rgb(255 255 255 / 5%) !important;
+    color: var(--night-fg) !important;
+}
+.cv-night-field::placeholder {
+    color: rgb(147 182 210 / 65%);
+}
+.cv-night-field:focus-visible {
+    border-color: rgb(77 162 255 / 55%) !important;
+    background: rgb(255 255 255 / 8%) !important;
+}
+
+/* ===========================================================================
+   The sharp-rectangle surface language — the whole product's, not the
+   landing's.
+
+   Zero border-radius, dashed hairlines, 6px blue corner pins, uppercase
+   Archivo Narrow micro-labels and split buttons. This began as a landing-only
+   register while the product pages kept a softer card language; the two are
+   now one, so a visitor crossing from the landing into any Convey surface
+   stays in the same room.
+   ======================================================================== */
+
+
+/* Uppercase micro-label: eyebrows, nav chips, buttons, number chips, legal. */
+.cv-micro {
+    font-family: var(--font-narrow), ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18.2px;
+    letter-spacing: 1.04px;
+    text-transform: uppercase;
+}
+.cv-micro-sm {
+    font-size: 11px;
+    line-height: 15px;
+    letter-spacing: 0.88px;
+}
+
+/* Display type: 400 weight even at 88px — the big sizes are NOT bold. */
+.cv-display {
+    font-weight: 400;
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+}
+
+/* --- Split button: content block + separate blue arrow chip --------------- */
+.cv-btn {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 2px;
+    height: 34px;
+    flex: none;
+}
+.cv-btn__label {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: 16px;
+    background: var(--cv-surface);
+    color: #000;
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+}
+.cv-btn__chip {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    flex: none;
+    background: var(--cv-accent);
+    color: #fff;
+    transition: background-color 0.2s ease;
+}
+.cv-btn__chip svg {
+    transition: transform 0.2s ease;
+}
+.cv-btn:hover .cv-btn__label {
+    background: #e4e4e4;
+}
+.cv-btn:hover .cv-btn__chip {
+    background: #0060e0;
+}
+.cv-btn:hover .cv-btn__chip svg {
+    transform: translateX(2px);
+}
+.cv-btn:focus-visible {
+    outline: 2px solid var(--cv-accent);
+    outline-offset: 2px;
+}
+/* Secondary on dark sections: translucent block, no blue chip. */
+.cv-btn--dark .cv-btn__label {
+    background: rgb(238 238 240 / 10%);
+    color: var(--cv-surface);
+}
+.cv-btn--dark:hover .cv-btn__label {
+    background: rgb(238 238 240 / 18%);
+}
+.cv-btn--dark .cv-btn__chip {
+    background: rgb(238 238 240 / 10%);
+    color: var(--cv-surface);
+}
+.cv-btn--dark:hover .cv-btn__chip {
+    background: rgb(238 238 240 / 18%);
+}
+/* Secondary on light sections. */
+.cv-btn--muted .cv-btn__label {
+    background: rgb(0 0 0 / 6%);
+    color: #000;
+}
+.cv-btn--muted:hover .cv-btn__label {
+    background: rgb(0 0 0 / 10%);
+}
+.cv-btn--muted .cv-btn__chip {
+    background: rgb(0 0 0 / 6%);
+    color: #000;
+}
+.cv-btn--muted:hover .cv-btn__chip {
+    background: rgb(0 0 0 / 10%);
+}
+
+/* --- Nav chip: one sharp 34px block, themed by its header --------------- */
+/* The header sets --chip-bg / --chip-fg per section theme, so the wallet
+   button (whose logic must stay untouched) inherits the same skin. */
+.cv-nav-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    min-height: 34px;
+    padding-inline: 14px;
+    /* Inside the header the chip is borderless; anywhere else on a product
+       page it keeps a hairline so it still reads as a control. */
+    border: 1px solid var(--chip-border, var(--cv-line));
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--chip-bg, var(--cv-surface));
+    /* A translucent chip only works if it frosts what it covers; without this
+       a busy hero shows straight through and the label loses its edge. */
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    color: var(--chip-fg, #000);
+    font-family: var(--font-narrow), ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18.2px;
+    letter-spacing: 1.04px;
+    text-transform: uppercase;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+}
+.cv-nav-chip:hover:not(:disabled) {
+    background: var(--chip-bg-hover, #e4e4e4);
+    color: var(--chip-fg, #000);
+}
+.cv-nav-chip[data-active="true"] {
+    background: var(--cv-accent);
+    color: #fff;
+}
+.cv-nav-chip:focus-visible {
+    outline: 2px solid var(--cv-accent);
+    outline-offset: 2px;
+}
+
+/* The one chip that carries an action rather than a destination: the crossing
+   into the app. Accent ground in both header themes. */
+.cv-nav-chip--accent {
+    background: var(--cv-accent);
+    color: #fff;
+    border-color: transparent;
+}
+/* Matches the generic chip's hover specificity so it is not overridden. */
+.cv-nav-chip--accent:hover:not(:disabled) {
+    background: #0060e0;
+    color: #fff;
+}
+
+/* --- Progressive blur under the fixed header ----------------------------- */
+/* Four stacked layers, each blurrier than the last and masked to a band
+   closer to the top edge, so whatever scrolls under the chrome ramps smoothly
+   out of focus instead of meeting it on a hard line. One flat pane of blur
+   reads as a smeared bar; this reads as depth. Masks are measured from the
+   reference. */
+.cv-top-blur {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 132px;
+    z-index: 900;
+    pointer-events: none;
+}
+.cv-top-blur > span {
+    position: absolute;
+    inset: 0;
+    display: block;
+}
+.cv-top-blur > span:nth-child(1) {
+    -webkit-backdrop-filter: blur(1px);
+    backdrop-filter: blur(1px);
+    -webkit-mask-image: linear-gradient(
+        to top,
+        transparent 50%,
+        #000 62.5%,
+        #000 75%,
+        transparent 87.5%
+    );
+    mask-image: linear-gradient(
+        to top,
+        transparent 50%,
+        #000 62.5%,
+        #000 75%,
+        transparent 87.5%
+    );
+}
+.cv-top-blur > span:nth-child(2) {
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    -webkit-mask-image: linear-gradient(
+        to top,
+        transparent 62.5%,
+        #000 75%,
+        #000 87.5%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to top,
+        transparent 62.5%,
+        #000 75%,
+        #000 87.5%,
+        transparent 100%
+    );
+}
+.cv-top-blur > span:nth-child(3) {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    -webkit-mask-image: linear-gradient(to top, transparent 75%, #000 87.5%, #000 100%);
+    mask-image: linear-gradient(to top, transparent 75%, #000 87.5%, #000 100%);
+}
+.cv-top-blur > span:nth-child(4) {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    -webkit-mask-image: linear-gradient(to top, transparent 87.5%, #000 100%);
+    mask-image: linear-gradient(to top, transparent 87.5%, #000 100%);
+}
+
+/* --- Hairlines: dashed 1px guides, the page's structural furniture ------- */
+.cv-hr {
+    height: 1px;
+    width: 100%;
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--cv-line) 0 4px,
+        transparent 4px 9px
+    );
+}
+.cv-vr {
+    width: 1px;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        var(--cv-line) 0 4px,
+        transparent 4px 9px
+    );
+}
+.cv-on-dark .cv-hr,
+.cv-hr--dark {
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--cv-line-dark) 0 4px,
+        transparent 4px 9px
+    );
+}
+.cv-on-dark .cv-vr,
+.cv-vr--dark {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        var(--cv-line-dark) 0 4px,
+        transparent 4px 9px
+    );
+}
+/* The same hairline drawn as a block's own bottom edge, for headers and rows
+   that close themselves. The block must be positioned. */
+.cv-hr-b::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--cv-line) 0 4px,
+        transparent 4px 9px
+    );
+}
+.cv-on-dark .cv-hr-b::after {
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--cv-line-dark) 0 4px,
+        transparent 4px 9px
+    );
+}
+
+/* --- Section grounds ----------------------------------------------------- */
+/* Hero navy: near-black at the top, a blue floor at the bottom. Kept flat
+   through the middle band so the globe's own edge scrims blend into it. */
+.cv-navy-ground {
+    background:
+        radial-gradient(78% 52% at 50% 104%, rgb(31 94 172 / 62%) 0%, transparent 70%),
+        linear-gradient(180deg, #040f1c 0%, #04121f 46%, #05182e 100%);
+}
+/* The light wash section 2 sits on — sampled from the reference. */
+.cv-light-wash {
+    background: radial-gradient(
+        100% 130% at 50% -30%,
+        #c4d5e7 45%,
+        #fdfbf7 85%,
+        #f7f7f5 100%
+    );
+}
+/* Propositions: light at the top, deep navy by the bottom. */
+/* Propositions: paper behind the heading, then the descent finishes before the
+   list starts (~28%) so every row sits on ground dark enough to carry white. */
+.cv-light-to-navy {
+    background: linear-gradient(
+        180deg,
+        #dae5f2 0%,
+        #a9c2e0 14%,
+        #6b93c4 23%,
+        #24568f 31%,
+        #123a76 52%,
+        #04122b 76%,
+        #020c1c 100%
+    );
+}
+/* Manifesto: near-black at the top fading into the light list below. */
+.cv-navy-to-light {
+    background: linear-gradient(
+        180deg,
+        #010a18 0%,
+        #06254c 34%,
+        #2f5c94 58%,
+        #a8c1de 78%,
+        #f2f4f2 96%,
+        #f7f7f5 100%
+    );
+}
+/* Footer: light blue → accent family → deep navy. */
+.cv-footer-ground {
+    background: linear-gradient(
+        180deg,
+        #cddcee 0%,
+        #6f9bd2 16%,
+        #1f62c4 38%,
+        #0d3f8e 60%,
+        #061c3f 82%,
+        #030f24 100%
+    );
+}
+
+/* The globe's heads-up display stands down once the visual has docked into
+   the stat card, where it would fight the card's own readouts. */
+.cv-hud-layer {
+    transition: opacity 0.35s ease;
+}
+/* !important because the globe pins its anchored chips with inline opacity. */
+[data-hud="off"] .cv-hud-layer {
+    opacity: 0 !important;
+}
+
+/* Dark glass panel — the hero's live verdict card. */
+.cv-glass {
+    background: rgb(38 38 41 / 45%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Metallic wordmark: silver-to-white vertical gradient clipped to the type. */
+.cv-wordmark {
+    background-image: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #dfe8f3 24%,
+        #93a9c3 48%,
+        #ffffff 68%,
+        #8ea4bf 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* FAQ answer: 0fr → 1fr animates the row height without measuring it. */
+.cv-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+}
+.cv-collapse[data-open="true"] {
+    grid-template-rows: 1fr;
+}
+.cv-collapse > div {
+    overflow: hidden;
+}
+
+/* A slow vertical drift for the opportunity section's ambient column. */
+@keyframes cv-drift {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(-50%);
+    }
+}
+.cv-drift {
+    animation: cv-drift 26s linear infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion primitives
+--------------------------------------------------------------------------- */
+
+@keyframes cv-ping {
+    0% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    70%,
+    100% {
+        transform: scale(2.6);
+        opacity: 0;
+    }
+}
+
+@keyframes cv-breathe {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@keyframes cv-scan {
+    0% {
+        transform: translateY(-110%);
+    }
+    100% {
+        transform: translateY(560%);
+    }
+}
+
+@keyframes cv-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes cv-dash {
+    to {
+        stroke-dashoffset: -24;
+    }
+}
+
+@keyframes cv-rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.cv-ping {
+    animation: cv-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.cv-breathe {
+    animation: cv-breathe 2.4s ease-in-out infinite;
+}
+/* A single light bar sweeping a panel — the "live" tell on active surfaces. */
+.cv-scanline {
+    animation: cv-scan 5s linear infinite;
+}
+.cv-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(1 24 41 / 5%), transparent);
+    animation: cv-shimmer 1.6s infinite;
+}
+/* Marching-ants flow along connector paths between pipeline stages. */
+.cv-flow {
+    stroke-dasharray: 4 8;
+    animation: cv-dash 1s linear infinite;
+}
+.cv-rise {
+    animation: cv-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Seamless rail: the track holds the list twice, so -50% loops invisibly. */
+@keyframes cv-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+.cv-marquee {
+    animation: cv-marquee 46s linear infinite;
+}
+.cv-marquee:hover {
+    animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+    .cv-scanline,
+    .cv-shimmer::after {
+        display: none;
+    }
+    .cv-lift:hover {
+        transform: none;
+    }
+    /* The rail parks at its start instead of snapping to the loop point. */
+    .cv-marquee,
+    .cv-drift {
+        animation: none !important;
+        transform: none !important;
+    }
+    /* The FAQ opens instantly rather than animating its row height. */
+    .cv-collapse {
+        transition: none !important;
+    }
+    /* No scroll-driven dimming: every proposition stays fully legible. */
+    [data-proposition] {
+        opacity: 1 !important;
+    }
+}
+
+/* ===========================================================================
+   Convey — minimal monochrome commerce shell
+
+   The commerce surfaces (Shop, QR Ferry, Build progress) speak black, white
+   and neutral gray only. These utilities are the standalone commerce shell's
+   own monochrome language; commerce pages opt in by class. No existing token
+   is redefined.
+   ======================================================================== */
+
+/* Page container for commerce routes: centered, narrow, generous vertical
+   rhythm. Pairs with the hairline card language below. */
+.cv-commerce {
+    color: #000;
+}
+.cv-commerce__card {
+    background: #fff;
+    border: 1px solid rgb(0 0 0 / 12%);
+}
+.cv-commerce__card--muted {
+    background: #f7f7f5;
+    border: 1px solid rgb(0 0 0 / 12%);
+}
+/* The one accent commerce allows itself is solid black on white — never a
+   hue. Used for progress fills and active dots. */
+.cv-commerce__fill {
+    background: #000;
+}
+.cv-commerce__track {
+    background: #e5e5e5;
+}
+.cv-commerce__muted {
+    color: #5a5a5a;
+}
