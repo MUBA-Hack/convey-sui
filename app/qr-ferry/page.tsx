@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { QrFerry } from "@/components/commerce/qr-ferry";
 
 export const metadata: Metadata = {
-  title: "Offline QR Ferry — Convey",
+  title: "Relay — Convey",
   description:
     "Tamper-evident offline transport envelope for Convey commerce on Sui: generate a QR on an offline device, import and validate on a connected device, consume-once nonce replay defense.",
 };

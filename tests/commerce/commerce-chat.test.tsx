@@ -18,6 +18,8 @@ import type {
   PurchaseIntentPreview,
   PurchaseIntentClarification,
 } from "@/lib/commerce/intent";
+import { parseIntent } from "@/lib/commerce/intent";
+import type { PaymentReceipt } from "@/lib/commerce/payment";
 
 /**
  * Wave 2 Tasks 2.2 / 2.3 + Wave 3 integration — DOM tests for the chat-first
@@ -238,10 +240,14 @@ describe("CommerceChat — send and inline preview", () => {
     expect(screen.getAllByText(/River Cafe/).length).toBeGreaterThanOrEqual(2);
     // Total SUI is rendered (6_000_000_000 MIST = 6 SUI).
     expect(screen.getByText(/6(\.0+)?\s*SUI/i)).toBeInTheDocument();
-    // Network mode label is visible. The honest status card also labels the
-    // mode, so "Demo" now appears in more than one place — assert at least one
-    // network-mode label is rendered.
-    expect(screen.getAllByText(/demo/i).length).toBeGreaterThanOrEqual(1);
+    // Network mode label is visible. The preview badge labels the demo
+    // network as "Preview" and the network field as "Not submitted"; the
+    // data-network-mode attribute still carries the canonical "demo" value.
+    expect(screen.getAllByText(/Preview|Not submitted/i).length).toBeGreaterThanOrEqual(1);
+    const modeChips = screen.getAllByTestId("purchase-preview").flatMap((el) =>
+      Array.from(el.querySelectorAll("[data-network-mode]")),
+    );
+    expect(modeChips.some((el) => el.getAttribute("data-network-mode") === "demo")).toBe(true);
   });
 
   it("clears the composer after a successful send", async () => {
@@ -402,9 +408,12 @@ describe("CommerceChat — checkout dialog reaches a payable receipt", () => {
         within(dialog).getByRole("button", { name: /confirm payment/i }),
       ).toBeInTheDocument(),
     );
-    // And it resolved to a DEMO simulation (no wallet/merchant configured).
+    // And it resolved to a preview (no wallet/merchant configured). The
+    // PaymentAction mode label is the anchored "Preview — no on-chain
+    // settlement" string; the dialog description also mentions no on-chain
+    // settlement, so match the exact mode label.
     expect(
-      within(dialog).getByText(/no on-chain settlement/i),
+      within(dialog).getByText(/^Preview — no on-chain settlement$/),
     ).toBeInTheDocument();
 
     // Settle the DEMO payment. The wallet is never called (strict real-vs-demo
@@ -450,8 +459,12 @@ describe("CommerceChat — checkout dialog reaches a payable receipt", () => {
 
     // The originating inline preview has transitioned to `confirmed`: its
     // Confirm and Cancel controls are gone (so it cannot open a second
-    // checkout / double-fire a settlement) and it shows the terminal copy.
-    expect(screen.getByText(/checkout complete/i)).toBeInTheDocument();
+    // checkout / double-fire a settlement) and the receipt object is shown
+    // in place of the purchase detail table (one receipt object only).
+    expect(screen.getAllByTestId("settlement-proof").length).toBeGreaterThan(0);
+    // The purchase detail table is unmounted — the item name no longer
+    // appears in the preview (the user's echoed command does not contain it).
+    expect(screen.queryByText("Iced Coffee")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /confirm/i }),
     ).not.toBeInTheDocument();
@@ -599,7 +612,8 @@ describe("PurchasePreview — content", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText(/6(\.0+)?\s*SUI/i)).toBeInTheDocument();
     expect(screen.getByText(/River Cafe/)).toBeInTheDocument();
-    expect(screen.getByText(/demo/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Preview$/)).toBeInTheDocument();
+    expect(screen.getByText(/Not submitted/i)).toBeInTheDocument();
   });
 
   it("renders confirm and cancel controls when pending", () => {
@@ -655,6 +669,58 @@ describe("PurchasePreview — content", () => {
 });
 
 // ---------------------------------------------------------------------------
+// PurchasePreview — confirmed receipt replaces the detail table (one object)
+// ---------------------------------------------------------------------------
+
+describe("PurchasePreview — confirmed receipt is one receipt object only", () => {
+  const RECEIPT: PaymentReceipt = {
+    mode: "demo",
+    digest: "DEMO-abcdef0123456789",
+    demo: true,
+    explorerUrl: null,
+    amountMist: "6000000000",
+    merchantAddress: "0x".concat("11".repeat(32)),
+    label: "DEMO simulation — no on-chain settlement",
+  };
+
+  it("unmounts the purchase detail table when a confirmed receipt exists", () => {
+    render(
+      <PurchasePreview
+        preview={PREVIEW}
+        networkMode="demo"
+        status="confirmed"
+        receipt={RECEIPT}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+        onReopen={() => {}}
+      />,
+    );
+    // The receipt object is shown.
+    expect(screen.getByTestId("settlement-proof")).toBeInTheDocument();
+    // The purchase detail table (item name, "Purchase preview" label, unit
+    // price, quantity rows) is unmounted — only one receipt object remains.
+    expect(screen.queryByText("Iced Coffee")).not.toBeInTheDocument();
+    expect(screen.queryByText(/purchase preview/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unit price/i)).not.toBeInTheDocument();
+  });
+
+  it("renders exactly one receipt object (no nested duplicate)", () => {
+    render(
+      <PurchasePreview
+        preview={PREVIEW}
+        networkMode="demo"
+        status="confirmed"
+        receipt={RECEIPT}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+        onReopen={() => {}}
+      />,
+    );
+    expect(screen.getAllByTestId("settlement-proof").length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CheckoutDialog — content, step flow, and settlement seam
 // ---------------------------------------------------------------------------
 
@@ -685,7 +751,7 @@ describe("CheckoutDialog — content and step flow", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Iced Coffee")).toBeInTheDocument();
     expect(within(dialog).getByText(/6(\.0+)?\s*SUI/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/demo/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/^Preview$/)).toBeInTheDocument();
     // Review step offers Continue to payment (not a direct settle).
     expect(
       within(dialog).getByRole("button", { name: /continue to payment/i }),
@@ -839,72 +905,39 @@ describe("CommerceChat — empty state example prompts", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CommerceChat — honest mode/status card
+// CommerceChat — compressed hero and reactive safety lifecycle
 // ---------------------------------------------------------------------------
 
-describe("CommerceChat — honest mode/status chip", () => {
-  it("renders a DEMO status chip that labels simulation honestly", () => {
-    render(<CommerceChat networkMode="demo" />);
-    const status = screen.getByTestId("mode-status");
-    expect(status.getAttribute("data-status-mode")).toBe("demo");
-    expect(status).toHaveTextContent(/demo mode/i);
-    // It must NOT fake a balance or a settlement.
-    expect(status).not.toHaveTextContent(/balance/i);
-    expect(status).not.toHaveTextContent(/settled|settlement complete/i);
-  });
-
-  it("renders a LIVE status chip labelling real testnet", () => {
-    render(<CommerceChat networkMode="live" />);
-    const status = screen.getByTestId("mode-status");
-    expect(status.getAttribute("data-status-mode")).toBe("live");
-    expect(status).toHaveTextContent(/live testnet/i);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// CommerceChat — compressed hero, judge run, and reactive safety lifecycle
-// ---------------------------------------------------------------------------
-
-describe("CommerceChat — compressed hero and judge run", () => {
+describe("CommerceChat — compressed hero", () => {
   it("states one concise promise in the hero heading", () => {
     render(<CommerceChat networkMode="demo" />);
     const h1 = screen.getByRole("heading", { level: 1 });
     expect(h1).toHaveTextContent(/say it.*approve.*settle on sui/i);
   });
 
-  it("renders a clearly labelled 60-second judge run button", () => {
+  it("keeps the mobile hero compact while reserving the cinematic treatment for desktop", () => {
     render(<CommerceChat networkMode="demo" />);
-    const btn = screen.getByTestId("judge-run");
-    expect(btn).toHaveTextContent(/60s judge run/i);
-    expect(btn).not.toBeDisabled();
+
+    const hero = screen.getByTestId("commerce-hero");
+    const heading = screen.getByRole("heading", { level: 1 });
+
+    expect(hero.className).toContain("text-black");
+    expect(hero.className).toContain("md:bg-black");
+    expect(hero.className).toContain("md:text-white");
+    expect(heading.className).toContain("text-xl");
+    expect(heading.className).toContain("md:text-4xl");
   });
 
-  it("judge run populates and submits the golden prompt but never auto-confirms", async () => {
-    const fetchMock = vi.mocked(globalThis.fetch);
-    fetchMock.mockReturnValue(jsonResponse(PREVIEW));
-
+  it("hides the long pitch and three-row proof rail from the mobile first viewport", () => {
     render(<CommerceChat networkMode="demo" />);
-    fireEvent.click(screen.getByTestId("judge-run"));
 
-    // The golden prompt was posted to the typed intent endpoint.
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/commerce/intent",
-        expect.objectContaining({ method: "POST" }),
-      ),
-    );
-    // The typed preview lands in the thread — but in `pending`, so Confirm
-    // is offered (never auto-confirmed). No wallet/checkout dialog opens.
-    expect(await screen.findByRole("button", { name: /confirm/i })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
+    const description = screen.getByTestId("hero-description");
+    const proofRail = screen.getByTestId("hero-proof-rail");
 
-  it("judge run is re-entry guarded while in flight", () => {
-    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
-    render(<CommerceChat networkMode="demo" />);
-    fireEvent.click(screen.getByTestId("judge-run"));
-    // While loading, the button is disabled.
-    expect(screen.getByTestId("judge-run")).toBeDisabled();
+    expect(description.className).toContain("hidden");
+    expect(description.className).toContain("md:block");
+    expect(proofRail.className).toContain("hidden");
+    expect(proofRail.className).toContain("md:grid");
   });
 });
 
@@ -940,6 +973,207 @@ describe("CommerceChat — reactive safety lifecycle", () => {
       '[data-safety-phase="confirmation"]',
     );
     expect(phase?.getAttribute("data-safety-active")).toBe("true");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — hero collapse + outcome stage object
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — hero collapse and outcome stage", () => {
+  it("hides the slogan hero once the safety phase is proof (after settlement)", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    // Hero is present before settlement.
+    expect(screen.getByTestId("commerce-hero")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /continue to payment/i }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /confirm payment/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByTestId("settlement-proof").length).toBeGreaterThan(0),
+    );
+
+    // The slogan hero is collapsed/hidden once the proof phase is reached so
+    // the receipt monument — not the slogan — owns the first viewport.
+    const hero = screen.queryByTestId("commerce-hero");
+    if (hero) {
+      // If the node is kept in the DOM it must be hidden on every viewport.
+      expect(hero.className).toContain("hidden");
+    }
+  });
+
+  it("renders an outcome stage object that fills the desktop canvas", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const stage = screen.getByTestId("outcome-stage");
+    // It is a desktop object (hidden on mobile to keep the mobile first
+    // viewport compact), rendered as a block-level canvas-filling object.
+    expect(stage.className).toContain("hidden");
+    expect(stage.className).toContain("lg:flex");
+  });
+
+  it("outcome stage is a bounded black payment instrument card, not a full-width band", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const stage = screen.getByTestId("outcome-stage");
+    // The wrapper is TRANSPARENT — it must not carry the black band grammar
+    // itself; the bounded card is a separate inner object.
+    expect(stage.className).not.toContain("bg-black");
+    // The bounded black card lives inside the wrapper.
+    const card = screen.getByTestId("outcome-card");
+    expect(card.className).toContain("bg-black");
+    expect(card.className).toContain("text-white");
+    // Strongly bounded: a max-width, rounded corners, and a soft shadow so it
+    // reads as a discrete tactile object separate from the off-white page.
+    expect(card.className).toContain("max-w-[420px]");
+    expect(card.className).toContain("rounded-[28px]");
+    expect(card.className).toMatch(/shadow-\[/);
+    // Centered (not a full-width band).
+    expect(card.className).toContain("mx-auto");
+  });
+
+  it("outcome stage is the desktop apex: it precedes the marketing hero in DOM order so money, not copy, owns the first viewport", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    const shell = container.querySelector('[data-palette="monochrome"]');
+    expect(shell).not.toBeNull();
+    // The first block-level instrument child is the outcome stage slab.
+    const stage = shell!.querySelector('[data-testid="outcome-stage"]');
+    const hero = shell!.querySelector('[data-testid="commerce-hero"]');
+    expect(stage).not.toBeNull();
+    expect(hero).not.toBeNull();
+    // compareDocumentPosition: Node.DOCUMENT_POSITION_FOLLOWING = 4
+    // The hero must come AFTER the stage in DOM order.
+    expect(stage!.compareDocumentPosition(hero!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    // The marketing hero is collapsed on desktop so it cannot compete with
+    // the slab for the first viewport.
+    expect(hero!.className).toContain("lg:hidden");
+    expect(stage!.className).not.toContain("mt-4");
+  });
+
+  it("places the payment instrument and complete command surface in one desktop grid", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const workspace = screen.getByTestId("desktop-payment-workspace");
+    const stage = screen.getByTestId("outcome-stage");
+    const command = screen.getByTestId("command-workspace");
+    expect(workspace.className).toContain("lg:grid-cols-");
+    expect(stage.parentElement).toBe(workspace);
+    expect(command.parentElement).toBe(workspace);
+    expect(command).toContainElement(screen.getByRole("textbox"));
+    expect(command).toContainElement(screen.getByRole("button", { name: /send/i }));
+  });
+
+  it("embeds the desktop lifecycle inside the command workspace", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const command = screen.getByTestId("command-workspace");
+    const lifecycle = screen.getByTestId("safety-lifecycle");
+    expect(command).toContainElement(lifecycle);
+    expect(lifecycle.className).toContain("grid-cols-4");
+  });
+
+  it("outcome stage shows a dormant black slab (0.00 SUI, AWAITING, dash digest) before any preview", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const stage = screen.getByTestId("outcome-stage");
+    expect(stage.getAttribute("data-outcome-phase")).toBe("language");
+    // Black card grammar with white text — not a white explanatory hole.
+    const card = screen.getByTestId("outcome-card");
+    expect(card.className).toContain("bg-black");
+    expect(card.className).toContain("text-white");
+    // Status pill reads AWAITING before any intent.
+    const pill = screen.getByTestId("outcome-status-pill");
+    expect(pill.getAttribute("data-outcome-status")).toBe("awaiting");
+    expect(pill).toHaveTextContent(/awaiting/i);
+    // Huge tabular amount shows a dominant 0.00 + SUI at rest — a real zero,
+    // not a ghosted dash — so money is the visual apex even when dormant.
+    const amount = screen.getByTestId("outcome-amount");
+    expect(amount).toHaveTextContent(/0\.00/i);
+    expect(amount).toHaveTextContent(/sui/i);
+    expect(amount).not.toHaveTextContent(/—/);
+    // Digest mark is a dash before settlement — no fake digest.
+    const digest = screen.getByTestId("outcome-digest");
+    expect(digest).toHaveTextContent(/—/);
+    // An explicit awaiting caption makes the dormant state honest.
+    expect(screen.getByTestId("outcome-awaiting-caption")).toHaveTextContent(
+      /awaiting/i,
+    );
+    // Honest: never fakes a settlement or balance.
+    expect(card).not.toHaveTextContent(/settled|settlement complete/i);
+    expect(card).not.toHaveTextContent(/balance/i);
+    // No "Awaiting intent" paragraph or second headline remains.
+    expect(card).not.toHaveTextContent(/awaiting intent/i);
+  });
+
+  it("outcome stage shows the validated amount, VALIDATED status, and no-settlement claim once a preview lands", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    const stage = screen.getByTestId("outcome-stage");
+    expect(stage.getAttribute("data-outcome-phase")).toBe("confirmation");
+    // The validated total (6 SUI) appears in the slab amount.
+    const amount = screen.getByTestId("outcome-amount");
+    expect(amount).toHaveTextContent(/6(\.0+)?\s*SUI/i);
+    // Status pill reads VALIDATED after the preview lands.
+    const pill = screen.getByTestId("outcome-status-pill");
+    expect(pill.getAttribute("data-outcome-status")).toBe("validated");
+    expect(pill).toHaveTextContent(/validated/i);
+    // Digest is still a dash — validated is not settlement.
+    const digest = screen.getByTestId("outcome-digest");
+    expect(digest).toHaveTextContent(/—/);
+    // Honest no-settlement claim is present for the validated state.
+    expect(stage).toHaveTextContent(/not a settlement/i);
+    // No fake settlement language.
+    expect(stage).not.toHaveTextContent(/settled|settlement complete/i);
+  });
+
+  it("outcome stage shows the compact digest and PROOF status after settlement", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /continue to payment/i }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /confirm payment/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByTestId("settlement-proof").length).toBeGreaterThan(0),
+    );
+    const stage = screen.getByTestId("outcome-stage");
+    expect(stage.getAttribute("data-outcome-phase")).toBe("proof");
+    // Status pill reads PROOF after settlement.
+    const pill = screen.getByTestId("outcome-status-pill");
+    expect(pill.getAttribute("data-outcome-status")).toBe("proof");
+    expect(pill).toHaveTextContent(/proof/i);
+    // Digest mark is the actual compact digest — not a dash.
+    const digest = screen.getByTestId("outcome-digest");
+    expect(digest).toHaveTextContent(/DEMO/i);
+    expect(digest).not.toHaveTextContent(/—/);
   });
 });
 
@@ -1089,4 +1323,409 @@ describe("CommerceChat — restrained motion", () => {
       }
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — preview/result messages use the full chat width
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — full-width preview/result messages", () => {
+  it("renders a confirmed receipt in a full-width, flush result block (no bubble inset)", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /continue to payment/i }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /confirm payment/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByTestId("settlement-proof").length).toBeGreaterThan(0),
+    );
+
+    // The wrapper around the thread receipt is a full-width result block that
+    // does NOT inset the receipt with ordinary chat-bubble horizontal padding,
+    // so identifiers and actions get the full thread width on mobile. The
+    // thread receipt is the one nested inside a data-message-preview block
+    // (the desktop outcome stage also renders a receipt monument).
+    const threadReceipt = screen
+      .getAllByTestId("settlement-proof")
+      .find((el) => el.closest("[data-message-preview='true']") != null);
+    expect(threadReceipt).toBeDefined();
+    const wrapper = threadReceipt!.closest("[data-message-preview='true']");
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.className).toContain("w-full");
+    expect(wrapper!.className).not.toContain("max-w-[90%]");
+    expect(wrapper!.className).not.toContain("px-3.5");
+  });
+
+  it("keeps ordinary assistant text bubbles constrained and padded", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(CLARIFICATION));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "buy iced coffee from river cafe" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/quantity is required/i)).toBeInTheDocument(),
+    );
+
+    // An ordinary assistant clarification is a constrained, padded chat
+    // bubble — not a full-width result block.
+    const bubble = screen
+      .getByText(/quantity is required/i)
+      .closest("[data-message-preview='false']");
+    expect(bubble).not.toBeNull();
+    expect(bubble!.className).toContain("max-w-[90%]");
+    expect(bubble!.className).toContain("px-3.5");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — outcome slab readiness zone (payment instrument, not billboard)
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — outcome slab readiness zone", () => {
+  it("renders a large central readiness target in the AWAITING card", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const readiness = screen.getByTestId("outcome-readiness");
+    // The readiness target is CENTRAL (a flex column centered in the card),
+    // not a vacant fixed-width right column.
+    expect(readiness.className).toContain("flex-col");
+    expect(readiness.className).toContain("items-center");
+    expect(readiness.className).not.toContain("lg:w-[200px]");
+    // It carries an honest idle state marker.
+    expect(readiness.getAttribute("data-readiness")).toBe("idle");
+    // The readiness rings are LARGE — they occupy a meaningful share of the
+    // card area, not a faint corner glyph (>= 160px).
+    const svg = readiness.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(Number(svg!.getAttribute("width"))).toBeGreaterThanOrEqual(160);
+  });
+
+  it("idle readiness label invites input without implying recording", () => {
+    voice.supported = true;
+    voice.listening = false;
+    render(<CommerceChat networkMode="demo" />);
+    const label = screen.getByTestId("outcome-readiness-label");
+    expect(label).toHaveTextContent(/say or type to begin/i);
+    // Honest: idle must NOT claim listening/recording.
+    expect(label.getAttribute("data-readiness-listening")).toBeFalsy();
+    expect(label).not.toHaveTextContent(/listening/i);
+  });
+
+  it("listening readiness label honestly reflects an active recognition session", () => {
+    voice.supported = true;
+    voice.listening = true;
+    render(<CommerceChat networkMode="demo" />);
+    const readiness = screen.getByTestId("outcome-readiness");
+    expect(readiness.getAttribute("data-readiness")).toBe("listening");
+    const label = screen.getByTestId("outcome-readiness-label");
+    expect(label).toHaveTextContent(/listening/i);
+    expect(label.getAttribute("data-readiness-listening")).toBe("true");
+  });
+
+  it("unsupported voice shows a type-only readiness label (no false SAY)", () => {
+    voice.supported = false;
+    voice.listening = false;
+    render(<CommerceChat networkMode="demo" />);
+    const label = screen.getByTestId("outcome-readiness-label");
+    expect(label).toHaveTextContent(/type to begin/i);
+    expect(label).not.toHaveTextContent(/say/i);
+  });
+
+  it("readiness zone never implies transaction, funds, settlement, or NFC", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const readiness = screen.getByTestId("outcome-readiness");
+    const label = screen.getByTestId("outcome-readiness-label");
+    // The readiness copy stays honest about what is NOT happening: it must
+    // not claim a transaction, funds, settlement, NFC, or recording. (The
+    // left column's "no transaction yet" caption is a separate honest
+    // negative claim, scoped to the amount column, not the readiness zone.)
+    expect(readiness).not.toHaveTextContent(/\btransaction\b/i);
+    expect(readiness).not.toHaveTextContent(/\bfunds\b/i);
+    expect(readiness).not.toHaveTextContent(/settled|settlement complete/i);
+    expect(readiness).not.toHaveTextContent(/\bnfc\b/i);
+    expect(readiness).not.toHaveTextContent(/recording/i);
+    expect(label).not.toHaveTextContent(/\btransaction\b/i);
+    expect(label).not.toHaveTextContent(/\bfunds\b/i);
+    expect(label).not.toHaveTextContent(/settl/i);
+    expect(label).not.toHaveTextContent(/\bnfc\b/i);
+  });
+
+  it("readiness rings are static (no infinite decorative animation)", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    const readiness = screen.getByTestId("outcome-readiness");
+    const svg = readiness.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg!.getAttribute("aria-hidden")).toBe("true");
+    // No decorative infinite animation classes leak onto the readiness zone.
+    for (const frag of ["cv-marquee", "cv-drift", "cv-scanline", "cv-shimmer"]) {
+      expect(readiness.querySelector(`.${frag}`)).toBeNull();
+    }
+    // The whole shell still has no decorative infinite animation.
+    for (const frag of ["cv-marquee", "cv-drift", "cv-scanline", "cv-shimmer"]) {
+      expect(container.querySelector(`.${frag}`)).toBeNull();
+    }
+  });
+
+  it("readiness zone disappears deliberately once a preview lands (VALIDATED)", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    // The readiness zone is gone once the instrument carries a value; the
+    // amount/digest column owns the full width.
+    expect(screen.queryByTestId("outcome-readiness")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("outcome-readiness-label")).not.toBeInTheDocument();
+    // The slab still shows the validated amount and honest no-settlement claim.
+    expect(screen.getByTestId("outcome-amount")).toHaveTextContent(/6(\.0+)?\s*SUI/i);
+    expect(screen.getByTestId("outcome-stage")).toHaveTextContent(/not a settlement/i);
+  });
+
+  it("readiness zone stays gone after settlement (PROOF)", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /continue to payment/i }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /confirm payment/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByTestId("settlement-proof").length).toBeGreaterThan(0),
+    );
+    // No readiness zone in the proof state.
+    expect(screen.queryByTestId("outcome-readiness")).not.toBeInTheDocument();
+    // The compact digest is shown instead.
+    expect(screen.getByTestId("outcome-digest")).toHaveTextContent(/DEMO/i);
+  });
+
+  it("amount and SUI are tightly coupled as one currency object (amount largest)", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const amount = screen.getByTestId("outcome-amount");
+    // The amount and its SUI suffix live in the same tabular-nums line.
+    expect(amount.className).toContain("tabular-nums");
+    expect(amount).toHaveTextContent(/0\.00/i);
+    expect(amount).toHaveTextContent(/sui/i);
+    // The SUI suffix is a child span with a tight margin (not far separated).
+    const sui = amount.querySelector("span");
+    expect(sui).not.toBeNull();
+    expect(sui!.className).toContain("ml-1.5");
+    // The amount remains the dominant typographic element in the tray: its
+    // md size is 48px, larger than the SUI suffix (16px) and the overline.
+    expect(amount.className).toContain("md:text-[48px]");
+    expect(sui!.className).toContain("md:text-[16px]");
+  });
+
+  it("fuses amount and interaction cue on one white inset tray near the card bottom", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const amount = screen.getByTestId("outcome-amount");
+    const cue = screen.getByTestId("outcome-action-cue");
+    // Both the amount and the mic/arrow cue share the SAME white inset tray
+    // (their nearest common ancestor is the white surface), so amount and
+    // action are never separated by a void.
+    const tray = amount.closest(".bg-white");
+    expect(tray).not.toBeNull();
+    expect(cue.closest(".bg-white")).toBe(tray);
+    // The tray is white inset on the black card — high contrast, tactile.
+    expect(tray!.className).toContain("bg-white");
+    expect(tray!.className).toContain("rounded-2xl");
+    // The cue carries a mic glyph and an arrow glyph (SVGs).
+    expect(cue.querySelectorAll("svg").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("exposes the listening-off state to assistive tech (no false listening implication)", () => {
+    voice.supported = true;
+    voice.listening = false;
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    // A visually-hidden aria-live region states the microphone is off and no
+    // transaction is in progress, so "listening off" is never merely implied.
+    const live = container.querySelector('[aria-live="polite"].sr-only');
+    expect(live).not.toBeNull();
+    expect(live!.textContent).toMatch(/microphone off/i);
+    expect(live!.textContent).toMatch(/no transaction/i);
+  });
+
+  it("announces an active listening session to assistive tech", () => {
+    voice.supported = true;
+    voice.listening = true;
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    const live = container.querySelector('[aria-live="polite"].sr-only');
+    expect(live).not.toBeNull();
+    expect(live!.textContent).toMatch(/microphone on/i);
+    expect(live!.textContent).toMatch(/listening/i);
+  });
+
+  it("stays coherent when readiness rings transform: VALIDATED shows a stage mark, readiness gone", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    // The readiness target is gone; a coherent stage mark occupies the center.
+    expect(screen.queryByTestId("outcome-readiness")).not.toBeInTheDocument();
+    const mark = screen.getByTestId("outcome-stage-mark");
+    expect(mark.getAttribute("data-stage-mark")).toBe("validated");
+    // The card still shows the validated amount and honest no-settlement claim.
+    expect(screen.getByTestId("outcome-amount")).toHaveTextContent(/6(\.0+)?\s*SUI/i);
+    expect(screen.getByTestId("outcome-card")).toHaveTextContent(/not a settlement/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Canned example prompts — every visible canned example must be a reliable
+// golden path. Clicking a card populates the composer with its command;
+// clicking Send must submit EXACTLY that command (the submitted user message
+// and limit must never drift), and the response — produced through the SAME
+// real parser/catalog path the UI uses at runtime — must be a pending
+// validated preview whose displayed merchant/item/quantity match the card and
+// whose total never exceeds the displayed cap. No auto-confirm or settlement.
+// ---------------------------------------------------------------------------
+
+/** fetch mock backed by the REAL parseIntent + catalog, mirroring the
+ *  /api/commerce/intent contract (zod { text } → parseIntent → JSON). */
+function realIntentFetch(): ReturnType<typeof vi.fn> {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const body = init?.body ? (JSON.parse(init.body as string) as { text: string }) : { text: "" };
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(parseIntent(body.text)),
+    } as unknown as Response);
+  });
+}
+
+const CANNED_EXAMPLES = [
+  {
+    label: "Two iced coffees",
+    sub: "River Cafe · under 8 SUI",
+    command: "Buy two iced coffees under 8 SUI from River Cafe",
+    expectItem: "Iced Coffee",
+    expectMerchant: "River Cafe",
+    expectQuantity: 2,
+  },
+  {
+    label: "Lunch bowl",
+    sub: "Green Kitchen · under 12 SUI",
+    command: "Order one lunch bowl under 12 SUI from Green Kitchen",
+    expectItem: "Lunch Bowl",
+    expectMerchant: "Green Kitchen",
+    expectQuantity: 1,
+  },
+  {
+    label: "Three cold brews",
+    sub: "Daybreak Coffee · under 6 SUI",
+    command: "Get three cold brews under 6 SUI from Daybreak Coffee",
+    expectItem: "Cold Brew",
+    expectMerchant: "Daybreak Coffee",
+    expectQuantity: 3,
+  },
+] as const;
+
+describe("CommerceChat — canned example prompts", () => {
+  it("renders exactly the three visible canned example cards", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const cards = screen.getAllByTestId("example-prompt");
+    expect(cards).toHaveLength(3);
+    // Each label is visible.
+    for (const ex of CANNED_EXAMPLES) {
+      expect(screen.getByText(ex.label)).toBeInTheDocument();
+    }
+  });
+
+  it.each(CANNED_EXAMPLES)(
+    "$label: clicking the card populates the composer with the exact command (no drift before send)",
+    (ex) => {
+      render(<CommerceChat networkMode="demo" />);
+      const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+      // Find the example card by its aria-label which embeds the full command.
+      fireEvent.click(screen.getByRole("button", { name: `Try: ${ex.command}` }));
+      expect(input.value).toBe(ex.command);
+    },
+  );
+
+  it.each(CANNED_EXAMPLES)(
+    "$label: send submits the exact command and reaches a pending validated preview with displayed merchant/item/qty and total <= cap",
+    async (ex) => {
+      const fetchMock = realIntentFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<CommerceChat networkMode="demo" />);
+      const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+
+      // Click the canned example, then Send — the production dogfood path.
+      fireEvent.click(screen.getByRole("button", { name: `Try: ${ex.command}` }));
+      expect(input.value).toBe(ex.command);
+      fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      // The submitted request body is EXACTLY the selected command — the
+      // submitted user message and limit must never drift from the card.
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/commerce/intent",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({ text: ex.command }),
+          }),
+        ),
+      );
+
+      // The echoed user chat bubble shows the exact command (no limit drift).
+      // The golden prompt also appears as an always-visible header hint, so
+      // assert at least one element renders the exact command text.
+      expect(screen.getAllByText(ex.command).length).toBeGreaterThanOrEqual(1);
+
+      // A pending validated preview lands — not a clarification, not a
+      // settlement. The displayed merchant/item/quantity match the card.
+      await waitFor(() =>
+        expect(screen.getByTestId("purchase-preview")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/not found in catalog/i)).not.toBeInTheDocument();
+      // Scope merchant/item/quantity to the preview card so the assertions
+      // do not collide with the always-visible safety-lifecycle step numbers
+      // (1-4) or the golden-prompt header hint.
+      const preview = screen.getByTestId("purchase-preview");
+      expect(within(preview).getByText(ex.expectItem)).toBeInTheDocument();
+      expect(within(preview).getAllByText(ex.expectMerchant).length).toBeGreaterThan(0);
+      expect(within(preview).getByText(String(ex.expectQuantity))).toBeInTheDocument();
+
+      // The preview is pending: Confirm + Cancel are present; no settlement
+      // proof is rendered (no auto-confirm or fake settlement).
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+      expect(screen.queryAllByTestId("settlement-proof")).toHaveLength(0);
+
+      // The composer is cleared after the send.
+      expect(input.value).toBe("");
+    },
+  );
 });

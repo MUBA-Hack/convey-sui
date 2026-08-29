@@ -75,9 +75,9 @@ describe("QrFerry — handoff to the same guarded checkout", () => {
     // Continue to checkout hands the validated envelope into PaymentAction.
     fireEvent.click(screen.getByRole("button", { name: /Continue to checkout/i }));
 
-    // PaymentAction is now mounted: the DEMO simulation label and the
+    // PaymentAction is now mounted: the preview mode label and the
     // payable Confirm control are present — the same guarded path as home.
-    expect(screen.getByText(/DEMO simulation/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Preview — no on-chain settlement$/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Confirm payment/i }),
     ).toBeInTheDocument();

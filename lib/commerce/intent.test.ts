@@ -282,3 +282,99 @@ describe("POST /api/commerce/intent", () => {
     expect(json).not.toContain("transactionBlock");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Canned example prompts — every visible canned example must be a reliable
+// golden path through the SAME parser/catalog path the UI uses. The label,
+// sub-label, and command string are duplicated from
+// `components/commerce/commerce-chat.tsx` EXAMPLE_PROMPTS so a contract drift
+// between the UI examples and the parser/catalog fails a test here.
+// ---------------------------------------------------------------------------
+
+const CANNED_EXAMPLES = [
+  {
+    label: "Two iced coffees",
+    sub: "River Cafe · under 8 SUI",
+    command: "Buy two iced coffees under 8 SUI from River Cafe",
+    expectItem: "Iced Coffee",
+    expectMerchant: "River Cafe",
+    expectQuantity: 2,
+  },
+  {
+    label: "Lunch bowl",
+    sub: "Green Kitchen · under 12 SUI",
+    command: "Order one lunch bowl under 12 SUI from Green Kitchen",
+    expectItem: "Lunch Bowl",
+    expectMerchant: "Green Kitchen",
+    expectQuantity: 1,
+  },
+  {
+    label: "Three cold brews",
+    sub: "Daybreak Coffee · under 6 SUI",
+    command: "Get three cold brews under 6 SUI from Daybreak Coffee",
+    expectItem: "Cold Brew",
+    expectMerchant: "Daybreak Coffee",
+    expectQuantity: 3,
+  },
+] as const;
+
+/** Extract the displayed cap (in SUI) from a sub-label like "River Cafe · under 8 SUI". */
+function capSuiFromSub(sub: string): bigint {
+  const m = sub.match(/under\s+(\d+(?:\.\d+)?)\s*sui/i);
+  if (!m) throw new Error(`No cap in sub: ${sub}`);
+  const [intPart, fracPart = ""] = m[1]!.split(".");
+  const fracPadded = (fracPart + "000000000").slice(0, 9);
+  return BigInt(intPart + fracPadded);
+}
+
+describe("parseIntent — every canned example resolves to a validated preview", () => {
+  it.each(CANNED_EXAMPLES)(
+    "$label: command → pending preview with displayed merchant/item/qty and total <= cap",
+    (ex) => {
+      const result = parseIntent(ex.command);
+      expect(result.kind).toBe("preview");
+      if (result.kind !== "preview") return;
+
+      // Displayed merchant/item/quantity match the example label truth.
+      expect(result.item.name).toBe(ex.expectItem);
+      expect(result.merchant.name).toBe(ex.expectMerchant);
+      expect(result.quantity).toBe(ex.expectQuantity);
+
+      // The cap parsed from the command must equal the cap shown on the card
+      // sub-label — the submitted limit must never drift from the displayed one.
+      expect(result.priceCeilingMist).not.toBeNull();
+      const capMist = BigInt(result.priceCeilingMist!);
+      expect(capMist).toBe(capSuiFromSub(ex.sub));
+
+      // Total never exceeds the displayed cap.
+      expect(BigInt(result.totalMist) <= capMist).toBe(true);
+
+      // No executable payload ever leaks from the parser.
+      const json = JSON.stringify(result);
+      expect(json).not.toContain("txBytes");
+      expect(json).not.toContain("signature");
+    },
+  );
+});
+
+describe("POST /api/commerce/intent — every canned example resolves via the API contract", () => {
+  it.each(CANNED_EXAMPLES)(
+    "$label: API returns a 200 preview with displayed merchant/item/qty",
+    async (ex) => {
+      const { POST } = await import("@/app/api/commerce/intent/route");
+      const req = new Request("http://localhost/api/commerce/intent", {
+        method: "POST",
+        body: JSON.stringify({ text: ex.command }),
+        headers: { "content-type": "application/json" },
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.kind).toBe("preview");
+      expect(body.item.name).toBe(ex.expectItem);
+      expect(body.merchant.name).toBe(ex.expectMerchant);
+      expect(body.quantity).toBe(ex.expectQuantity);
+      expect(BigInt(body.totalMist) <= BigInt(body.priceCeilingMist)).toBe(true);
+    },
+  );
+});

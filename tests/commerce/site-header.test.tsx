@@ -8,11 +8,11 @@ import "@testing-library/jest-dom/vitest";
  * DOM tests pinning the commerce site header navigation.
  *
  * The header is the commerce shell's primary nav: the Convey brand mark,
- * Shop, QR Ferry, Build progress, and the wallet control. These tests pin
+ * Pay, Relay, Protect, Verify, and the wallet control. These tests pin
  * that the commerce routes render and are marked active for the current
  * path, that the brand mark is present, that the wallet control renders,
  * and that no dead legacy hrefs (/app, /fact-check, /claims, /agents,
- * /verify, /status) survive in the DOM.
+ * /verify, /status, /build-progress) survive in the DOM.
  *
  * Next routing (`usePathname`) and `next/link` are mocked so the test stays
  * a fast, isolated DOM test. The wallet button is mocked so it does not
@@ -21,7 +21,7 @@ import "@testing-library/jest-dom/vitest";
 
 // Hoisted mutable holder so the mocked usePathname can be reconfigured per
 // test without re-evaluating the vi.mock factory.
-const { pathname } = vi.hoisted(() => ({ pathname: { current: "/build-progress" } }));
+const { pathname } = vi.hoisted(() => ({ pathname: { current: "/" } }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
@@ -58,10 +58,10 @@ vi.mock("next/image", () => ({
 
 import { SiteHeader } from "@/components/site-header";
 
-const DEAD_HREFS = ["/app", "/fact-check", "/claims", "/agents", "/verify", "/status"];
+const DEAD_HREFS = ["/app", "/fact-check", "/claims", "/agents", "/verify", "/status", "/build-progress"];
 
 beforeEach(() => {
-  pathname.current = "/build-progress";
+  pathname.current = "/";
 });
 
 afterEach(() => {
@@ -69,28 +69,30 @@ afterEach(() => {
 });
 
 describe("SiteHeader — commerce navigation", () => {
-  it("renders the Shop, QR Ferry, and Build progress commerce links", () => {
+  it("renders the Pay, Relay, Protect, and Verify commerce links", () => {
     render(<SiteHeader />);
 
-    const shop = screen.getByRole("link", { name: "Shop" });
-    const qrFerry = screen.getByRole("link", { name: "QR Ferry" });
-    const buildProgress = screen.getByRole("link", { name: "Build progress" });
+    const pay = screen.getByRole("link", { name: "Pay" });
+    const relay = screen.getByRole("link", { name: "Relay" });
+    const protect = screen.getByRole("link", { name: "Protect" });
+    const verify = screen.getByRole("link", { name: "Verify" });
 
-    expect(shop).toHaveAttribute("href", "/");
-    expect(qrFerry).toHaveAttribute("href", "/qr-ferry");
-    expect(buildProgress).toHaveAttribute("href", "/build-progress");
+    expect(pay).toHaveAttribute("href", "/");
+    expect(relay).toHaveAttribute("href", "/qr-ferry");
+    expect(protect).toHaveAttribute("href", "/strategy");
+    expect(verify).toHaveAttribute("href", "/proof");
   });
 
   it("marks the active commerce route with aria-current=page", () => {
-    pathname.current = "/build-progress";
+    pathname.current = "/qr-ferry";
     render(<SiteHeader />);
 
-    const buildProgress = screen.getByRole("link", { name: "Build progress" });
-    expect(buildProgress).toHaveAttribute("aria-current", "page");
-    expect(buildProgress).toHaveAttribute("data-active", "true");
+    const relay = screen.getByRole("link", { name: "Relay" });
+    expect(relay).toHaveAttribute("aria-current", "page");
+    expect(relay).toHaveAttribute("data-active", "true");
 
     // Non-active commerce links are not marked current.
-    expect(screen.getByRole("link", { name: "Shop" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Pay" })).not.toHaveAttribute("aria-current");
   });
 });
 
@@ -109,7 +111,7 @@ describe("SiteHeader — brand mark", () => {
 
 describe("SiteHeader — consistent sticky light header on every route", () => {
   it("renders a sticky header (not fixed) so it is consistent on all routes", () => {
-    for (const path of ["/", "/qr-ferry", "/build-progress"]) {
+    for (const path of ["/", "/qr-ferry", "/strategy", "/proof"]) {
       pathname.current = path;
       cleanup();
       const { container } = render(<SiteHeader />);
@@ -122,7 +124,7 @@ describe("SiteHeader — consistent sticky light header on every route", () => {
   });
 
   it("does not render the landing top-blur chrome on any route", () => {
-    for (const path of ["/", "/qr-ferry", "/build-progress"]) {
+    for (const path of ["/", "/qr-ferry", "/proof"]) {
       pathname.current = path;
       cleanup();
       const { container } = render(<SiteHeader />);
@@ -192,7 +194,7 @@ describe("SiteHeader — strict monochrome", () => {
   it("the active nav chip uses the monochrome chip, not the blue accent variant", () => {
     pathname.current = "/qr-ferry";
     render(<SiteHeader />);
-    const active = screen.getByRole("link", { name: "QR Ferry" });
+    const active = screen.getByRole("link", { name: "Relay" });
     expect(active.getAttribute("data-active")).toBe("true");
     const cls = active.getAttribute("class") ?? "";
     expect(cls).toContain("cv-nav-chip");

@@ -3,16 +3,17 @@ import Link from "next/link";
 /**
  * Convey footer — compact black-and-white close.
  *
- * A minimal monochrome strip: the wordmark, the three commerce routes, a
+ * A minimal monochrome strip: the wordmark, the commerce routes, a
  * back-to-top anchor, and the copyright line. No blue gradient, no giant
  * scrolling wordmark, no marketing block. Black ground, white type, hairline
  * rule. This is presentation only — it carries no functional or security
  * logic.
  */
 const NAVIGATION = [
-  { href: "/", label: "Shop" },
-  { href: "/qr-ferry", label: "QR Ferry" },
-  { href: "/build-progress", label: "Build progress" },
+  { href: "/", label: "Pay" },
+  { href: "/qr-ferry", label: "Relay" },
+  { href: "/strategy", label: "Protect" },
+  { href: "/proof", label: "Verify" },
 ];
 
 function ArrowUp({ size = 14 }: { size?: number }) {

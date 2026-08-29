@@ -113,7 +113,7 @@ describe("QrFerry — structure and transport explanation", () => {
   it("renders the page route with the main heading", () => {
     render(<QrFerryPage />);
     expect(
-      screen.getByRole("heading", { name: /Offline QR Ferry/i }),
+      screen.getByRole("heading", { name: /Relay/i }),
     ).toBeInTheDocument();
   });
 });

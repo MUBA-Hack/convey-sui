@@ -47,6 +47,19 @@ export function PurchasePreview({
   onCancel,
   onReopen,
 }: PurchasePreviewProps) {
+  // When settlement is confirmed AND a receipt exists, the purchase detail
+  // table is unmounted and exactly one receipt object takes its place — the
+  // completed settlement is a single stage-scale object, not a table plus a
+  // nested receipt. Before that, the validated preview table + confirm gate
+  // remain the protagonist.
+  if (status === "confirmed" && receipt) {
+    return (
+      <div data-testid="purchase-preview" className="cv-preview-in mt-3">
+        <SettlementProofCard receipt={receipt} />
+      </div>
+    );
+  }
+
   const totalSui = mistToSui(preview.totalMist);
   const unitSui = mistToSui(preview.unitPriceMist);
 
@@ -63,7 +76,7 @@ export function PurchasePreview({
           className="inline-flex items-center rounded-full border border-black/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-600"
           data-network-mode={networkMode}
         >
-          {networkMode === "live" ? "Live testnet" : "Demo"}
+          {networkMode === "live" ? "Live testnet" : "Preview"}
         </span>
       </div>
 
@@ -86,7 +99,7 @@ export function PurchasePreview({
         <dd className="font-medium">{preview.merchant.name}</dd>
 
         <dt className="text-neutral-500">Network</dt>
-        <dd className="text-neutral-700">{networkMode === "live" ? "Live testnet" : "Simulation"}</dd>
+        <dd className="text-neutral-700">{networkMode === "live" ? "Live testnet" : "Not submitted"}</dd>
       </dl>
 
       {status === "pending" && (
@@ -127,11 +140,7 @@ export function PurchasePreview({
       {status === "confirmed" && (
         <div className="mt-4 space-y-3">
           <p className="text-sm font-medium">Checkout complete.</p>
-          {receipt ? (
-            <SettlementProofCard receipt={receipt} />
-          ) : (
-            <p className="text-xs text-neutral-500">Receipt pending sync.</p>
-          )}
+          <p className="text-xs text-neutral-500">Receipt pending sync.</p>
         </div>
       )}
     </div>

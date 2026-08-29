@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useCurrentAccount, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
 import { Warning2 } from "@/components/icons";
-import { Button } from "@/components/ui/button";
 import { SettlementProofCard } from "@/components/commerce/settlement-proof-card";
 import {
   buildExplorerUrl,
@@ -54,7 +53,7 @@ function mistToSui(mist: string): string {
 
 /** Shorten an address for display while keeping the full value available. */
 function shortAddress(addr: string | null): string {
-  if (!addr) return "Simulation — no merchant configured";
+  if (!addr) return "Not submitted — no merchant configured";
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
@@ -123,7 +122,7 @@ export function PaymentAction({ preview, onCancel, onSettled, onPendingChange }:
       // No wallet, no chain. Deterministic DEMO receipt only.
       const demoReceipt = createDemoReceipt({
         amountMist: preview.totalMist,
-        merchantAddress: merchantAddress ?? "0x0",
+        merchantAddress: merchantAddress ?? `0x${"0".repeat(64)}`,
         merchantName: preview.merchant.name,
         itemName: preview.item.name,
         quantity: preview.quantity,
@@ -200,7 +199,7 @@ export function PaymentAction({ preview, onCancel, onSettled, onPendingChange }:
           {isReal ? (
             <span className="font-semibold text-foreground">Real testnet transfer</span>
           ) : (
-            <span className="font-semibold text-foreground">DEMO simulation — no on-chain settlement</span>
+            <span className="font-semibold text-foreground">Preview — no on-chain settlement</span>
           )}
         </div>
       </div>
@@ -212,17 +211,17 @@ export function PaymentAction({ preview, onCancel, onSettled, onPendingChange }:
       )}
 
       <div className="flex gap-2">
-        <Button
+        <button
           type="button"
-          className="min-h-[44px] flex-1"
+          className="cv-btn-ghost min-h-[44px] flex-1 rounded-lg px-4 text-xs font-medium uppercase tracking-wide"
           onClick={onCancel}
           disabled={status === "pending" || status === "settled"}
         >
           Cancel
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
-          className="min-h-[44px] flex-1"
+          className="cv-btn-solid min-h-[44px] flex-1 rounded-lg px-4 text-xs font-medium uppercase tracking-wide"
           onClick={handleConfirm}
           disabled={status === "pending" || status === "settled"}
           aria-busy={status === "pending"}
@@ -232,7 +231,7 @@ export function PaymentAction({ preview, onCancel, onSettled, onPendingChange }:
             : status === "settled"
               ? "Settled"
               : "Confirm payment"}
-        </Button>
+        </button>
       </div>
 
       {status === "error" && errorCode && (

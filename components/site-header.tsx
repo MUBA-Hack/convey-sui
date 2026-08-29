@@ -8,12 +8,13 @@ import { WalletConnectButton } from "@/components/wallet/connect-button";
 import { cn } from "@/lib/utils";
 
 // Commerce is the only surface. Home ("/") is the commerce chat per the
-// locked product rules; QR Ferry and Build progress land under their own
+// locked product rules; Relay, Protect, and Verify land under their own
 // routes. The wallet connection is the sole account control.
 const COMMERCE_ITEMS = [
-  { href: "/", label: "Shop" },
-  { href: "/qr-ferry", label: "QR Ferry" },
-  { href: "/build-progress", label: "Build progress" },
+  { href: "/", label: "Pay" },
+  { href: "/qr-ferry", label: "Relay" },
+  { href: "/strategy", label: "Protect" },
+  { href: "/proof", label: "Verify" },
 ];
 
 /**

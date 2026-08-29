@@ -59,6 +59,59 @@ export interface PurchaseIntentClarification {
 
 export type PurchaseIntentResult = PurchaseIntentPreview | PurchaseIntentClarification;
 
+// ---------------------------------------------------------------------------
+// Routing provenance metadata (Gonka phase 2).
+//
+// The intent route may resolve a prompt through GonkaRouter (a model-backed
+// router) OR through the deterministic offline parser. The route attaches a
+// `routing` object to every response so the UI can surface honest provenance:
+// a successful Gonka route is labelled "GONKA ROUTED" with the model and
+// request id; any fallback is labelled "LOCAL SAFE ROUTE" with a safe reason
+// enum — never a raw provider error, never an API key. Routing metadata never
+// carries transaction bytes, recipients, digests, signatures, or any
+// settlement/confirmation authority; it is descriptive provenance only.
+// ---------------------------------------------------------------------------
+
+export type RoutingProvider = "gonkarouter" | "deterministic";
+export type RoutingMode = "live" | "fallback";
+
+/** Safe fallback reason enum. Never echoes raw provider error text. */
+export type FallbackReason =
+  | "not_configured"
+  | "provider_error"
+  | "timeout"
+  | "model_mismatch"
+  | "missing_request_id"
+  | "invalid_schema"
+  | "repair_failed"
+  | "candidate_rejected";
+
+export interface RoutingUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+}
+
+export interface RoutingMetadata {
+  provider: RoutingProvider;
+  mode: RoutingMode;
+  /** Gonka request id (live routes only). */
+  requestId?: string;
+  /** Model the route requested (live routes only). */
+  requestedModel?: string;
+  /** Model the provider reported (live routes only). */
+  responseModel?: string;
+  /** End-to-end provider latency in ms (live routes only). */
+  latencyMs?: number;
+  /** Token usage captured from a valid provider response (live routes only). */
+  usage?: RoutingUsage;
+  /** Compact model signals, surfaced only when the candidate schema validated. */
+  detectedLanguage?: string;
+  confidence?: number;
+  explanation?: string;
+  /** Safe reason enum for fallback routes only. */
+  fallbackReason?: FallbackReason;
+}
+
 const ACTION_WORDS = ["buy", "purchase", "order", "get"] as const;
 
 const NUMBER_WORDS: Record<string, number> = {

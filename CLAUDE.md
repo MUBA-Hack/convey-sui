@@ -35,10 +35,10 @@ pnpm dev           # app on :3000
 
 ## Layout
 
-- `app/` — Next.js routes: `/` (commerce chat), `/qr-ferry`, `/build-progress`,
-  `/offline`, and `app/api/commerce/intent`.
-- `lib/commerce/` — intent parser, payment core, QR Ferry envelope, build
-  progress parser.
+- `app/` — Next.js routes: `/` (commerce chat), `/qr-ferry`, `/strategy`,
+  `/proof`, and `app/api/commerce/intent`.
+- `lib/commerce/` — intent parser, payment core, QR Ferry envelope, and proof
+  verification.
 - `lib/protocol/hash.ts` — shared blake2b256 used by the QR Ferry checksum.
 - `components/commerce/` — chat, preview, checkout dialog, payment action,
   QR Ferry UI, voice input.

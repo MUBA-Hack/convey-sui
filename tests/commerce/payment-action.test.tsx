@@ -63,11 +63,11 @@ afterEach(() => {
 });
 
 describe("PaymentAction — DEMO simulation mode", () => {
-  it("renders the DEMO simulation label, amount, and merchant when no merchant is configured", () => {
+  it("renders the Preview label, amount, and merchant when no merchant is configured", () => {
     vi.stubEnv("NEXT_PUBLIC_MERCHANT_ADDRESS", "");
     render(<PaymentAction preview={preview()} />);
 
-    expect(screen.getByText(/DEMO simulation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preview/i)).toBeInTheDocument();
     // Amount shown in SUI (6 SUI = 6_000_000_000 MIST) and raw MIST.
     expect(screen.getByText("6 SUI")).toBeInTheDocument();
     expect(screen.getByText("6000000000 MIST")).toBeInTheDocument();
@@ -76,8 +76,8 @@ describe("PaymentAction — DEMO simulation mode", () => {
 
   it("never claims on-chain settlement in DEMO mode", () => {
     render(<PaymentAction preview={preview()} />);
-    const label = screen.getByText(/DEMO simulation/i);
-    expect(label.textContent).toMatch(/DEMO|simulation/i);
+    const label = screen.getByText(/Preview/i);
+    expect(label.textContent).toMatch(/Preview|not submitted/i);
     expect(label.textContent).not.toMatch(/settled on-chain|confirmed on-chain/i);
   });
 
@@ -229,7 +229,7 @@ describe("PaymentAction — mode gating", () => {
     render(
       <PaymentAction preview={preview({ merchant: { id: "river-cafe", name: "River Cafe", address: ADDR } })} />,
     );
-    expect(screen.getByText(/DEMO simulation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preview/i)).toBeInTheDocument();
     expect(screen.queryByText(/Real testnet transfer/i)).not.toBeInTheDocument();
   });
 
@@ -241,7 +241,7 @@ describe("PaymentAction — mode gating", () => {
     render(
       <PaymentAction preview={preview({ merchant: { id: "river-cafe", name: "River Cafe", address: other } })} />,
     );
-    expect(screen.getByText(/DEMO simulation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preview/i)).toBeInTheDocument();
   });
 });
 

@@ -70,6 +70,44 @@ const CATALOG: Catalog = {
         },
       ],
     },
+    {
+      id: "green-kitchen",
+      name: "Green Kitchen",
+      aliases: ["green kitchen", "greenkitchen", "green kitchens"],
+      address: null,
+      items: [
+        {
+          id: "lunch-bowl",
+          name: "Lunch Bowl",
+          // Plural aliases are explicit because the parser matches on
+          // \b…\b word boundaries, which do not auto-pluralize. The canned
+          // "Lunch bowl" example uses the singular form.
+          aliases: ["lunch bowl", "lunch bowls", "grain bowl", "grain bowls"],
+          // 9 SUI each: one bowl totals 9 SUI, under the displayed 12 SUI cap.
+          priceMist: (9n * SUI).toString(),
+        },
+      ],
+    },
+    {
+      id: "daybreak-coffee",
+      name: "Daybreak Coffee",
+      aliases: ["daybreak coffee", "daybreakcoffee", "daybreak"],
+      address: null,
+      items: [
+        {
+          id: "cold-brew",
+          name: "Cold Brew",
+          // Plural aliases are explicit (\b…\b does not match "brew" + "s").
+          // The canned "Three cold brews" example uses the plural form, so
+          // "cold brews" must be present or the parser fails closed with
+          // unknown_item.
+          aliases: ["cold brew", "cold brews", "coldbrew"],
+          // 1.5 SUI each: three cold brews total 4.5 SUI, under the displayed
+          // 6 SUI cap. 1.5 SUI = 1_500_000_000 MIST (exact, no float drift).
+          priceMist: ((3n * SUI) / 2n).toString(),
+        },
+      ],
+    },
   ],
 };
 

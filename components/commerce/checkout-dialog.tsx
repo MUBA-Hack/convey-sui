@@ -145,7 +145,7 @@ export function CheckoutDialog({
                   className="inline-block rounded-md border border-black/12 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.1em]"
                   data-network-mode={networkMode}
                 >
-                  {networkMode === "live" ? "Live testnet" : "Demo"}
+                  {networkMode === "live" ? "Live testnet" : "Preview"}
                 </span>
               </dd>
             </dl>
@@ -176,7 +176,7 @@ export function CheckoutDialog({
               <DialogDescription>
                 {networkMode === "live"
                   ? "A real testnet transfer is built and signed only when you confirm below."
-                  : "No merchant is configured for a real transfer — an explicitly labelled DEMO simulation runs when you confirm below."}
+                  : "No merchant is configured for a real transfer — a clearly labelled preview runs when you confirm below. No on-chain settlement occurs."}
               </DialogDescription>
             </DialogHeader>
 

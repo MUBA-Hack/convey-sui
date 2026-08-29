@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { PaymentReceipt } from "@/lib/commerce/payment";
+import { decodeReceiptProofPayload } from "@/lib/commerce/receipt-proof";
 import { SettlementProofCard } from "@/components/commerce/settlement-proof-card";
 
 /**
@@ -26,9 +27,9 @@ const DEMO_RECEIPT: PaymentReceipt = {
 
 const REAL_RECEIPT: PaymentReceipt = {
   mode: "real",
-  digest: "AbCdEf1234567890GhIjKlMnOpQrStUvWxYz1234567890",
+  digest: "2".repeat(44),
   demo: false,
-  explorerUrl: "https://suiscan.testnet.sui.io/tx/AbCdEf1234567890GhIjKlMnOpQrStUvWxYz1234567890",
+  explorerUrl: `https://suiscan.testnet.sui.io/tx/${"2".repeat(44)}`,
   amountMist: "6000000000",
   merchantAddress: "0x".concat("22".repeat(32)),
   label: "Real testnet transfer",
@@ -56,16 +57,17 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   cleanup();
 });
 
 describe("SettlementProofCard — honest mode labels", () => {
-  it("labels a DEMO receipt as DEMO simulation", () => {
+  it("labels a DEMO receipt as Not submitted", () => {
     render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
     const card = screen.getByTestId("settlement-proof");
     expect(card.getAttribute("data-proof-mode")).toBe("demo");
-    expect(card).toHaveTextContent(/demo simulation/i);
+    expect(card).toHaveTextContent(/not submitted/i);
     expect(card).toHaveTextContent(/no on-chain settlement/i);
   });
 
@@ -122,7 +124,7 @@ describe("SettlementProofCard — explorer link", () => {
   it("renders no explorer link for a DEMO receipt", () => {
     render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
     expect(screen.queryByRole("link", { name: /view transaction/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/no explorer link for simulation/i)).toBeInTheDocument();
+    expect(screen.getByText(/no explorer link — not submitted on-chain/i)).toBeInTheDocument();
   });
 });
 
@@ -161,5 +163,94 @@ describe("SettlementProofCard — copy and export proof", () => {
     fireEvent.click(screen.getByTestId("export-proof"));
     // The download anchor was created and clicked; verify via the blob URL.
     expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+  });
+});
+
+describe("SettlementProofCard — amount-led monument layout", () => {
+  it("renders the amount as a mobile-first monument-scale protagonist (>=56px)", () => {
+    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
+    const amount = screen.getByTestId("proof-amount");
+    // Mobile first: 56px; desktop scales to 64px. The amount leads the card.
+    expect(amount.className).toContain("text-[56px]");
+    expect(amount.className).toContain("md:text-[64px]");
+    expect(amount).toHaveTextContent(/6(\.0+)?/);
+    expect(amount).toHaveTextContent(/sui/i);
+  });
+
+  it("renders exactly one mode mark (no duplicate DEMO/Real labels)", () => {
+    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
+    const card = screen.getByTestId("settlement-proof");
+    // A single mode badge element — the title must not duplicate the mode.
+    expect(card.querySelectorAll(".cv-proof__mode").length).toBe(1);
+  });
+
+  it("renders the Verify receipt action as a full-width black primary above Copy/Export", () => {
+    render(<SettlementProofCard receipt={REAL_RECEIPT} />);
+    const verify = screen.getByRole("link", { name: /verify receipt/i });
+    // Full-width black primary.
+    expect(verify.className).toContain("bg-black");
+    expect(verify.className).toContain("w-full");
+    const copy = screen.getByTestId("copy-proof");
+    const exportBtn = screen.getByTestId("export-proof");
+    // Verify precedes Copy and Export in DOM order so it leads the action stack.
+    expect(
+      copy.compareDocumentPosition(verify) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(
+      exportBtn.compareDocumentPosition(verify) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+  });
+
+  it("renders the digest as a single truncated monospace stripe with the full value accessible", () => {
+    render(<SettlementProofCard receipt={REAL_RECEIPT} />);
+    const card = screen.getByTestId("settlement-proof");
+    const digestDd = Array.from(card.querySelectorAll("dd")).find(
+      (dd) => dd.getAttribute("title") === REAL_RECEIPT.digest,
+    );
+    expect(digestDd).toBeTruthy();
+    // Single-line stripe: truncate (nowrap + ellipsis), monospace.
+    expect(digestDd?.className).toContain("truncate");
+    expect(digestDd?.className).toContain("font-mono");
+    expect(digestDd?.getAttribute("data-full")).toBe(REAL_RECEIPT.digest);
+    expect(digestDd?.textContent).not.toContain(REAL_RECEIPT.digest);
+  });
+
+  it("renders the merchant as a truncated monospace subhead with the full value accessible", () => {
+    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
+    const card = screen.getByTestId("settlement-proof");
+    const merchantDd = Array.from(card.querySelectorAll("dd")).find(
+      (dd) => dd.getAttribute("title") === DEMO_RECEIPT.merchantAddress,
+    );
+    expect(merchantDd).toBeTruthy();
+    expect(merchantDd?.className).toContain("truncate");
+    expect(merchantDd?.className).toContain("font-mono");
+    expect(merchantDd?.getAttribute("data-full")).toBe(DEMO_RECEIPT.merchantAddress);
+    expect(merchantDd?.textContent).not.toContain(DEMO_RECEIPT.merchantAddress);
+  });
+});
+
+describe("SettlementProofCard — portable verifier handoff", () => {
+  it("opens the local proof desk with a URL-safe receipt document made at click time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-30T12:34:56.000Z"));
+    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
+
+    const href = screen.getByRole("link", { name: "Verify receipt" }).getAttribute("href")!;
+    expect(href).toMatch(/^\/proof\?p=[A-Za-z0-9_-]+$/);
+
+    const payload = new URLSearchParams(href.split("?")[1]).get("p");
+    expect(payload).not.toBeNull();
+    expect(decodeReceiptProofPayload(payload!)).toEqual({
+      ...DEMO_RECEIPT,
+      exportedAt: "2026-08-30T12:34:56.000Z",
+    });
+  });
+
+  it("keeps copy and export actions beside the verifier action", () => {
+    render(<SettlementProofCard receipt={REAL_RECEIPT} />);
+
+    expect(screen.getByTestId("copy-proof")).toBeInTheDocument();
+    expect(screen.getByTestId("export-proof")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Verify receipt" })).toBeInTheDocument();
   });
 });

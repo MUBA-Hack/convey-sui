@@ -920,7 +920,7 @@
 /* ===========================================================================
    Convey — minimal monochrome commerce shell
 
-   The commerce surfaces (Shop, QR Ferry, Build progress) speak black, white
+   The commerce surfaces (Pay, Relay, Protect, Verify) speak black, white
    and neutral gray only. These utilities are the standalone commerce shell's
    own monochrome language; commerce pages opt in by class. No existing token
    is redefined.

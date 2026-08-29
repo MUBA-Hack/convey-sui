@@ -398,7 +398,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
           Device A → offline transfer → Device B
         </p>
         <h1 className="text-2xl font-medium tracking-tight">
-          Offline QR Ferry
+          Relay
         </h1>
         <div
           data-testid="transport-explanation"
