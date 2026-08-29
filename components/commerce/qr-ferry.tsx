@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import type { PurchaseIntentPreview } from "@/lib/commerce/intent";
 import {
   createEnvelope,
   exportEnvelopeJson,
@@ -10,6 +11,7 @@ import {
   type QrFerryEnvelope,
   type ReplayRegistry,
 } from "@/lib/commerce/qr-ferry";
+import { PaymentAction } from "./payment-action";
 
 /**
  * Offline QR Ferry UI (Wave 3, Task 3.2 UI).
@@ -264,6 +266,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
   const [payload, setPayload] = useState("");
   const [imported, setImported] = useState<QrFerryEnvelope | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutPreview, setCheckoutPreview] = useState<PurchaseIntentPreview | null>(null);
 
   const registryRef = useRef<LocalStorageReplayRegistry | null>(null);
   if (registryRef.current === null) {
@@ -337,12 +340,35 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
         registry: registryRef.current ?? undefined,
       });
       setImported(env);
+      setCheckoutPreview(null);
       setError(null);
       onValidatedEnvelope?.(env);
     } catch (err) {
       setImported(null);
       setError(errorMessage(err));
     }
+  };
+
+  const handoffToCheckout = () => {
+    if (!imported) return;
+    const quantity = imported.quantity;
+    const totalMist = BigInt(imported.totalMist);
+    setCheckoutPreview({
+      kind: "preview",
+      action: "buy",
+      item: { id: "qr-ferry-imported", name: imported.item },
+      quantity,
+      unitPriceMist: (totalMist / BigInt(quantity)).toString(),
+      totalMist: imported.totalMist,
+      priceCeilingMist: null,
+      merchant: {
+        id: imported.merchantAddress,
+        name: DEMO_MERCHANT_NAME,
+        address: imported.merchantAddress,
+      },
+      confidence: 1,
+      clarification: null,
+    });
   };
 
   /**
@@ -679,12 +705,36 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
                 </div>
               </dl>
               <p className="mt-4 border-t border-[var(--cv-line)] pt-3 text-sm font-semibold">
-                Ready for payment action integration
+                Ready to hand off into payment action
+              </p>
+              <button
+                type="button"
+                onClick={handoffToCheckout}
+                className="mt-3 min-h-11 w-full border border-black bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-neutral-100"
+              >
+                Continue to checkout
+              </button>
+              <p className="mt-2 text-xs text-neutral-500">
+                This keeps QR Ferry as transport only. Checkout still applies the same deterministic payment gate.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {checkoutPreview && (
+        <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 md:p-5">
+          <div className="mb-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              Connected checkout
+            </p>
+            <h2 className="mt-1 text-lg font-medium tracking-tight">
+              Payment action handoff
+            </h2>
+          </div>
+          <PaymentAction preview={checkoutPreview} />
+        </div>
+      )}
     </section>
   );
 }

@@ -211,7 +211,7 @@ describe("QrFerry — import panel valid import", () => {
     expect(env.nonce).toBe("nonce-valid-002");
   });
 
-  it("shows a ready-for-payment-action state after successful import", () => {
+  it("shows a handoff-to-checkout state after successful import", () => {
     render(<QrFerry />);
     const json = craftJson("nonce-valid-003");
     fireEvent.change(screen.getByPlaceholderText(/Paste envelope payload/i), {
@@ -219,7 +219,8 @@ describe("QrFerry — import panel valid import", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Import and validate/i }));
 
-    expect(screen.getByText(/ready for payment action/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready to hand off into payment action/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue to checkout/i })).toBeInTheDocument();
   });
 
   it("announces successful import via a polite status role for screen readers", () => {

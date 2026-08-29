@@ -112,6 +112,7 @@ interface ChatMessage {
   text: string;
   preview?: PurchaseIntentPreview;
   previewStatus?: PreviewStatus;
+  receipt?: PaymentReceipt | null;
   clarification?: string;
 }
 
@@ -243,6 +244,11 @@ export function CommerceChat({
   // Cancel, so the same preview can never open a second checkout.
   const handleSettled = (receipt: PaymentReceipt) => {
     if (dialogMessageId) setPreviewStatus(dialogMessageId, "confirmed");
+    if (dialogMessageId) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === dialogMessageId ? { ...m, receipt } : m)),
+      );
+    }
     setDialogMessageId(null);
     // The dialog's PaymentAction already rendered the receipt; the chat only
     // needs the terminal signal to lock the preview.
@@ -263,17 +269,48 @@ export function CommerceChat({
     <section
       data-palette="monochrome"
       aria-label="Convey chat"
-      className="cv-shell mx-auto w-full max-w-[1100px] px-4 py-6 md:py-10"
+      className="cv-shell mx-auto w-full max-w-[1120px] px-4 py-6 md:py-10"
     >
+      <div className="mb-5 flex flex-col gap-4 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-neutral-500">
+            Convey
+          </p>
+          <h1 className="mt-2 text-3xl font-medium tracking-[-0.04em] md:text-5xl">
+            Say it. Carry it across. Settle on Sui.
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 md:text-base">
+            Voice-first purchases, a QR Ferry for offline handoff, and a
+            clipped black-and-white checkout flow built for demos that need to
+            look finished.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 md:w-[350px]">
+          {["Voice", "PWA", "Offline QR Ferry"].map((chip) => (
+            <div
+              key={chip}
+              className="rounded-full border border-black/10 bg-white px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-600"
+            >
+              {chip}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         {/* Primary chat panel */}
         <div className="cv-panel cv-enter flex flex-col p-4 md:p-5">
-          <header className="mb-3 flex flex-col gap-1">
-            <h1 className="text-xl font-medium tracking-tight md:text-2xl">
-              What would you like to buy?
-            </h1>
-            <p className="text-sm text-neutral-600">
-              Try: <span className="font-medium">{GOLDEN_PROMPT}</span>
+          <header className="mb-4 flex items-end justify-between gap-4 border-b border-black/10 pb-4">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-neutral-500">
+                Live purchase thread
+              </p>
+              <h2 className="mt-2 text-2xl font-medium tracking-[-0.03em] md:text-[2rem]">
+                What would you like to buy?
+              </h2>
+            </div>
+            <p className="hidden max-w-[16rem] text-right text-xs leading-relaxed text-neutral-500 md:block">
+              Try: <span className="font-medium text-neutral-700">{GOLDEN_PROMPT}</span>
             </p>
           </header>
 
@@ -293,7 +330,7 @@ export function CommerceChat({
               aria-hidden
               className="cv-status__motif cv-status__motif--echo"
             />
-            <div className="relative flex flex-col gap-3">
+            <div className="relative flex flex-col gap-4">
               <div className="flex items-center gap-2">
                 <Radar size={16} className="text-white/75" />
                 <span className="cv-status__figure-label text-[11px] text-white/65">
@@ -305,16 +342,14 @@ export function CommerceChat({
                 />
               </div>
 
-              {/* Crisp money/settlement data point — honest, never invented.
-                  0 SUI has settled on-chain until the user confirms. */}
-              <div className="flex items-end justify-between gap-4">
+              <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between md:gap-4">
                 <div className="flex flex-col">
                   <span className="cv-status__figure-label text-[10px] text-white/55">
                     On-chain settlement
                   </span>
-                  <span className="cv-status__figure mt-0.5 font-mono text-3xl font-semibold leading-none text-white md:text-4xl">
+                  <span className="cv-status__figure mt-1 font-mono text-[2.75rem] font-semibold leading-none text-white md:text-[3.5rem]">
                     0
-                    <span className="ml-1.5 text-sm font-medium text-white/55">
+                    <span className="ml-1.5 text-sm font-medium text-white/55 md:text-base">
                       SUI
                     </span>
                   </span>
@@ -322,13 +357,12 @@ export function CommerceChat({
                     until you confirm
                   </span>
                 </div>
+                <div className="max-w-[18rem] text-xs leading-relaxed text-white/70">
+                  {networkMode === "live"
+                    ? "Live testnet — real signing happens only when you confirm in checkout."
+                    : "Explicit demo simulation — no on-chain settlement occurs."}
+                </div>
               </div>
-
-              <p className="max-w-[54ch] text-xs leading-relaxed text-white/75">
-                {networkMode === "live"
-                  ? "Live testnet — a real SUI testnet transfer is built and signed only when you confirm in checkout."
-                  : "Demo mode — no wallet or testnet merchant is connected. Previews and checkouts run as an explicitly labelled simulation; no on-chain settlement occurs."}
-              </p>
             </div>
           </div>
 
@@ -396,6 +430,7 @@ export function CommerceChat({
                     preview={m.preview}
                     networkMode={networkMode}
                     status={m.previewStatus ?? "pending"}
+                    receipt={m.receipt ?? null}
                     onConfirm={() => openCheckout(m.preview!, m.id)}
                     onCancel={() => setPreviewStatus(m.id, "cancelled")}
                     onReopen={() => setPreviewStatus(m.id, "pending")}
@@ -461,7 +496,7 @@ export function CommerceChat({
               data-hit-target="true"
               disabled={!voice.supported || loading}
               onClick={() => (voice.listening ? voice.stop() : voice.start())}
-              className="cv-btn-ghost inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-black disabled:opacity-40"
+              className="cv-btn-ghost inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black disabled:opacity-40"
               aria-pressed={voice.listening}
             >
               <MicGlyph size={18} />
@@ -472,7 +507,7 @@ export function CommerceChat({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type or speak a purchase command"
               rows={1}
-              className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-sm outline-none"
+              className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-sm outline-none placeholder:text-neutral-400"
               aria-label="Purchase command"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -487,7 +522,7 @@ export function CommerceChat({
               aria-label="Send"
               data-hit-target="true"
               disabled={!canSend}
-              className="cv-btn-solid inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl disabled:opacity-40"
+              className="cv-btn-solid inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40"
             >
               <Send2 size={18} />
             </button>

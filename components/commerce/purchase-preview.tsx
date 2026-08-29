@@ -1,6 +1,8 @@
 "use client";
 
 import type { PurchaseIntentPreview } from "@/lib/commerce/intent";
+import type { PaymentReceipt } from "@/lib/commerce/payment";
+import { SettlementProofCard } from "./settlement-proof-card";
 
 /**
  * Wave 2 Task 2.2 — inline purchase preview card.
@@ -30,6 +32,7 @@ export interface PurchasePreviewProps {
   preview: PurchaseIntentPreview;
   networkMode: "demo" | "live";
   status: PreviewStatus;
+  receipt?: PaymentReceipt | null;
   onConfirm: () => void;
   onCancel: () => void;
   onReopen: () => void;
@@ -39,6 +42,7 @@ export function PurchasePreview({
   preview,
   networkMode,
   status,
+  receipt = null,
   onConfirm,
   onCancel,
   onReopen,
@@ -49,13 +53,21 @@ export function PurchasePreview({
   return (
     <div
       data-testid="purchase-preview"
-      className="cv-preview-in mt-3 rounded-xl border border-black/10 bg-[#f7f7f5] p-4"
+      className="cv-preview-in mt-3 rounded-2xl border border-black/10 bg-[#f8f8f6] p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
     >
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-        Purchase preview
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+          Purchase preview
+        </p>
+        <span
+          className="inline-flex items-center rounded-full border border-black/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-600"
+          data-network-mode={networkMode}
+        >
+          {networkMode === "live" ? "Live testnet" : "Demo"}
+        </span>
+      </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt className="text-neutral-500">Item</dt>
         <dd className="font-medium">{preview.item.name}</dd>
 
@@ -66,7 +78,7 @@ export function PurchasePreview({
         <dd className="font-mono tabular-nums">{unitSui} SUI</dd>
 
         <dt className="text-neutral-500">Total</dt>
-        <dd className="font-mono text-base font-semibold tabular-nums">
+        <dd className="font-mono text-lg font-semibold tabular-nums">
           {totalSui} SUI
         </dd>
 
@@ -74,14 +86,7 @@ export function PurchasePreview({
         <dd className="font-medium">{preview.merchant.name}</dd>
 
         <dt className="text-neutral-500">Network</dt>
-        <dd>
-          <span
-            className="inline-block rounded-md border border-black/12 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.1em]"
-            data-network-mode={networkMode}
-          >
-            {networkMode === "live" ? "Live testnet" : "Demo"}
-          </span>
-        </dd>
+        <dd className="text-neutral-700">{networkMode === "live" ? "Live testnet" : "Simulation"}</dd>
       </dl>
 
       {status === "pending" && (
@@ -120,7 +125,14 @@ export function PurchasePreview({
       )}
 
       {status === "confirmed" && (
-        <p className="mt-4 text-sm font-medium">Checkout complete.</p>
+        <div className="mt-4 space-y-3">
+          <p className="text-sm font-medium">Checkout complete.</p>
+          {receipt ? (
+            <SettlementProofCard receipt={receipt} />
+          ) : (
+            <p className="text-xs text-neutral-500">Receipt pending sync.</p>
+          )}
+        </div>
       )}
     </div>
   );

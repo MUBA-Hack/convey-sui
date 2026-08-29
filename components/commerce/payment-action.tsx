@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCurrentAccount, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
-import { ExportSquare, TickCircle, Warning2 } from "@/components/icons";
+import { Warning2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { SettlementProofCard } from "@/components/commerce/settlement-proof-card";
 import {
   buildExplorerUrl,
   buildPaymentTransaction,
@@ -167,7 +168,6 @@ export function PaymentAction({ preview, onCancel, onSettled, onPendingChange }:
     }
   }
 
-  const explorerUrl = receipt?.explorerUrl ?? null;
   const isReal = mode === "real";
 
   return (
@@ -246,29 +246,8 @@ export function PaymentAction({ preview, onCancel, onSettled, onPendingChange }:
       )}
 
       {receipt && status === "settled" && (
-        <div
-          className="space-y-2 rounded-xl border border-yes/30 bg-yes/6 p-3"
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <TickCircle size="18" variant="Bold" className="text-yes" aria-hidden="true" />
-            {receipt.demo ? "DEMO receipt" : "Payment submitted"}
-          </div>
-          <p className="font-mono text-xs text-muted-foreground">{receipt.label}</p>
-          <div className="font-mono text-xs text-foreground" data-testid="payment-digest">
-            {receipt.digest}
-          </div>
-          {explorerUrl && (
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              View transaction
-              <ExportSquare size="15" variant="Linear" aria-hidden="true" />
-            </a>
-          )}
+        <div data-testid="payment-digest">
+          <SettlementProofCard receipt={receipt} />
         </div>
       )}
     </div>

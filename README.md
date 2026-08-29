@@ -100,13 +100,14 @@ terminal settlement — so a preview can never double-fire a transfer.
 Now the visitor is on a train with no signal. They open **/qr-ferry**, generate a
 tamper-evident envelope for the same purchase, and scan the QR with a friend's
 phone. The friend's device verifies the checksum, checks the expiry, consumes the
-nonce once, and shows the validated envelope — ready for a payment action when
-reconnected. No signature is implied; the connected device must still approve.
+nonce once, and shows the validated envelope plus a direct **Continue to checkout**
+handoff. No signature is implied; the connected device must still approve.
 
 ## Features
 
 - **Chat-first purchase surface** (`/`) — a thread UI that posts free text to a
-  typed endpoint and renders a preview, a clarification, or a retryable error.
+  typed endpoint and renders a preview, a clarification, a retryable error, and
+  a shareable settlement receipt/proof card after settlement.
 - **Voice input** — browser `SpeechRecognition` / `webkitSpeechRecognition` with
   a live interim transcript, a visible listening state, and a complete **text
   fallback** when the API is absent. Recognition stops on unmount.
@@ -631,7 +632,8 @@ degraded storage, and PWA cache policy.
 6. Open **`/qr-ferry`** → **Generate envelope** → a QR + JSON payload appears
    with a blake2b256 checksum, nonce, and 1 h expiry.
 7. Copy the payload, paste it into the **Connected device** textarea → **Import
-   and validate** → the validated envelope appears. Paste it again → **replay
+   and validate** → the validated envelope appears. Tap **Continue to checkout**
+   → the same deterministic payment gate opens. Paste it again → **replay
    rejected** (`duplicate_nonce`).
 8. Tamper with one field in the JSON (e.g. change `quantity`) → **Import and
    validate** → **checksum mismatch**.
