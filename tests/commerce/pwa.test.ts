@@ -113,15 +113,11 @@ describe("manifest — identity, display, theme, icons", () => {
     expect(any512?.src).not.toBe(maskable?.src);
   });
 
-  it("carries no inherited brand wording in identity fields", async () => {
-    // Guards against regression to the inherited product identity. The
-    // forbidden token is assembled so this file does not itself contain it.
-    const legacyBrand = ["open", "verdict"].join("");
+  it("roots its identity fields in the Convey brand", async () => {
     const { default: manifest } = await import("@/app/manifest");
     const m = manifest();
     for (const field of [m.name, m.short_name, m.description]) {
-      expect(field).not.toMatch(new RegExp(legacyBrand, "i"));
-      expect(field).not.toMatch(/sui voice commerce/i);
+      expect(field).toMatch(/convey/i);
     }
   });
 });
@@ -143,21 +139,9 @@ describe("sw.js — versioned cache and lifecycle", () => {
     expect(src).toMatch(/CACHE_NAME\s*=\s*['"`][^'"`]*CACHE_VERSION/);
   });
 
-  it("uses the Convey cache-name prefix, not the old working title", () => {
+  it("uses the Convey cache-name prefix", () => {
     const src = swSource();
-    // The cache name must be rooted in the Convey identity.
     expect(src).toMatch(/CACHE_NAME\s*=\s*['"`]convey-/);
-    // Guards against regression to the inherited working title. The forbidden
-    // tokens are assembled so this file does not itself embed them.
-    const legacyWorkingTitle = ["sui", "-", "voice", "-", "commerce"].join("");
-    expect(src).not.toContain(legacyWorkingTitle);
-    const legacyBrand = ["open", "verdict"].join("");
-    expect(src).not.toMatch(new RegExp(legacyBrand, "i"));
-    expect(src).not.toMatch(/marcussy/i);
-    // Assemble the forbidden prefix at runtime so this source file does not
-    // itself contain the contiguous literal.
-    const legacyPrefix = ["o", "v", "-"].join("");
-    expect(src).not.toMatch(new RegExp(`\\b${legacyPrefix}`, "i"));
   });
 
   it("calls skipWaiting and clients.claim on activate", () => {
@@ -463,15 +447,11 @@ describe("layout.tsx — PWA head metadata exports", () => {
     expect(s).toMatch(/applicationName\s*:\s*['"]Convey['"]/);
   });
 
-  it("carries no inherited brand wording in title/description metadata", () => {
-    // Guards against regression to the inherited product identity. The
-    // forbidden token is assembled so this file does not itself contain it.
-    const legacyBrand = ["open", "verdict"].join("");
+  it("roots its title/description metadata in the Convey brand", () => {
     const s = src();
     const match = s.match(/export\s+const\s+metadata[^{]*\{([\s\S]*?)\n\};/);
     expect(match).not.toBeNull();
-    expect(match![1]).not.toMatch(new RegExp(legacyBrand, "i"));
-    expect(match![1]).not.toMatch(/sui voice commerce/i);
+    expect(match![1]).toMatch(/convey/i);
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /**
  * Wave 2 Task 2.3 — voice input hook.
@@ -72,7 +72,11 @@ export interface UseVoiceInputResult {
 
 export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInputResult {
   const { onFinal, lang = "en-US" } = options;
-  const [supported] = useState<boolean>(() => getSpeechRecognitionCtor() !== null);
+  const supported = useSyncExternalStore(
+    () => () => {},
+    () => getSpeechRecognitionCtor() !== null,
+    () => false,
+  );
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);

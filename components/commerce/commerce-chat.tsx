@@ -6,7 +6,7 @@ import type {
   PurchaseIntentResult,
 } from "@/lib/commerce/intent";
 import type { PaymentReceipt } from "@/lib/commerce/payment";
-import { ArrowRight, Radar, Send2 } from "@/components/icons";
+import { ArrowRight, Radar, Send2, ShieldTick, Timer1 } from "@/components/icons";
 import { useVoiceInput } from "./use-voice-input";
 import { PurchasePreview, type PreviewStatus } from "./purchase-preview";
 import { CheckoutDialog } from "./checkout-dialog";
@@ -139,8 +139,14 @@ export function CommerceChat({
   // The id of the thread message whose preview opened the dialog, so a
   // terminal settlement can flip exactly that preview to `confirmed`.
   const [dialogMessageId, setDialogMessageId] = useState<string | null>(null);
+  // Judge-run safety: a single action may populate the composer with the
+  // golden prompt AND submit it to reach the typed preview, but it must NEVER
+  // auto-confirm, connect a wallet, sign, or pay. The flag marks that a judge
+  // run is in flight so the UI can label it and guard against re-entry.
+  const [judgeRun, setJudgeRun] = useState(false);
 
   const voice = useVoiceInput({ onFinal: (text) => setInput(text) });
+  const stopVoice = voice.stop;
 
   const threadRef = useRef<HTMLDivElement>(null);
   // Auto-scroll the thread to the latest message.
@@ -154,8 +160,8 @@ export function CommerceChat({
   // the chat's ownership of the voice lifecycle explicit. Depends on the stable
   // `stop` callback, not the whole `voice` object (a new ref each render).
   useEffect(() => {
-    return () => voice.stop();
-  }, [voice.stop]);
+    return () => stopVoice();
+  }, [stopVoice]);
 
   const send = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -213,6 +219,7 @@ export function CommerceChat({
       setError(message);
     } finally {
       setLoading(false);
+      setJudgeRun(false);
     }
   }, []);
 
@@ -262,6 +269,31 @@ export function CommerceChat({
     setDialogMessageId(null);
   };
 
+  /**
+   * Safe 60-second judge run. One action populates the composer with the
+   * golden prompt and submits it through the SAME typed parser path as a
+   * manual send, reaching the typed preview. It NEVER auto-confirms, connects
+   * a wallet, signs, or pays — the preview lands in `pending` and waits for an
+   * explicit human Confirm. Re-entry is guarded while a run is in flight.
+   */
+  const handleJudgeRun = () => {
+    if (loading || judgeRun) return;
+    setJudgeRun(true);
+    void send(GOLDEN_PROMPT);
+  };
+
+  // Reactive safety lifecycle phase, derived from the live thread state so the
+  // rail is always honest: language -> deterministic validation -> human
+  // confirmation -> settlement proof. Compact and monochrome.
+  const safetyPhase: "language" | "validation" | "confirmation" | "proof" =
+    (() => {
+      if (messages.length === 0) return "language";
+      const last = messages[messages.length - 1]!;
+      if (last.receipt) return "proof";
+      if (last.preview) return last.previewStatus === "confirmed" ? "proof" : "confirmation";
+      return "validation";
+    })();
+
   const canSend = input.trim().length > 0 && !loading;
   const isEmpty = messages.length === 0 && !loading;
 
@@ -269,102 +301,49 @@ export function CommerceChat({
     <section
       data-palette="monochrome"
       aria-label="Convey chat"
-      className="cv-shell mx-auto w-full max-w-[1120px] px-4 py-6 md:py-10"
+      className="cv-shell mx-auto w-full max-w-[1120px] px-4 py-3 md:py-8"
     >
-      <div className="mb-5 flex flex-col gap-4 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-2xl">
-          <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-neutral-500">
-            Convey
-          </p>
-          <h1 className="mt-2 text-3xl font-medium tracking-[-0.04em] md:text-5xl">
-            Say it. Carry it across. Settle on Sui.
-          </h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 md:text-base">
-            Voice-first purchases, a QR Ferry for offline handoff, and a
-            clipped black-and-white checkout flow built for demos that need to
-            look finished.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 md:w-[350px]">
-          {["Voice", "PWA", "Offline QR Ferry"].map((chip) => (
-            <div
-              key={chip}
-              className="rounded-full border border-black/10 bg-white px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-600"
-            >
-              {chip}
-            </div>
-          ))}
+      {/* Compressed hero — one concise promise, minimal chrome. The chat
+          surface below is the visual protagonist; this header stays tight so
+          chat + composer are visible in the first 390x844 mobile viewport. */}
+      <div className="mb-3 flex flex-col gap-2 md:mb-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-xl font-medium tracking-[-0.03em] text-black md:text-2xl">
+          Say it. Approve it. Settle on Sui.
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            data-testid="mode-status"
+            data-status-mode={networkMode}
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/15 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-700"
+          >
+            <Radar size={12} className="text-neutral-500" />
+            {networkMode === "live" ? "Live testnet" : "Demo mode"}
+          </span>
+          <button
+            type="button"
+            onClick={handleJudgeRun}
+            disabled={loading || judgeRun}
+            data-testid="judge-run"
+            aria-label="Run a safe 60-second judge demo"
+            className="cv-btn-solid inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium uppercase tracking-[0.1em] disabled:opacity-40"
+          >
+            <Timer1 size={14} />
+            {judgeRun ? "Running…" : "60s judge run"}
+          </button>
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        {/* Primary chat panel */}
-        <div className="cv-panel cv-enter flex flex-col p-4 md:p-5">
-          <header className="mb-4 flex items-end justify-between gap-4 border-b border-black/10 pb-4">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-neutral-500">
-                Live purchase thread
-              </p>
-              <h2 className="mt-2 text-2xl font-medium tracking-[-0.03em] md:text-[2rem]">
-                What would you like to buy?
-              </h2>
-            </div>
-            <p className="hidden max-w-[16rem] text-right text-xs leading-relaxed text-neutral-500 md:block">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px]">
+        {/* Primary chat panel — the visual protagonist. */}
+        <div className="cv-panel cv-enter flex flex-col p-3 md:p-4">
+          <header className="mb-3 flex items-center justify-between gap-3 border-b border-black/10 pb-3">
+            <h2 className="text-base font-medium tracking-[-0.02em] text-black md:text-lg">
+              What would you like to buy?
+            </h2>
+            <p className="hidden max-w-[14rem] text-right text-[11px] leading-relaxed text-neutral-500 md:block">
               Try: <span className="font-medium text-neutral-700">{GOLDEN_PROMPT}</span>
             </p>
           </header>
-
-          {/* Dominant black settlement status card — the premium payment
-             surface that anchors the shell's hierarchy. White type on solid
-             black, an abstract CSS concentric radar motif, and one crisp
-             settlement figure (0 SUI on-chain until confirm). Strict
-             grayscale, no hue. Never fakes a balance or settlement; the only
-             motion is the 220ms cv-enter rise (zeroed for reduced-motion). */}
-          <div
-            data-testid="mode-status"
-            data-status-mode={networkMode}
-            className="cv-status cv-status--surface cv-enter mb-4 p-4 md:p-5"
-          >
-            <span aria-hidden className="cv-status__motif" />
-            <span
-              aria-hidden
-              className="cv-status__motif cv-status__motif--echo"
-            />
-            <div className="relative flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <Radar size={16} className="text-white/75" />
-                <span className="cv-status__figure-label text-[11px] text-white/65">
-                  {networkMode === "live" ? "Live testnet" : "Demo mode"}
-                </span>
-                <span
-                  aria-hidden
-                  className="cv-status__dot ml-auto inline-block h-1.5 w-1.5 rounded-full"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:justify-between md:gap-4">
-                <div className="flex flex-col">
-                  <span className="cv-status__figure-label text-[10px] text-white/55">
-                    On-chain settlement
-                  </span>
-                  <span className="cv-status__figure mt-1 font-mono text-[2.75rem] font-semibold leading-none text-white md:text-[3.5rem]">
-                    0
-                    <span className="ml-1.5 text-sm font-medium text-white/55 md:text-base">
-                      SUI
-                    </span>
-                  </span>
-                  <span className="mt-1 text-[11px] text-white/55">
-                    until you confirm
-                  </span>
-                </div>
-                <div className="max-w-[18rem] text-xs leading-relaxed text-white/70">
-                  {networkMode === "live"
-                    ? "Live testnet — real signing happens only when you confirm in checkout."
-                    : "Explicit demo simulation — no on-chain settlement occurs."}
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Thread — desktop collapses to content when empty (no giant pale
               void below the prompt cards); grows to fill once messages exist.
@@ -373,7 +352,7 @@ export function CommerceChat({
           <div
             ref={threadRef}
             className={`cv-panel--inset cv-scroll flex flex-1 flex-col gap-3 overflow-y-auto p-3 md:max-h-[58vh]${
-              isEmpty ? " min-h-[180px]" : " min-h-[300px] md:min-h-[340px]"
+              isEmpty ? " min-h-[140px]" : " min-h-[260px] md:min-h-[340px]"
             }`}
             aria-live="polite"
           >
@@ -505,7 +484,7 @@ export function CommerceChat({
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type or speak a purchase command"
+              placeholder="Buy something…"
               rows={1}
               className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-sm outline-none placeholder:text-neutral-400"
               aria-label="Purchase command"
@@ -529,58 +508,93 @@ export function CommerceChat({
           </form>
         </div>
 
-        {/* Desktop context rail */}
+        {/* Desktop compact proof rail — a lightweight secondary column, not a
+            competing panel. No cv-panel chrome; just a thin vertical tracker
+            that reflects the live safety phase. The chat stays the protagonist. */}
         <aside
-          aria-label="How it works"
-          className="cv-panel cv-enter cv-enter-step-1 hidden flex-col gap-4 p-5 lg:flex"
+          aria-label="Safety lifecycle"
+          className="cv-enter cv-enter-step-1 hidden flex-col gap-2.5 lg:flex"
         >
-          <h2 className="text-sm font-semibold tracking-tight">How it works</h2>
-          <ol className="flex flex-col gap-3.5">
-            {[
-              "Say or type a purchase command.",
-              "Review the validated preview.",
-              "Confirm to open checkout.",
-              "Settle on Sui — or a labelled DEMO.",
-            ].map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-medium text-white">
-                  {i + 1}
-                </span>
-                <span className="text-sm leading-snug text-neutral-700">
-                  {step}
-                </span>
-              </li>
-            ))}
-          </ol>
-          <div className="cv-panel--inset mt-1 px-3 py-2.5">
-            <p className="text-xs leading-relaxed text-neutral-500">
-              No transaction is built until you confirm in checkout. The client
-              signs; the model never receives keys or transaction authority.
-            </p>
+          <div className="flex items-center gap-1.5">
+            <ShieldTick size={13} className="text-neutral-500" />
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+              Lifecycle
+            </h2>
           </div>
+          <ol className="flex flex-col gap-1.5" data-testid="safety-lifecycle">
+            {([
+              { key: "language", label: "Language" },
+              { key: "validation", label: "Validation" },
+              { key: "confirmation", label: "Confirmation" },
+              { key: "proof", label: "Settlement proof" },
+            ] as const).map((step, i) => {
+              const active = safetyPhase === step.key;
+              return (
+                <li
+                  key={step.key}
+                  data-safety-phase={step.key}
+                  data-safety-active={active ? "true" : undefined}
+                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+                    active
+                      ? "bg-black text-white"
+                      : "text-neutral-500"
+                  }`}
+                >
+                  <span
+                    className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-medium ${
+                      active ? "bg-white text-black" : "bg-neutral-200 text-neutral-600"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-[11px] font-medium leading-tight">
+                    {step.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-1 px-2 text-[10px] leading-relaxed text-neutral-400">
+            No transaction until you confirm.
+          </p>
         </aside>
       </div>
 
-      {/* Mobile context (below the chat, compact) */}
+      {/* Mobile context (below the chat, compact reactive lifecycle) */}
       <aside
-        aria-label="How it works"
-        className="cv-panel cv-enter mt-5 flex flex-col gap-3 p-4 lg:hidden"
+        aria-label="Safety lifecycle"
+        className="cv-panel cv-enter mt-4 flex flex-col gap-2 p-3 lg:hidden"
       >
-        <h2 className="text-sm font-semibold tracking-tight">How it works</h2>
-        <ol className="flex flex-wrap gap-x-4 gap-y-2">
-          {[
-            "Say or type",
-            "Review preview",
-            "Confirm checkout",
-            "Settle on Sui",
-          ].map((step, i) => (
-            <li key={i} className="flex items-center gap-2 text-xs text-neutral-600">
-              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-[10px] font-medium text-white">
-                {i + 1}
-              </span>
-              {step}
-            </li>
-          ))}
+        <div className="flex items-center gap-2">
+          <ShieldTick size={14} className="text-black" />
+          <h2 className="text-xs font-semibold tracking-tight text-black">
+            Safety lifecycle
+          </h2>
+        </div>
+        <ol className="flex flex-wrap gap-x-3 gap-y-1.5" data-testid="safety-lifecycle-mobile">
+          {([
+            { key: "language", label: "Language" },
+            { key: "validation", label: "Validation" },
+            { key: "confirmation", label: "Confirm" },
+            { key: "proof", label: "Proof" },
+          ] as const).map((step, i) => {
+            const active = safetyPhase === step.key;
+            return (
+              <li
+                key={step.key}
+                data-safety-phase={step.key}
+                data-safety-active={active ? "true" : undefined}
+                className={`flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-medium ${
+                  active ? "bg-black text-white" : "bg-white text-neutral-600 border border-black/10"
+                }`}
+              >
+                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px]">
+                  {i + 1}
+                </span>
+                {step.label}
+              </li>
+            );
+          })}
         </ol>
       </aside>
 

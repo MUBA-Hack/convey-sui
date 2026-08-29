@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "wave": "Wave 1",
-  "lastUpdated": "2026-08-29T18:57:00.000Z",
-  "criticVerdict": "First implementation pieces completed in the working tree: progress data contract and route (1.1), commerce shell without legacy regression (1.2), deterministic purchase-intent interpreter (2.1), and offline QR Ferry envelope with replay defense (3.2). Prior critic gaps fixed. UI and payment waves (2.2, 2.3, 3.1) plus demo and verification (4.x) still pending.",
-  "percent": 40,
+  "wave": "Final gauntlet",
+  "lastUpdated": "2026-08-30T01:26:00.000Z",
+  "criticVerdict": "Final gauntlet complete: the corrected mobile and desktop candidates passed browser dogfooding, the guarded judge and QR handoff journeys, and the full automated verification matrix.",
+  "percent": 100,
   "tasks": [
     {
       "id": "1.1",
@@ -26,20 +26,20 @@
     {
       "id": "2.2",
       "title": "Chat-first purchase surface",
-      "status": "pending",
-      "percent": 0
+      "status": "completed",
+      "percent": 100
     },
     {
       "id": "2.3",
       "title": "Voice input",
-      "status": "pending",
-      "percent": 0
+      "status": "completed",
+      "percent": 100
     },
     {
       "id": "3.1",
       "title": "Client-signed SUI transfer",
-      "status": "pending",
-      "percent": 0
+      "status": "completed",
+      "percent": 100
     },
     {
       "id": "3.2",
@@ -50,20 +50,20 @@
     {
       "id": "4.1",
       "title": "Demo narrative and project setup",
-      "status": "pending",
-      "percent": 0
+      "status": "completed",
+      "percent": 100
     },
     {
       "id": "4.2",
       "title": "Automated verification",
-      "status": "pending",
-      "percent": 0
+      "status": "completed",
+      "percent": 100
     },
     {
       "id": "4.3",
       "title": "Manual browser QA and blind critic loop",
-      "status": "pending",
-      "percent": 0
+      "status": "completed",
+      "percent": 100
     }
   ]
 }

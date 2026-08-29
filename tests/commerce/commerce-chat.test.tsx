@@ -842,71 +842,104 @@ describe("CommerceChat — empty state example prompts", () => {
 // CommerceChat — honest mode/status card
 // ---------------------------------------------------------------------------
 
-describe("CommerceChat — honest mode/status card", () => {
-  it("renders a DEMO status card that never claims on-chain settlement", () => {
+describe("CommerceChat — honest mode/status chip", () => {
+  it("renders a DEMO status chip that labels simulation honestly", () => {
     render(<CommerceChat networkMode="demo" />);
     const status = screen.getByTestId("mode-status");
     expect(status.getAttribute("data-status-mode")).toBe("demo");
     expect(status).toHaveTextContent(/demo mode/i);
-    // Honest: it explicitly states no on-chain settlement occurs.
-    expect(status).toHaveTextContent(/no on-chain settlement/i);
     // It must NOT fake a balance or a settlement.
     expect(status).not.toHaveTextContent(/balance/i);
     expect(status).not.toHaveTextContent(/settled|settlement complete/i);
   });
 
-  it("renders a LIVE status card describing real testnet signing only on confirm", () => {
+  it("renders a LIVE status chip labelling real testnet", () => {
     render(<CommerceChat networkMode="live" />);
     const status = screen.getByTestId("mode-status");
     expect(status.getAttribute("data-status-mode")).toBe("live");
     expect(status).toHaveTextContent(/live testnet/i);
-    expect(status).toHaveTextContent(/only when you confirm/i);
   });
 });
 
 // ---------------------------------------------------------------------------
-// CommerceChat — dominant black payment surface (visual hierarchy)
+// CommerceChat — compressed hero, judge run, and reactive safety lifecycle
 // ---------------------------------------------------------------------------
 
-describe("CommerceChat — dominant black status surface", () => {
-  it("renders the status card on the dominant black payment surface class", () => {
+describe("CommerceChat — compressed hero and judge run", () => {
+  it("states one concise promise in the hero heading", () => {
     render(<CommerceChat networkMode="demo" />);
-    const status = screen.getByTestId("mode-status");
-    expect(status.className).toContain("cv-status--surface");
-    // The base cv-status hook is preserved so the surface overrides it.
-    expect(status.className).toContain("cv-status");
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent(/say it.*approve.*settle on sui/i);
   });
 
-  it("decorates the surface with an abstract CSS radar motif (no images/hue)", () => {
-    const { container } = render(<CommerceChat networkMode="demo" />);
-    const status = screen.getByTestId("mode-status");
-    // The primary concentric radar motif is present and aria-hidden.
-    const motif = status.querySelector(".cv-status__motif");
-    expect(motif).not.toBeNull();
-    expect(motif?.getAttribute("aria-hidden")).toBe("true");
-    // A second echo ring set exists for a route/relay feel.
-    expect(status.querySelector(".cv-status__motif--echo")).not.toBeNull();
-    // No <img> or hue-bearing class is introduced to achieve the motif.
-    expect(container.querySelector("img")).toBeNull();
-  });
-
-  it("shows one crisp, honest settlement figure: 0 SUI on-chain until confirm", () => {
+  it("renders a clearly labelled 60-second judge run button", () => {
     render(<CommerceChat networkMode="demo" />);
-    const status = screen.getByTestId("mode-status");
-    // The figure label and the 0 SUI readout are both present.
-    expect(status).toHaveTextContent(/on-chain settlement/i);
-    expect(status).toHaveTextContent(/^.*0.*SUI.*$/);
-    expect(status).toHaveTextContent(/until you confirm/i);
-    // Honest: still no faked balance or completed settlement.
-    expect(status).not.toHaveTextContent(/balance/i);
-    expect(status).not.toHaveTextContent(/settled|settlement complete/i);
+    const btn = screen.getByTestId("judge-run");
+    expect(btn).toHaveTextContent(/60s judge run/i);
+    expect(btn).not.toBeDisabled();
   });
 
-  it("keeps the same honest 0 SUI figure in live testnet mode", () => {
-    render(<CommerceChat networkMode="live" />);
-    const status = screen.getByTestId("mode-status");
-    expect(status).toHaveTextContent(/on-chain settlement/i);
-    expect(status).toHaveTextContent(/^.*0.*SUI.*$/);
+  it("judge run populates and submits the golden prompt but never auto-confirms", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockReturnValue(jsonResponse(PREVIEW));
+
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.click(screen.getByTestId("judge-run"));
+
+    // The golden prompt was posted to the typed intent endpoint.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/commerce/intent",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    // The typed preview lands in the thread — but in `pending`, so Confirm
+    // is offered (never auto-confirmed). No wallet/checkout dialog opens.
+    expect(await screen.findByRole("button", { name: /confirm/i })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("judge run is re-entry guarded while in flight", () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.click(screen.getByTestId("judge-run"));
+    // While loading, the button is disabled.
+    expect(screen.getByTestId("judge-run")).toBeDisabled();
+  });
+});
+
+describe("CommerceChat — reactive safety lifecycle", () => {
+  it("renders the four-phase safety lifecycle rail", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const rail = screen.getByTestId("safety-lifecycle");
+    expect(rail).toHaveTextContent(/language/i);
+    expect(rail).toHaveTextContent(/validation/i);
+    expect(rail).toHaveTextContent(/confirmation/i);
+    expect(rail).toHaveTextContent(/settlement proof/i);
+  });
+
+  it("starts on the language phase when the thread is empty", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const phase = screen.getByTestId("safety-lifecycle").querySelector(
+      '[data-safety-phase="language"]',
+    );
+    expect(phase?.getAttribute("data-safety-active")).toBe("true");
+  });
+
+  it("advances to the confirmation phase once a typed preview lands", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+    );
+    const phase = screen.getByTestId("safety-lifecycle").querySelector(
+      '[data-safety-phase="confirmation"]',
+    );
+    expect(phase?.getAttribute("data-safety-active")).toBe("true");
   });
 });
 
@@ -941,26 +974,24 @@ describe("CommerceChat — example prompts as financial action cards", () => {
   });
 
   it("collapses the empty-state thread to content on desktop (no giant min-height)", () => {
-    render(<CommerceChat networkMode="demo" />);
+    const { container } = render(<CommerceChat networkMode="demo" />);
     // The thread inset is the scroll container holding the empty state. When
     // empty it must NOT carry a desktop min-height that would force a tall
     // dead gray rectangle below the prompt cards; a small mobile min-height
     // is allowed for thumb-reach breathing room.
-    const thread = screen
-      .getByTestId("mode-status")
-      .parentElement?.querySelector(".cv-panel--inset");
+    const thread = container.querySelector(".cv-panel--inset");
     expect(thread).not.toBeNull();
     const cls = thread!.className;
     // No desktop min-height forces a giant void when empty.
     expect(cls).not.toContain("md:min-h-[340px]");
     expect(cls).not.toContain("md:min-h-[300px]");
     // A modest mobile min-height is kept for breathing room.
-    expect(cls).toContain("min-h-[180px]");
+    expect(cls).toContain("min-h-[140px]");
   });
 
   it("restores the scroll-room min-height once a message is present", async () => {
     vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
-    render(<CommerceChat networkMode="demo" />);
+    const { container } = render(<CommerceChat networkMode="demo" />);
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: GOLDEN },
     });
@@ -970,9 +1001,7 @@ describe("CommerceChat — example prompts as financial action cards", () => {
     );
     // Once populated, the thread regains its desktop min-height so a real
     // conversation has room to scroll rather than collapsing to content.
-    const thread = screen
-      .getByTestId("mode-status")
-      .parentElement?.querySelector(".cv-panel--inset");
+    const thread = container.querySelector(".cv-panel--inset");
     expect(thread).not.toBeNull();
     expect(thread!.className).toContain("md:min-h-[340px]");
   });

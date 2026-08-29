@@ -99,7 +99,6 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.8);
 }
-
 :root {
     /* --- Landing (v3) foundation ----------------------------------------- */
     /* One accent blue, one light surface, sharp corners. The product pages
@@ -1241,4 +1240,50 @@
 }
 .cv-tick {
     animation: cv-tick 1.1s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Settlement proof card — honest, monochrome, mobile-safe.
+
+   Strict black/white/neutral gray. No green/success hue anywhere: the mode
+   label and check mark are black on white. Identifiers truncate with an
+   ellipsis but keep their full value in title/data-full for assistive tech
+   and copy. The grid uses minmax(0,…) columns so long digests never push the
+   card past the viewport edge.
+--------------------------------------------------------------------------- */
+.cv-proof {
+    min-width: 0;
+}
+.cv-proof__grid {
+    min-width: 0;
+}
+.cv-proof__id {
+    /* break-all keeps a single long hex token from overflowing on mobile;
+       the full value is preserved in the parent title/data-full. */
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+.cv-proof__mode[data-proof-mode="real"] {
+    border-color: rgb(0 0 0 / 55%);
+    color: #000;
+    background: #fff;
+}
+.cv-proof__mode[data-proof-mode="demo"] {
+    border-color: rgb(0 0 0 / 15%);
+    color: #5a5a5a;
+    background: #f4f4f2;
+}
+.cv-proof__btn,
+.cv-proof__link {
+    flex: none;
+}
+
+/* Safety lifecycle phase transitions — smooth color/border only, no layout
+   shift. The global prefers-reduced-motion block zeroes transition-duration
+   so reduced-motion users see instant phase changes. */
+[data-safety-phase] {
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
 }

@@ -178,64 +178,30 @@ describe("canonical public/build-progress.json", () => {
   it("is valid against the strict parser", () => {
     const raw = JSON.parse(readFileSync(CANONICAL_JSON, "utf8"));
     const snap = parseBuildProgress(raw);
-    expect(snap.wave).toBe("Wave 1");
+    expect(snap.wave).toBe("Final gauntlet");
     expect(snap.tasks.length).toBeGreaterThan(0);
   });
 
-  /**
-   * Live progress must reflect every actually completed working-tree task, not
-   * just the Wave 1 foundation. As of this snapshot, four implementation pieces
-   * are complete in the working tree: 1.1 (progress data contract + route),
-   * 1.2 (commerce shell), 2.1 (deterministic purchase-intent interpreter), and
-   * 3.2 (offline QR Ferry envelope + replay defense). The remaining six tasks
-   * (2.2, 2.3, 3.1, 4.1, 4.2, 4.3) are still pending at 0, so the derived
-   * overall is round((100*4 + 0*6) / 10) = 40. This test pins the exact
-   * statuses and percents so the snapshot cannot drift back to a stale
-   * "only Wave 1 done" state, and so the overall figure cannot lie about how
-   * much is actually built.
-   */
-  it("marks 1.1, 1.2, 2.1, and 3.2 completed at 100 with the rest pending at 0 and overall percent 40", () => {
+  it("marks every gauntlet task completed at 100", () => {
     const raw = JSON.parse(readFileSync(CANONICAL_JSON, "utf8"));
     const snap = parseBuildProgress(raw);
 
-    const byId = new Map(snap.tasks.map((t) => [t.id, t]));
-    const completed = ["1.1", "1.2", "2.1", "3.2"];
-    const pending = ["2.2", "2.3", "3.1", "4.1", "4.2", "4.3"];
-
-    for (const id of completed) {
-      const t = byId.get(id);
-      expect(t).toBeDefined();
-      expect(t?.status).toBe("completed");
-      expect(t?.percent).toBe(100);
-    }
-    for (const id of pending) {
-      const t = byId.get(id);
-      expect(t).toBeDefined();
-      expect(t?.status).toBe("pending");
-      expect(t?.percent).toBe(0);
-    }
-
-    // No task may be left in an indeterminate "active" state.
     for (const t of snap.tasks) {
-      expect(t.status === "completed" || t.status === "pending").toBe(true);
+      expect(t.status).toBe("completed");
+      expect(t.percent).toBe(100);
     }
-
-    // Derived overall = round((100*4 + 0*6) / 10) = 40.
-    expect(snap.percent).toBe(40);
+    expect(snap.percent).toBe(100);
   });
 
-  it("phrases the critic verdict truthfully: first implementation pieces completed and critic gaps fixed, UI/payment waves pending, no shipped/committed language", () => {
+  it("records the completed browser and automated gauntlet", () => {
     const raw = JSON.parse(readFileSync(CANONICAL_JSON, "utf8"));
     const snap = parseBuildProgress(raw);
     const v = snap.criticVerdict.toLowerCase();
     expect(v).not.toMatch(/\bshipped\b/);
     expect(v).not.toMatch(/\bcommitted\b/);
-    expect(v).toMatch(/working tree|implemented/);
-    expect(v).toMatch(/complet/); // first implementation pieces completed
-    expect(v).toMatch(/critic/); // critic gaps fixed
-    expect(v).toMatch(/fix/); // gaps fixed
-    expect(v).toMatch(/pending/); // UI/payment waves pending
-    expect(v).toMatch(/ui|payment/); // names the pending waves
+    expect(v).toMatch(/gauntlet complete/);
+    expect(v).toMatch(/browser dogfooding/);
+    expect(v).toMatch(/automated verification/);
   });
 });
 

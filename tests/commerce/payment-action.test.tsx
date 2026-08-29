@@ -132,7 +132,7 @@ describe("PaymentAction — real testnet mode", () => {
     fireEvent.click(screen.getByRole("button", { name: /Confirm/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(digest)).toBeInTheDocument();
+      expect(screen.getByTitle(digest)).toHaveAttribute("data-full", digest);
     });
 
     expect(wallet.signAndExecuteTransaction).toHaveBeenCalledTimes(1);

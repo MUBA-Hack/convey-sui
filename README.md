@@ -57,7 +57,7 @@ what to pay.
 - [3-minute demo script](#3-minute-demo-script)
 - [Judge FAQ](#judge-faq)
 - [Limitations & roadmap](#limitations--roadmap)
-- [Architecture inspiration](#architecture-inspiration)
+- [QR Ferry design](#qr-ferry-design)
 
 ---
 
@@ -692,9 +692,6 @@ degraded storage, and PWA cache policy.
   sponsored-gas / pay-the-fee path yet; the payer wallet must hold gas for real
   transfers.
 - **Unaudited, testnet-only, capped** — no real funds.
-- **Stale build-progress snapshot** — `public/build-progress.json` reflects an
-  earlier wave and lags the implemented UI/payment/voice work in the tree; the
-  `/build-progress` page renders whatever the (strictly validated) snapshot says.
 
 **Roadmap:**
 
@@ -702,18 +699,13 @@ degraded storage, and PWA cache policy.
   defense.
 - Sponsor/gasless payment path so a payer wallet need not hold SUI.
 - Dynamic catalog and merchant onboarding.
-- End-to-end QR Ferry → payment action wiring (today the validated envelope is
-  exposed via a seam; the payment action integration is the next step).
+- An on-chain QR Ferry settlement receipt that binds the consumed nonce to the
+  final transaction digest.
 
-## Architecture inspiration
+## QR Ferry design
 
 The Offline QR Ferry's air-gapped transport pattern — generate a checksummed
 payload on an offline device, carry it across a QR channel, verify and consume
-it on a connected device — was inspired at a **high level** by air-gapped
-signing and
-offline-declaration patterns discussed in the Sui ecosystem (for example, in
-Token2049-era talks on offline wallet interaction). The implementation here is a
-**clean-room** design written entirely from the protocol described in this
-repository: no code was copied from any external source, and no attribution is
-required. The envelope is a tamper-evident transport, not a clone of any
-particular wallet's signing scheme.
+it on a connected device — deliberately separates transport from authorization.
+The envelope is tamper-evident and replay-aware, while the connected device
+still owns the explicit payment approval and settlement proof.

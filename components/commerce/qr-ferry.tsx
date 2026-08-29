@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { PurchaseIntentPreview } from "@/lib/commerce/intent";
 import {
@@ -14,15 +14,15 @@ import {
 import { PaymentAction } from "./payment-action";
 
 /**
- * Offline QR Ferry UI (Wave 3, Task 3.2 UI).
+ * Offline QR Ferry UI — Device A → offline transfer → Device B.
  *
- * Two panels:
- *  - Offline device: creates a tamper-evident envelope from a safe demo
+ * Two panels tell a two-device story:
+ *  - Device A (offline): creates a tamper-evident envelope from a safe demo
  *    purchase and renders a QR code plus copy/download payload.
- *  - Connected device: pastes/imports the payload, validates it, reviews
+ *  - Device B (connected): pastes/imports the payload, validates it, reviews
  *    item/qty/SUI/address/expiry, consumes the nonce once via a
- *    localStorage-backed ReplayRegistry, and exposes the validated envelope
- *    to a future payment action integration (no transaction code here).
+ *    localStorage-backed ReplayRegistry, and hands the validated envelope
+ *    into the SAME guarded checkout/proof path the home chat uses.
  *
  * This is a TRANSPORT envelope, not cryptographic payer authorization. The
  * checksum detects tampering; the nonce registry defends against replay.
@@ -221,6 +221,12 @@ function formatTime(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
+/** Shorten a long hex identifier for display; full value stays in title. */
+function shortId(value: string, head = 10, tail = 8): string {
+  if (value.length <= 22) return value;
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+}
+
 /** Friendly error messages keyed by QrFerryError reason. */
 const FRIENDLY_ERRORS: Record<string, string> = {
   duplicate_nonce:
@@ -254,9 +260,9 @@ function errorMessage(err: unknown): string {
 
 export interface QrFerryProps {
   /**
-   * Called with the validated envelope after a successful import. This is the
-   * seam for a future payment-action integration — no transaction code is
-   * wired here.
+   * Called with the validated envelope after a successful import. The
+   * validated envelope is then handed into the same guarded checkout/proof
+   * path the home chat uses (via the Continue to checkout button below).
    */
   onValidatedEnvelope?: (env: QrFerryEnvelope) => void;
 }
@@ -269,15 +275,11 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
   const [checkoutPreview, setCheckoutPreview] = useState<PurchaseIntentPreview | null>(null);
 
   const registryRef = useRef<LocalStorageReplayRegistry | null>(null);
-  if (registryRef.current === null) {
-    registryRef.current = new LocalStorageReplayRegistry();
-  }
-  // Fail-closed degraded state: when replay storage is corrupt/wrong-shaped,
-  // imports are blocked and a role=alert warning is shown until the user
-  // explicitly resets the QR nonce key. Initialized via the static probe so
-  // no React ref is read during render.
-  const [replayDegraded, setReplayDegraded] = useState(() =>
-    LocalStorageReplayRegistry.isStorageDegraded(),
+  const [, setReplayRevision] = useState(0);
+  const replayDegraded = useSyncExternalStore(
+    () => () => {},
+    () => LocalStorageReplayRegistry.isStorageDegraded(),
+    () => false,
   );
 
   const handleGenerate = () => {
@@ -336,8 +338,10 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     // The registry itself also fails closed (tryConsume returns false).
     if (replayDegraded) return;
     try {
+      const registry = registryRef.current ?? new LocalStorageReplayRegistry();
+      registryRef.current = registry;
       const env = importEnvelope(payload, {
-        registry: registryRef.current ?? undefined,
+        registry,
       });
       setImported(env);
       setCheckoutPreview(null);
@@ -377,8 +381,10 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
    * (empty) registry. Other localStorage entries are untouched.
    */
   const handleRecoverReplayStorage = () => {
-    registryRef.current?.recover();
-    setReplayDegraded(false);
+    const registry = registryRef.current ?? new LocalStorageReplayRegistry();
+    registryRef.current = registry;
+    registry.recover();
+    setReplayRevision((value) => value + 1);
     setError(null);
     setImported(null);
   };
@@ -386,10 +392,10 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
   const envelopeJson = envelope ? exportEnvelopeJson(envelope) : "";
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-5 py-12 md:py-16">
+    <section className="mx-auto w-full max-w-5xl px-5 py-8 md:py-12">
       <header className="flex flex-col gap-2">
         <p className="cv-micro cv-micro-sm text-neutral-500">
-          Offline transport
+          Device A → offline transfer → Device B
         </p>
         <h1 className="text-2xl font-medium tracking-tight">
           Offline QR Ferry
@@ -416,15 +422,15 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
         </div>
       </header>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
-        {/* --- Generate panel (offline device) --- */}
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        {/* --- Device A (offline) --- */}
         <div
           data-testid="generate-panel"
           className="flex flex-col gap-4 border border-[var(--cv-line)] bg-white p-5"
         >
           <div>
             <h2 className="text-lg font-medium tracking-tight">
-              Offline device
+              Device A — offline
             </h2>
             <p className="cv-micro cv-micro-sm mt-1 text-neutral-500">
               Generate envelope
@@ -461,9 +467,14 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
                 <dt className="text-neutral-500">Merchant</dt>
                 <dd className="font-medium">{DEMO_MERCHANT_NAME}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Merchant address</dt>
-                <dd className="font-mono text-xs">{DEMO_MERCHANT_ADDRESS}</dd>
+              <div className="flex justify-between gap-3">
+                <dt className="shrink-0 text-neutral-500">Merchant address</dt>
+                <dd
+                  className="min-w-0 break-all text-right font-mono text-xs"
+                  title={DEMO_MERCHANT_ADDRESS}
+                >
+                  {shortId(DEMO_MERCHANT_ADDRESS)}
+                </dd>
               </div>
             </dl>
           </div>
@@ -528,25 +539,35 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
                   Envelope details
                 </p>
                 <dl className="mt-3 flex flex-col gap-2">
-                  <div className="flex justify-between">
-                    <dt className="text-neutral-500">Nonce</dt>
-                    <dd className="font-mono text-xs">{envelope.nonce}</dd>
+                  <div className="flex justify-between gap-3">
+                    <dt className="shrink-0 text-neutral-500">Nonce</dt>
+                    <dd
+                      className="min-w-0 break-all text-right font-mono text-xs"
+                      title={envelope.nonce}
+                    >
+                      {shortId(envelope.nonce)}
+                    </dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-neutral-500">Created</dt>
-                    <dd className="font-mono text-xs">
+                  <div className="flex justify-between gap-3">
+                    <dt className="shrink-0 text-neutral-500">Created</dt>
+                    <dd className="text-right font-mono text-xs">
                       {formatTime(envelope.createdAt)}
                     </dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-neutral-500">Expires</dt>
-                    <dd className="font-mono text-xs">
+                  <div className="flex justify-between gap-3">
+                    <dt className="shrink-0 text-neutral-500">Expires</dt>
+                    <dd className="text-right font-mono text-xs">
                       {formatTime(envelope.expiresAt)}
                     </dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-neutral-500">Checksum</dt>
-                    <dd className="font-mono text-xs">{envelope.checksum}</dd>
+                  <div className="flex justify-between gap-3">
+                    <dt className="shrink-0 text-neutral-500">Checksum</dt>
+                    <dd
+                      className="min-w-0 break-all text-right font-mono text-xs"
+                      title={envelope.checksum}
+                    >
+                      {shortId(envelope.checksum)}
+                    </dd>
                   </div>
                 </dl>
               </div>
@@ -554,11 +575,11 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
           )}
         </div>
 
-        {/* --- Import panel (connected device) --- */}
+        {/* --- Device B (connected) --- */}
         <div className="flex flex-col gap-4 border border-[var(--cv-line)] bg-white p-5">
           <div>
             <h2 className="text-lg font-medium tracking-tight">
-              Connected device
+              Device B — connected
             </h2>
             <p className="cv-micro cv-micro-sm mt-1 text-neutral-500">
               Import and validate
@@ -679,33 +700,44 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
                     {mistToSui(imported.totalMist)} SUI
                   </dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">Merchant address</dt>
-                  <dd className="font-mono text-xs">
-                    {imported.merchantAddress}
+                <div className="flex justify-between gap-3">
+                  <dt className="shrink-0 text-neutral-500">Merchant address</dt>
+                  <dd
+                    className="min-w-0 break-all text-right font-mono text-xs"
+                    title={imported.merchantAddress}
+                  >
+                    {shortId(imported.merchantAddress)}
                   </dd>
                 </div>
                 {imported.payerAddress && (
-                  <div className="flex justify-between">
-                    <dt className="text-neutral-500">Payer address</dt>
-                    <dd className="font-mono text-xs">
-                      {imported.payerAddress}
+                  <div className="flex justify-between gap-3">
+                    <dt className="shrink-0 text-neutral-500">Payer address</dt>
+                    <dd
+                      className="min-w-0 break-all text-right font-mono text-xs"
+                      title={imported.payerAddress}
+                    >
+                      {shortId(imported.payerAddress)}
                     </dd>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">Expiry</dt>
-                  <dd className="font-mono text-xs">
+                <div className="flex justify-between gap-3">
+                  <dt className="shrink-0 text-neutral-500">Expiry</dt>
+                  <dd className="text-right font-mono text-xs">
                     {formatTime(imported.expiresAt)}
                   </dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">Nonce</dt>
-                  <dd className="font-mono text-xs">{imported.nonce}</dd>
+                <div className="flex justify-between gap-3">
+                  <dt className="shrink-0 text-neutral-500">Nonce</dt>
+                  <dd
+                    className="min-w-0 break-all text-right font-mono text-xs"
+                    title={imported.nonce}
+                  >
+                    {shortId(imported.nonce)}
+                  </dd>
                 </div>
               </dl>
               <p className="mt-4 border-t border-[var(--cv-line)] pt-3 text-sm font-semibold">
-                Ready to hand off into payment action
+                Ready to hand off into the same guarded checkout
               </p>
               <button
                 type="button"
@@ -715,7 +747,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
                 Continue to checkout
               </button>
               <p className="mt-2 text-xs text-neutral-500">
-                This keeps QR Ferry as transport only. Checkout still applies the same deterministic payment gate.
+                This keeps QR Ferry as transport only. Device B still applies the same deterministic payment gate and proof as the home chat.
               </p>
             </div>
           )}
@@ -726,10 +758,10 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
         <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 md:p-5">
           <div className="mb-3">
             <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-              Connected checkout
+              Device B — same guarded checkout
             </p>
             <h2 className="mt-1 text-lg font-medium tracking-tight">
-              Payment action handoff
+              Settle the imported purchase
             </h2>
           </div>
           <PaymentAction preview={checkoutPreview} />

@@ -94,10 +94,10 @@ describe("QrFerry — structure and transport explanation", () => {
   it("renders both the Generate and Import panels", () => {
     render(<QrFerry />);
     expect(
-      screen.getByRole("heading", { name: /Offline device/i }),
+      screen.getByRole("heading", { name: /Device A/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Connected device/i }),
+      screen.getByRole("heading", { name: /Device B/i }),
     ).toBeInTheDocument();
   });
 
@@ -188,7 +188,12 @@ describe("QrFerry — import panel valid import", () => {
     expect(review).toHaveTextContent(/Iced Coffee/i);
     expect(review).toHaveTextContent(/2/); // quantity
     expect(review).toHaveTextContent(/6.*SUI/i); // total
-    expect(review).toHaveTextContent(MERCHANT);
+    // The full merchant address is kept in a title attribute (truncated
+    // visibly to avoid overflow); assert the full value is accessible.
+    const merchantDd = Array.from(
+      review.querySelectorAll("dd[title]"),
+    ).find((dd) => dd.getAttribute("title") === MERCHANT);
+    expect(merchantDd).toBeTruthy();
     expect(review).toHaveTextContent(/expir/i);
     // No error.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -219,7 +224,7 @@ describe("QrFerry — import panel valid import", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Import and validate/i }));
 
-    expect(screen.getByText(/ready to hand off into payment action/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready to hand off into the same guarded checkout/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continue to checkout/i })).toBeInTheDocument();
   });
 
@@ -248,7 +253,15 @@ describe("QrFerry — import panel valid import", () => {
     fireEvent.click(screen.getByRole("button", { name: /Import and validate/i }));
 
     const review = screen.getByTestId("validated-envelope");
-    expect(review).toHaveTextContent(PAYER);
+    // The full payer address is kept in the title attribute for assistive
+    // tech and copy, while the visible text is truncated to avoid overflow.
+    expect(review).toHaveTextContent(/payer address/i);
+    const titledDds = review.querySelectorAll("dd[title]");
+    const payerNode = Array.from(titledDds).find(
+      (dd) => dd.getAttribute("title") === PAYER,
+    );
+    expect(payerNode).toBeTruthy();
+    expect(payerNode?.getAttribute("title")).toBe(PAYER);
   });
 });
 
