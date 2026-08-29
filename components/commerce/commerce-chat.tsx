@@ -6,7 +6,7 @@ import type {
   PurchaseIntentResult,
 } from "@/lib/commerce/intent";
 import type { PaymentReceipt } from "@/lib/commerce/payment";
-import { Send2 } from "@/components/icons";
+import { ArrowRight, Radar, Send2 } from "@/components/icons";
 import { useVoiceInput } from "./use-voice-input";
 import { PurchasePreview, type PreviewStatus } from "./purchase-preview";
 import { CheckoutDialog } from "./checkout-dialog";
@@ -60,12 +60,36 @@ function MicGlyph({ size = 18 }: { size?: number }) {
  * state, a live interim transcript, and a complete text fallback when the
  * browser has no SpeechRecognition. The hook stops recognition on unmount.
  *
- * Layout: at 375px the composer stays in thumb reach with no horizontal
- * overflow; at 1440px the chat column is capped under 720px with a compact
- * context rail. All primary hit targets are 44px (h-11).
+ * Layout: mobile-first. At 375px the composer stays in thumb reach with no
+ * horizontal overflow; at desktop a polished centered 2-column composition
+ * pairs the primary chat panel with a compact how-it-works rail. The empty
+ * state is useful: three clickable example prompts that populate the composer
+ * ONLY (never submit/confirm automatically) and an honest mode/status card
+ * that never fakes a balance or settlement. All primary hit targets are 44px.
  */
 
 const GOLDEN_PROMPT = "Buy two iced coffees under 8 SUI from River Cafe";
+
+/** Clickable example prompts. Clicking populates the composer ONLY — it never
+ *  submits, confirms, or opens checkout. The short label is shown on the card;
+ *  the full command is what gets placed in the composer. */
+const EXAMPLE_PROMPTS: { label: string; sub: string; command: string }[] = [
+  {
+    label: "Two iced coffees",
+    sub: "River Cafe · under 8 SUI",
+    command: GOLDEN_PROMPT,
+  },
+  {
+    label: "Lunch bowl",
+    sub: "Green Kitchen · under 12 SUI",
+    command: "Order one lunch bowl under 12 SUI from Green Kitchen",
+  },
+  {
+    label: "Three cold brews",
+    sub: "Daybreak Coffee · under 6 SUI",
+    command: "Get three cold brews under 6 SUI from Daybreak Coffee",
+  },
+];
 
 export type NetworkMode = "demo" | "live";
 
@@ -233,150 +257,297 @@ export function CommerceChat({
   };
 
   const canSend = input.trim().length > 0 && !loading;
+  const isEmpty = messages.length === 0 && !loading;
 
   return (
     <section
-      className="mx-auto flex w-full max-w-[680px] flex-col px-4 py-6 md:py-10"
+      data-palette="monochrome"
       aria-label="Convey chat"
+      className="cv-shell mx-auto w-full max-w-[1100px] px-4 py-6 md:py-10"
     >
-      <header className="mb-4 flex flex-col gap-1">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
-          Say it. Carry it across. Settle on Sui.
-        </p>
-        <p className="cv-micro cv-micro-sm text-neutral-500">
-          Shop by chat or voice
-        </p>
-        <h1 className="text-2xl font-medium tracking-tight">
-          What would you like to buy?
-        </h1>
-        <p className="text-sm text-neutral-600">
-          Try: <span className="font-medium">{GOLDEN_PROMPT}</span>
-        </p>
-      </header>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        {/* Primary chat panel */}
+        <div className="cv-panel cv-enter flex flex-col p-4 md:p-5">
+          <header className="mb-3 flex flex-col gap-1">
+            <h1 className="text-xl font-medium tracking-tight md:text-2xl">
+              What would you like to buy?
+            </h1>
+            <p className="text-sm text-neutral-600">
+              Try: <span className="font-medium">{GOLDEN_PROMPT}</span>
+            </p>
+          </header>
 
-      {/* Thread */}
-      <div
-        ref={threadRef}
-        className="flex min-h-[40vh] flex-1 flex-col gap-3 overflow-y-auto border border-[var(--cv-line)] bg-[var(--cv-paper)] p-3 md:min-h-[50vh]"
-        aria-live="polite"
-      >
-        {messages.length === 0 && !loading && (
-          <p className="self-center my-auto text-sm text-neutral-500">
-            Send a purchase command to begin.
-          </p>
-        )}
-
-        {messages.map((m) => (
+          {/* Dominant black settlement status card — the premium payment
+             surface that anchors the shell's hierarchy. White type on solid
+             black, an abstract CSS concentric radar motif, and one crisp
+             settlement figure (0 SUI on-chain until confirm). Strict
+             grayscale, no hue. Never fakes a balance or settlement; the only
+             motion is the 220ms cv-enter rise (zeroed for reduced-motion). */}
           <div
-            key={m.id}
-            className={
-              m.role === "user"
-                ? "self-end max-w-[85%] bg-black px-3 py-2 text-sm text-white"
-                : "self-start max-w-[90%] bg-white px-3 py-2 text-sm border border-[var(--cv-line)]"
-            }
+            data-testid="mode-status"
+            data-status-mode={networkMode}
+            className="cv-status cv-status--surface cv-enter mb-4 p-4 md:p-5"
           >
-            <p className="whitespace-pre-wrap">{m.text}</p>
-            {m.preview && (
-              <PurchasePreview
-                preview={m.preview}
-                networkMode={networkMode}
-                status={m.previewStatus ?? "pending"}
-                onConfirm={() => openCheckout(m.preview!, m.id)}
-                onCancel={() => setPreviewStatus(m.id, "cancelled")}
-                onReopen={() => setPreviewStatus(m.id, "pending")}
-              />
+            <span aria-hidden className="cv-status__motif" />
+            <span
+              aria-hidden
+              className="cv-status__motif cv-status__motif--echo"
+            />
+            <div className="relative flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Radar size={16} className="text-white/75" />
+                <span className="cv-status__figure-label text-[11px] text-white/65">
+                  {networkMode === "live" ? "Live testnet" : "Demo mode"}
+                </span>
+                <span
+                  aria-hidden
+                  className="cv-status__dot ml-auto inline-block h-1.5 w-1.5 rounded-full"
+                />
+              </div>
+
+              {/* Crisp money/settlement data point — honest, never invented.
+                  0 SUI has settled on-chain until the user confirms. */}
+              <div className="flex items-end justify-between gap-4">
+                <div className="flex flex-col">
+                  <span className="cv-status__figure-label text-[10px] text-white/55">
+                    On-chain settlement
+                  </span>
+                  <span className="cv-status__figure mt-0.5 font-mono text-3xl font-semibold leading-none text-white md:text-4xl">
+                    0
+                    <span className="ml-1.5 text-sm font-medium text-white/55">
+                      SUI
+                    </span>
+                  </span>
+                  <span className="mt-1 text-[11px] text-white/55">
+                    until you confirm
+                  </span>
+                </div>
+              </div>
+
+              <p className="max-w-[54ch] text-xs leading-relaxed text-white/75">
+                {networkMode === "live"
+                  ? "Live testnet — a real SUI testnet transfer is built and signed only when you confirm in checkout."
+                  : "Demo mode — no wallet or testnet merchant is connected. Previews and checkouts run as an explicitly labelled simulation; no on-chain settlement occurs."}
+              </p>
+            </div>
+          </div>
+
+          {/* Thread — desktop collapses to content when empty (no giant pale
+              void below the prompt cards); grows to fill once messages exist.
+              Mobile keeps a small min-height for thumb-reach breathing room.
+              The composer stays pinned just below via the panel's flex-col. */}
+          <div
+            ref={threadRef}
+            className={`cv-panel--inset cv-scroll flex flex-1 flex-col gap-3 overflow-y-auto p-3 md:max-h-[58vh]${
+              isEmpty ? " min-h-[180px]" : " min-h-[300px] md:min-h-[340px]"
+            }`}
+            aria-live="polite"
+          >
+            {isEmpty && (
+              <div className="cv-enter my-auto flex flex-col gap-3">
+                <p className="text-sm text-neutral-500">
+                  Send a purchase command to begin, or pick an example:
+                </p>
+                <div className="grid gap-2.5 md:grid-cols-3 md:gap-3">
+                  {EXAMPLE_PROMPTS.map((p, i) => (
+                    <button
+                      key={p.command}
+                      type="button"
+                      data-testid="example-prompt"
+                      data-example-prompt="true"
+                      aria-label={`Try: ${p.command}`}
+                      onClick={() => setInput(p.command)}
+                      className={`cv-prompt cv-enter cv-enter-step-${
+                        i + 1
+                      } min-h-[52px] px-3.5 py-3`}
+                    >
+                      <span aria-hidden className="cv-prompt__accent" />
+                      <span className="flex flex-1 flex-col gap-0.5">
+                        <span className="text-sm font-medium text-black">
+                          {p.label}
+                        </span>
+                        <span className="font-mono text-xs tabular-nums text-neutral-500">
+                          {p.sub}
+                        </span>
+                      </span>
+                      <ArrowRight
+                        size={16}
+                        aria-hidden
+                        className="cv-prompt__chevron"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((m) => (
+              <div
+                key={m.id}
+                className={
+                  m.role === "user"
+                    ? "cv-bubble-user cv-enter self-end max-w-[85%] px-3.5 py-2.5 text-sm"
+                    : "cv-bubble-bot cv-enter self-start max-w-[90%] px-3.5 py-2.5 text-sm"
+                }
+              >
+                <p className="whitespace-pre-wrap">{m.text}</p>
+                {m.preview && (
+                  <PurchasePreview
+                    preview={m.preview}
+                    networkMode={networkMode}
+                    status={m.previewStatus ?? "pending"}
+                    onConfirm={() => openCheckout(m.preview!, m.id)}
+                    onCancel={() => setPreviewStatus(m.id, "cancelled")}
+                    onReopen={() => setPreviewStatus(m.id, "pending")}
+                  />
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div
+                role="status"
+                aria-label="Loading"
+                className="cv-bubble-bot cv-enter self-start px-3.5 py-2.5 text-sm"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span className="cv-tick inline-block h-2 w-2 rounded-full bg-black" />
+                  Interpreting…
+                </span>
+              </div>
+            )}
+
+            {error && (
+              <div
+                role="alert"
+                className="cv-enter self-start rounded-xl border border-black bg-white px-3.5 py-2.5 text-sm"
+              >
+                <p className="font-medium">Something went wrong: {error}</p>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="cv-btn-solid mt-2 inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium uppercase tracking-wide"
+                >
+                  Retry
+                </button>
+              </div>
             )}
           </div>
-        ))}
 
-        {loading && (
-          <div
-            role="status"
-            aria-label="Loading"
-            className="self-start bg-white px-3 py-2 text-sm border border-[var(--cv-line)]"
-          >
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-block h-2 w-2 animate-pulse bg-black" />
-              Interpreting…
-            </span>
-          </div>
-        )}
+          {/* Voice state */}
+          {voice.listening && (
+            <p className="mt-2 text-sm text-neutral-600" aria-live="polite">
+              Listening…{" "}
+              {voice.interimTranscript && (
+                <span className="font-mono">{voice.interimTranscript}</span>
+              )}
+            </p>
+          )}
+          {!voice.supported && (
+            <p className="mt-2 text-xs text-neutral-500">
+              Voice unavailable — text fallback is fully usable.
+            </p>
+          )}
 
-        {error && (
-          <div
-            role="alert"
-            className="self-start border border-black bg-white px-3 py-2 text-sm"
+          {/* Composer */}
+          <form
+            onSubmit={handleSubmit}
+            className="cv-composer mt-3 flex items-end gap-2 p-2"
+            aria-label="Purchase composer"
           >
-            <p className="font-medium">Something went wrong: {error}</p>
             <button
               type="button"
-              onClick={handleRetry}
-              className="cv-micro mt-2 inline-flex h-9 items-center justify-center bg-black px-3 text-white"
+              aria-label="Microphone"
+              data-hit-target="true"
+              disabled={!voice.supported || loading}
+              onClick={() => (voice.listening ? voice.stop() : voice.start())}
+              className="cv-btn-ghost inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-black disabled:opacity-40"
+              aria-pressed={voice.listening}
             >
-              Retry
+              <MicGlyph size={18} />
             </button>
+
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type or speak a purchase command"
+              rows={1}
+              className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-sm outline-none"
+              aria-label="Purchase command"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (canSend) void send(input);
+                }
+              }}
+            />
+
+            <button
+              type="submit"
+              aria-label="Send"
+              data-hit-target="true"
+              disabled={!canSend}
+              className="cv-btn-solid inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl disabled:opacity-40"
+            >
+              <Send2 size={18} />
+            </button>
+          </form>
+        </div>
+
+        {/* Desktop context rail */}
+        <aside
+          aria-label="How it works"
+          className="cv-panel cv-enter cv-enter-step-1 hidden flex-col gap-4 p-5 lg:flex"
+        >
+          <h2 className="text-sm font-semibold tracking-tight">How it works</h2>
+          <ol className="flex flex-col gap-3.5">
+            {[
+              "Say or type a purchase command.",
+              "Review the validated preview.",
+              "Confirm to open checkout.",
+              "Settle on Sui — or a labelled DEMO.",
+            ].map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-medium text-white">
+                  {i + 1}
+                </span>
+                <span className="text-sm leading-snug text-neutral-700">
+                  {step}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <div className="cv-panel--inset mt-1 px-3 py-2.5">
+            <p className="text-xs leading-relaxed text-neutral-500">
+              No transaction is built until you confirm in checkout. The client
+              signs; the model never receives keys or transaction authority.
+            </p>
           </div>
-        )}
+        </aside>
       </div>
 
-      {/* Voice state */}
-      {voice.listening && (
-        <p className="mt-2 text-sm text-neutral-600" aria-live="polite">
-          Listening…{" "}
-          {voice.interimTranscript && (
-            <span className="font-mono">{voice.interimTranscript}</span>
-          )}
-        </p>
-      )}
-      {!voice.supported && (
-        <p className="mt-2 text-xs text-neutral-500">
-          Voice unavailable — text fallback is fully usable.
-        </p>
-      )}
-
-      {/* Composer */}
-      <form
-        onSubmit={handleSubmit}
-        className="mt-3 flex items-end gap-2"
-        aria-label="Purchase composer"
+      {/* Mobile context (below the chat, compact) */}
+      <aside
+        aria-label="How it works"
+        className="cv-panel cv-enter mt-5 flex flex-col gap-3 p-4 lg:hidden"
       >
-        <button
-          type="button"
-          aria-label="Microphone"
-          data-hit-target="true"
-          disabled={!voice.supported || loading}
-          onClick={() => (voice.listening ? voice.stop() : voice.start())}
-          className="cv-micro inline-flex h-11 w-11 shrink-0 items-center justify-center border border-[var(--cv-line)] bg-white text-black transition-colors hover:bg-neutral-100 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-          aria-pressed={voice.listening}
-        >
-          <MicGlyph size={18} />
-        </button>
-
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type or speak a purchase command"
-          rows={1}
-          className="min-h-[44px] flex-1 resize-none border border-[var(--cv-line)] bg-white px-3 py-3 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-          aria-label="Purchase command"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (canSend) void send(input);
-            }
-          }}
-        />
-
-        <button
-          type="submit"
-          aria-label="Send"
-          data-hit-target="true"
-          disabled={!canSend}
-          className="cv-micro inline-flex h-11 w-11 shrink-0 items-center justify-center bg-black text-white transition-colors hover:bg-neutral-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          <Send2 size={18} />
-        </button>
-      </form>
+        <h2 className="text-sm font-semibold tracking-tight">How it works</h2>
+        <ol className="flex flex-wrap gap-x-4 gap-y-2">
+          {[
+            "Say or type",
+            "Review preview",
+            "Confirm checkout",
+            "Settle on Sui",
+          ].map((step, i) => (
+            <li key={i} className="flex items-center gap-2 text-xs text-neutral-600">
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-[10px] font-medium text-white">
+                {i + 1}
+              </span>
+              {step}
+            </li>
+          ))}
+        </ol>
+      </aside>
 
       <CheckoutDialog
         open={dialogOpen}

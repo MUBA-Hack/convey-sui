@@ -238,8 +238,10 @@ describe("CommerceChat — send and inline preview", () => {
     expect(screen.getAllByText(/River Cafe/).length).toBeGreaterThanOrEqual(2);
     // Total SUI is rendered (6_000_000_000 MIST = 6 SUI).
     expect(screen.getByText(/6(\.0+)?\s*SUI/i)).toBeInTheDocument();
-    // Network mode label is visible.
-    expect(screen.getByText(/demo/i)).toBeInTheDocument();
+    // Network mode label is visible. The honest status card also labels the
+    // mode, so "Demo" now appears in more than one place — assert at least one
+    // network-mode label is rendered.
+    expect(screen.getAllByText(/demo/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it("clears the composer after a successful send", async () => {
@@ -783,5 +785,279 @@ describe("CommerceChat — hit targets", () => {
     const mic = screen.getByRole("button", { name: /microphone/i });
     expect(send.getAttribute("data-hit-target")).toBe("true");
     expect(mic.getAttribute("data-hit-target")).toBe("true");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — empty state: clickable example prompts (no auto-submit)
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — empty state example prompts", () => {
+  it("renders three clickable example prompt cards in the empty state", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const prompts = screen.getAllByTestId("example-prompt");
+    expect(prompts.length).toBe(3);
+    for (const p of prompts) {
+      expect(p.tagName).toBe("BUTTON");
+      expect(p.getAttribute("data-example-prompt")).toBe("true");
+    }
+  });
+
+  it("clicking an example prompt populates the composer only — never submits", () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+    expect(input.value).toBe("");
+
+    const prompts = screen.getAllByTestId("example-prompt");
+    // The first example's full command is the golden prompt.
+    const firstPrompt = prompts[0];
+    expect(firstPrompt).toBeDefined();
+    fireEvent.click(firstPrompt!);
+
+    // The composer is populated with the full command...
+    expect(input.value).toBe(GOLDEN);
+    // ...but no fetch was issued (no submit) ...
+    expect(fetchMock).not.toHaveBeenCalled();
+    // ...and no user/assistant message was added to the thread: the empty
+    //    state's example cards are still rendered (thread still empty).
+    expect(screen.getAllByTestId("example-prompt").length).toBe(3);
+    // The send button is now enabled (composer has text) but was NOT pressed.
+    expect(screen.getByRole("button", { name: /send/i })).toBeEnabled();
+  });
+
+  it("each example prompt carries an accessible label naming the full command", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const prompts = screen.getAllByTestId("example-prompt");
+    for (const p of prompts) {
+      const label = p.getAttribute("aria-label") ?? "";
+      expect(label.startsWith("Try: ")).toBe(true);
+      expect(label.length).toBeGreaterThan("Try: ".length);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — honest mode/status card
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — honest mode/status card", () => {
+  it("renders a DEMO status card that never claims on-chain settlement", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const status = screen.getByTestId("mode-status");
+    expect(status.getAttribute("data-status-mode")).toBe("demo");
+    expect(status).toHaveTextContent(/demo mode/i);
+    // Honest: it explicitly states no on-chain settlement occurs.
+    expect(status).toHaveTextContent(/no on-chain settlement/i);
+    // It must NOT fake a balance or a settlement.
+    expect(status).not.toHaveTextContent(/balance/i);
+    expect(status).not.toHaveTextContent(/settled|settlement complete/i);
+  });
+
+  it("renders a LIVE status card describing real testnet signing only on confirm", () => {
+    render(<CommerceChat networkMode="live" />);
+    const status = screen.getByTestId("mode-status");
+    expect(status.getAttribute("data-status-mode")).toBe("live");
+    expect(status).toHaveTextContent(/live testnet/i);
+    expect(status).toHaveTextContent(/only when you confirm/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — dominant black payment surface (visual hierarchy)
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — dominant black status surface", () => {
+  it("renders the status card on the dominant black payment surface class", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const status = screen.getByTestId("mode-status");
+    expect(status.className).toContain("cv-status--surface");
+    // The base cv-status hook is preserved so the surface overrides it.
+    expect(status.className).toContain("cv-status");
+  });
+
+  it("decorates the surface with an abstract CSS radar motif (no images/hue)", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    const status = screen.getByTestId("mode-status");
+    // The primary concentric radar motif is present and aria-hidden.
+    const motif = status.querySelector(".cv-status__motif");
+    expect(motif).not.toBeNull();
+    expect(motif?.getAttribute("aria-hidden")).toBe("true");
+    // A second echo ring set exists for a route/relay feel.
+    expect(status.querySelector(".cv-status__motif--echo")).not.toBeNull();
+    // No <img> or hue-bearing class is introduced to achieve the motif.
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("shows one crisp, honest settlement figure: 0 SUI on-chain until confirm", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const status = screen.getByTestId("mode-status");
+    // The figure label and the 0 SUI readout are both present.
+    expect(status).toHaveTextContent(/on-chain settlement/i);
+    expect(status).toHaveTextContent(/^.*0.*SUI.*$/);
+    expect(status).toHaveTextContent(/until you confirm/i);
+    // Honest: still no faked balance or completed settlement.
+    expect(status).not.toHaveTextContent(/balance/i);
+    expect(status).not.toHaveTextContent(/settled|settlement complete/i);
+  });
+
+  it("keeps the same honest 0 SUI figure in live testnet mode", () => {
+    render(<CommerceChat networkMode="live" />);
+    const status = screen.getByTestId("mode-status");
+    expect(status).toHaveTextContent(/on-chain settlement/i);
+    expect(status).toHaveTextContent(/^.*0.*SUI.*$/);
+  });
+});
+
+describe("CommerceChat — example prompts as financial action cards", () => {
+  it("each prompt card carries a black accent spine and a trailing chevron", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const prompts = screen.getAllByTestId("example-prompt");
+    expect(prompts.length).toBe(3);
+    for (const p of prompts) {
+      // The black left accent spine that reads as a financial instrument row.
+      expect(p.querySelector(".cv-prompt__accent")).not.toBeNull();
+      // The trailing chevron signaling a tappable action.
+      expect(p.querySelector(".cv-prompt__chevron")).not.toBeNull();
+      // The amount line is rendered in tabular mono.
+      const sub = p.querySelector(".font-mono");
+      expect(sub).not.toBeNull();
+    }
+  });
+
+  it("lays the empty-state prompts out in a compact multi-column grid on desktop", () => {
+    render(<CommerceChat networkMode="demo" />);
+    // The three example prompts share one responsive grid container that
+    // collapses to a single column on mobile and expands to three columns
+    // on desktop for a compact, width-using empty-state rhythm.
+    const prompts = screen.getAllByTestId("example-prompt");
+    const grid = prompts[0]!.parentElement;
+    expect(grid).not.toBeNull();
+    expect(grid!.className).toContain("md:grid-cols-3");
+    // The container is a grid (not a stacked flex), so the prompts flow into
+    // columns rather than a tall single column.
+    expect(grid!.className).toContain("grid");
+  });
+
+  it("collapses the empty-state thread to content on desktop (no giant min-height)", () => {
+    render(<CommerceChat networkMode="demo" />);
+    // The thread inset is the scroll container holding the empty state. When
+    // empty it must NOT carry a desktop min-height that would force a tall
+    // dead gray rectangle below the prompt cards; a small mobile min-height
+    // is allowed for thumb-reach breathing room.
+    const thread = screen
+      .getByTestId("mode-status")
+      .parentElement?.querySelector(".cv-panel--inset");
+    expect(thread).not.toBeNull();
+    const cls = thread!.className;
+    // No desktop min-height forces a giant void when empty.
+    expect(cls).not.toContain("md:min-h-[340px]");
+    expect(cls).not.toContain("md:min-h-[300px]");
+    // A modest mobile min-height is kept for breathing room.
+    expect(cls).toContain("min-h-[180px]");
+  });
+
+  it("restores the scroll-room min-height once a message is present", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(PREVIEW));
+    render(<CommerceChat networkMode="demo" />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: GOLDEN },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Iced Coffee")).toBeInTheDocument(),
+    );
+    // Once populated, the thread regains its desktop min-height so a real
+    // conversation has room to scroll rather than collapsing to content.
+    const thread = screen
+      .getByTestId("mode-status")
+      .parentElement?.querySelector(".cv-panel--inset");
+    expect(thread).not.toBeNull();
+    expect(thread!.className).toContain("md:min-h-[340px]");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — monochrome shell: no blue visible-home classes
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — strict monochrome shell", () => {
+  // Classes that would indicate a visible blue/hue on the home shell. None of
+  // these may appear anywhere in the rendered commerce chat.
+  const BLUE_CLASS_FRAGMENTS = [
+    "cv-nav-chip--accent",
+    "cv-btn__chip",
+    "cv-glow",
+    "cv-slab",
+    "cv-footer-ground",
+    "cv-navy-ground",
+    "cv-light-wash",
+    "cv-light-to-navy",
+    "cv-navy-to-light",
+  ];
+
+  it("marks the shell root with a monochrome palette data attribute", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    const root = container.querySelector('[data-palette="monochrome"]');
+    expect(root).not.toBeNull();
+  });
+
+  it("renders no blue/hue accent classes anywhere in the shell", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    const all = Array.from(container.querySelectorAll("*"));
+    for (const el of all) {
+      const cls = el.getAttribute("class") ?? "";
+      for (const frag of BLUE_CLASS_FRAGMENTS) {
+        if (cls.includes(frag)) {
+          throw new Error(
+            `monochrome shell leaked a blue/hue class "${frag}" on: ${cls}`,
+          );
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CommerceChat — restrained motion (no infinite decorative animation)
+// ---------------------------------------------------------------------------
+
+describe("CommerceChat — restrained motion", () => {
+  // Infinite decorative animation classes that must never appear on the home
+  // shell. The functional loading tick (cv-tick) is allowed.
+  const DECORATIVE_INFINITE = [
+    "cv-marquee",
+    "cv-drift",
+    "cv-scanline",
+    "cv-shimmer",
+  ];
+
+  it("uses a restrained entrance animation class on the primary panel", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    // The entrance utility is present (the global prefers-reduced-motion CSS
+    // zeroes its duration for reduced-motion users).
+    expect(container.querySelector(".cv-enter")).not.toBeNull();
+  });
+
+  it("renders no infinite decorative animation classes", () => {
+    const { container } = render(<CommerceChat networkMode="demo" />);
+    for (const frag of DECORATIVE_INFINITE) {
+      expect(container.querySelector(`.${frag}`)).toBeNull();
+    }
+  });
+
+  it("example prompt cards use a hover/press transition, not an infinite loop", () => {
+    render(<CommerceChat networkMode="demo" />);
+    const prompts = screen.getAllByTestId("example-prompt");
+    for (const p of prompts) {
+      const cls = p.getAttribute("class") ?? "";
+      // The prompt card uses the cv-prompt transition utility.
+      expect(cls).toContain("cv-prompt");
+      // And no decorative infinite animation.
+      for (const frag of DECORATIVE_INFINITE) {
+        expect(cls).not.toContain(frag);
+      }
+    }
   });
 });

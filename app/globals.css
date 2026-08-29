@@ -180,8 +180,10 @@
 
     /* --- Ambient shell ---------------------------------------------------- */
     --grid-line: rgb(0 0 0 / 3.2%);
-    --glow-a: rgb(14 118 255 / 9%);
-    --glow-b: rgb(196 213 231 / 42%);
+    /* Monochrome: the home/header/footer carry no Sui-blue wash. The ambient
+       glow is a faint warm-gray haze, never a hue. */
+    --glow-a: rgb(0 0 0 / 4%);
+    --glow-b: rgb(0 0 0 / 3%);
 
     /* --- Night band ------------------------------------------------------- */
     /* Deep navy derivatives, matched to the landing's hero ground. */
@@ -501,7 +503,7 @@
     /* Inside the header the chip is borderless; anywhere else on a product
        page it keeps a hairline so it still reads as a control. */
     border: 1px solid var(--chip-border, var(--cv-line));
-    border-radius: 0;
+    border-radius: 8px;
     box-shadow: none;
     background: var(--chip-bg, var(--cv-surface));
     /* A translucent chip only works if it frosts what it covers; without this
@@ -524,11 +526,11 @@
     color: var(--chip-fg, #000);
 }
 .cv-nav-chip[data-active="true"] {
-    background: var(--cv-accent);
+    background: #000;
     color: #fff;
 }
 .cv-nav-chip:focus-visible {
-    outline: 2px solid var(--cv-accent);
+    outline: 2px solid #000;
     outline-offset: 2px;
 }
 
@@ -948,4 +950,295 @@
 }
 .cv-commerce__muted {
     color: #5a5a5a;
+}
+
+/* ---------------------------------------------------------------------------
+   Convey commerce shell — mobile-first fintech composition.
+
+   Strict monochrome: black, white and warm/light gray. Compact rounded
+   panels, strong black cards/buttons, soft gray page ground, balanced dense
+   hierarchy. No hue appears anywhere in the visible home/header/footer.
+--------------------------------------------------------------------------- */
+
+/* Soft warm-gray page ground for the commerce shell. */
+.cv-shell {
+    color: #000;
+}
+.cv-shell__ground {
+    background: #f4f4f2;
+}
+
+/* Rounded panel — the compact card the chat, rail and status live in. */
+.cv-panel {
+    background: #fff;
+    border: 1px solid rgb(0 0 0 / 10%);
+    border-radius: 16px;
+}
+.cv-panel--muted {
+    background: #f7f7f5;
+    border: 1px solid rgb(0 0 0 / 10%);
+    border-radius: 16px;
+}
+.cv-panel--inset {
+    background: #f4f4f2;
+    border: 1px solid rgb(0 0 0 / 8%);
+    border-radius: 14px;
+}
+
+/* Strong black primary button; secondary is white with a hairline. Both keep
+   a 44px hit target and a visible black focus ring. */
+.cv-btn-solid {
+    background: #000;
+    color: #fff;
+    transition:
+        background-color 0.2s ease,
+        transform 0.18s ease;
+}
+.cv-btn-solid:hover {
+    background: #1f1f1f;
+}
+.cv-btn-solid:active {
+    transform: translateY(1px);
+}
+.cv-btn-solid:focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+}
+.cv-btn-ghost {
+    background: #fff;
+    color: #000;
+    border: 1px solid rgb(0 0 0 / 14%);
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.18s ease;
+}
+.cv-btn-ghost:hover {
+    background: #f4f4f2;
+    border-color: rgb(0 0 0 / 28%);
+}
+.cv-btn-ghost:active {
+    transform: translateY(1px);
+}
+.cv-btn-ghost:focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+}
+
+/* Example prompt card — a compact financial action card. A hairline card
+   with a solid black left accent stripe, a mono amount line and a trailing
+   chevron; firms its border and dims the accent on hover/press. */
+.cv-prompt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid rgb(0 0 0 / 10%);
+    border-radius: 14px;
+    text-align: left;
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        transform 0.18s ease,
+        box-shadow 0.2s ease;
+}
+.cv-prompt:hover {
+    border-color: rgb(0 0 0 / 32%);
+    background: #fafafa;
+    box-shadow: 0 1px 0 rgb(0 0 0 / 4%);
+}
+.cv-prompt:active {
+    transform: translateY(1px);
+}
+.cv-prompt:focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+}
+/* Solid black left accent — the "action" spine that reads as a financial
+   instrument row, not a form suggestion. */
+.cv-prompt__accent {
+    flex: none;
+    width: 3px;
+    align-self: stretch;
+    background: #000;
+    border-radius: 999px;
+    transition: opacity 0.2s ease;
+}
+.cv-prompt:hover .cv-prompt__accent {
+    opacity: 0.55;
+}
+.cv-prompt__chevron {
+    flex: none;
+    color: rgb(0 0 0 / 32%);
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.cv-prompt:hover .cv-prompt__chevron {
+    color: #000;
+    transform: translateX(2px);
+}
+
+/* Honest mode/status card — never fakes a balance or settlement. The base
+   is the pale hairline card; `.cv-status--surface` flips it into the dominant
+   black financial/payment surface that anchors the commerce shell's hierarchy. */
+.cv-status {
+    background: #f7f7f5;
+    border: 1px solid rgb(0 0 0 / 10%);
+    border-radius: 12px;
+}
+.cv-status__dot {
+    background: #000;
+}
+
+/* Dominant black payment surface — white typography on solid black, the
+   premium fintech anchor the monochrome shell centers on. Strict grayscale:
+   no hue appears anywhere in the motif or type. */
+.cv-status--surface {
+    background: #000;
+    border: 1px solid #000;
+    border-radius: 16px;
+    color: #fff;
+    overflow: hidden;
+    position: relative;
+    transition: background-color 0.22s ease;
+}
+.cv-status--surface .cv-status__dot {
+    background: #fff;
+}
+/* Abstract concentric radar motif, drawn entirely in CSS — white-on-black
+   rings fading toward the rim, bled off the right edge so the card reads as
+   a payment surface rather than a form field. Static: no infinite animation,
+   so prefers-reduced-motion needs no special case. */
+.cv-status__motif {
+    position: absolute;
+    top: 50%;
+    right: -56px;
+    width: 232px;
+    height: 232px;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle,
+            rgb(255 255 255 / 24%) 0 6px,
+            transparent 6px 7px,
+            rgb(255 255 255 / 15%) 7px 17px,
+            transparent 17px 18px,
+            rgb(255 255 255 / 11%) 18px 30px,
+            transparent 30px 31px,
+            rgb(255 255 255 / 8%) 31px 45px,
+            transparent 45px 46px,
+            rgb(255 255 255 / 5%) 46px 62px,
+            transparent 62px 63px,
+            rgb(255 255 255 / 3%) 63px 81px,
+            transparent 81px
+        );
+    pointer-events: none;
+}
+/* A faint secondary ring set on the lower-left for a route/relay feel without
+   competing with the primary radar. */
+.cv-status__motif--echo {
+    right: auto;
+    left: -84px;
+    top: auto;
+    bottom: -88px;
+    transform: none;
+    width: 168px;
+    height: 168px;
+    opacity: 0.5;
+}
+/* The crisp settlement figure block: a tabular-nums readout + label. Honest
+   by construction — 0 SUI on-chain until the user confirms in checkout. */
+.cv-status__figure {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+.cv-status__figure-label {
+    font-family: var(--font-narrow), ui-sans-serif, system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+/* Chat bubble — user (black) / assistant (white hairline). */
+.cv-bubble-user {
+    background: #000;
+    color: #fff;
+    border-radius: 16px 16px 4px 16px;
+}
+.cv-bubble-bot {
+    background: #fff;
+    color: #000;
+    border: 1px solid rgb(0 0 0 / 10%);
+    border-radius: 16px 16px 16px 4px;
+}
+
+/* Composer field — rounded, hairline, black focus ring. */
+.cv-composer {
+    background: #fff;
+    border: 1px solid rgb(0 0 0 / 14%);
+    border-radius: 14px;
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease;
+}
+.cv-composer:focus-within {
+    border-color: #000;
+}
+
+/* Restrained entrance: 220ms ease-out, fade + 8px rise. Applied to panels and
+   cards on mount. The global prefers-reduced-motion block below already
+   zeroes animation-duration, so reduced-motion users see no movement. */
+@keyframes cv-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.cv-enter {
+    animation: cv-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cv-enter--slow {
+    animation-duration: 0.3s;
+}
+/* Stagger helper: delay entrance by a step index (0..n). */
+.cv-enter-step-1 {
+    animation-delay: 0.04s;
+}
+.cv-enter-step-2 {
+    animation-delay: 0.08s;
+}
+.cv-enter-step-3 {
+    animation-delay: 0.12s;
+}
+
+/* Preview/checkout entrance — a touch slower for the dialog-grade surface. */
+@keyframes cv-preview-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.cv-preview-in {
+    animation: cv-preview-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Loading pulse — functional, not decorative; kept restrained. */
+@keyframes cv-tick {
+    0%,
+    100% {
+        opacity: 0.35;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+.cv-tick {
+    animation: cv-tick 1.1s ease-in-out infinite;
 }

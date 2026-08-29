@@ -21,11 +21,22 @@ what to pay.
 > Real settlement is gated to Sui **testnet** and a demo cap of **100 SUI**.
 > Do not put real funds in this code.
 
+## Product preview
+
+<p align="center">
+  <img src="docs/screenshots/convey-desktop.png" alt="Convey desktop purchase chat with a monochrome settlement card" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/convey-mobile.png" alt="Convey mobile purchase chat" width="300" />
+</p>
+
 ---
 
 ## Table of contents
 
 - [The problem](#the-problem)
+- [Product preview](#product-preview)
 - [The product story](#the-product-story)
 - [Features](#features)
 - [Voice & chat flow](#voice--chat-flow)
@@ -573,7 +584,7 @@ Commands actually run during this reconciliation (observed output, not projected
 | Command | Observed result |
 | --- | --- |
 | `pnpm typecheck` | `tsc --noEmit` — **exit 0** |
-| `pnpm test` | vitest v4.1.11 — **13 test files, 278 tests passed**, exit 0 |
+| `pnpm test` | vitest v4.1.11 — **13 test files, 298 tests passed**, exit 0 |
 | `pnpm lint` | eslint — **0 errors, 5 warnings** (exhaustive-deps, unused var, unused import, `<img>`/alt-text in a test), exit 0 |
 | `pnpm build` | Next.js 16.3.3 (Turbopack) production build — **7 routes generated**, exit 0 |
 

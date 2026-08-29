@@ -171,3 +171,32 @@ describe("SiteHeader — no dead legacy hrefs", () => {
     expect(screen.queryByLabelText("Open the Convey app")).toBeNull();
   });
 });
+
+describe("SiteHeader — strict monochrome", () => {
+  // Blue/hue classes that must never appear in the header chrome.
+  const BLUE_CLASS_FRAGMENTS = [
+    "cv-glow",
+    "cv-slab",
+    "cv-footer-ground",
+    "cv-navy-ground",
+    "cv-light-wash",
+  ];
+
+  it("renders no blue/hue ground or glow classes in the header", () => {
+    const { container } = render(<SiteHeader />);
+    for (const frag of BLUE_CLASS_FRAGMENTS) {
+      expect(container.querySelector(`.${frag}`)).toBeNull();
+    }
+  });
+
+  it("the active nav chip uses the monochrome chip, not the blue accent variant", () => {
+    pathname.current = "/qr-ferry";
+    render(<SiteHeader />);
+    const active = screen.getByRole("link", { name: "QR Ferry" });
+    expect(active.getAttribute("data-active")).toBe("true");
+    const cls = active.getAttribute("class") ?? "";
+    expect(cls).toContain("cv-nav-chip");
+    // The blue accent chip variant is never applied to a nav link.
+    expect(cls).not.toContain("cv-nav-chip--accent");
+  });
+});

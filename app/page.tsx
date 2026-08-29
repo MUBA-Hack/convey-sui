@@ -1,5 +1,3 @@
-"use client";
-
 import { CommerceChat } from "@/components/commerce/commerce-chat";
 
 /**
@@ -11,7 +9,15 @@ import { CommerceChat } from "@/components/commerce/commerce-chat";
  * `/api/commerce/intent` endpoint and renders the response in a thread with an
  * inline preview, clarification, error recovery, and a cancel/reopen confirm
  * gate that opens a checkout dialog. No transaction is built on this route.
+ *
+ * The wrapper provides the soft warm-gray page ground the monochrome commerce
+ * shell sits on; the chat panel, context rail, empty state and composer live
+ * inside `CommerceChat`.
  */
 export default function HomePage() {
-  return <CommerceChat />;
+  return (
+    <div className="cv-shell__ground flex min-h-[calc(100vh-60px)] flex-col">
+      <CommerceChat />
+    </div>
+  );
 }

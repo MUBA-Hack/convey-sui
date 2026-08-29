@@ -49,9 +49,11 @@ export function PurchasePreview({
   return (
     <div
       data-testid="purchase-preview"
-      className="mt-3 border border-[var(--cv-line)] bg-white p-4"
+      className="cv-preview-in mt-3 rounded-xl border border-black/10 bg-[#f7f7f5] p-4"
     >
-      <p className="cv-micro cv-micro-sm text-neutral-500">Purchase preview</p>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+        Purchase preview
+      </p>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt className="text-neutral-500">Item</dt>
@@ -74,7 +76,7 @@ export function PurchasePreview({
         <dt className="text-neutral-500">Network</dt>
         <dd>
           <span
-            className="cv-micro cv-micro-sm inline-block border border-[var(--cv-line)] px-2 py-0.5 uppercase"
+            className="inline-block rounded-md border border-black/12 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.1em]"
             data-network-mode={networkMode}
           >
             {networkMode === "live" ? "Live testnet" : "Demo"}
@@ -87,7 +89,7 @@ export function PurchasePreview({
           <button
             type="button"
             data-hit-target="true"
-            className="cv-micro inline-flex h-11 flex-1 items-center justify-center bg-black px-4 text-white transition-colors hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="cv-btn-solid inline-flex h-11 flex-1 items-center justify-center rounded-lg px-4 text-xs font-medium uppercase tracking-wide"
             onClick={onConfirm}
           >
             Confirm
@@ -95,7 +97,7 @@ export function PurchasePreview({
           <button
             type="button"
             data-hit-target="true"
-            className="cv-micro inline-flex h-11 flex-1 items-center justify-center border border-[var(--cv-line)] bg-white px-4 text-black transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="cv-btn-ghost inline-flex h-11 flex-1 items-center justify-center rounded-lg px-4 text-xs font-medium uppercase tracking-wide"
             onClick={onCancel}
           >
             Cancel
@@ -109,7 +111,7 @@ export function PurchasePreview({
           <button
             type="button"
             data-hit-target="true"
-            className="cv-micro inline-flex h-11 items-center justify-center border border-[var(--cv-line)] bg-white px-4 text-black transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="cv-btn-ghost inline-flex h-11 items-center justify-center rounded-lg px-4 text-xs font-medium uppercase tracking-wide"
             onClick={onReopen}
           >
             Reopen

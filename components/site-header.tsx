@@ -56,7 +56,7 @@ export function SiteHeader() {
         "top-0 z-[999] w-full sticky border-b border-[var(--cv-line)] bg-[var(--cv-paper)]/85 backdrop-blur-xl",
       )}
     >
-      <div className="flex h-[74px] items-center justify-between gap-4 px-5 md:px-7">
+      <div className="flex h-[60px] items-center justify-between gap-4 px-5 md:px-7">
         {/* Brand */}
         <Link
           href="/"
