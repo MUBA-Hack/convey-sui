@@ -1,0 +1,61 @@
+name: Gonka live remittance canary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remittance-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GONKA_ROUTER_API_KEY: ${{ secrets.GONKA_ROUTER_API_KEY }}
+      GONKA_ROUTER_BASE_URL: ${{ secrets.GONKA_ROUTER_BASE_URL }}
+      GONKA_MODEL_ID: deepseek-ai/DeepSeek-V4-Flash-0731
+      GONKA_REQUEST_TIMEOUT_MS: "30000"
+      GONKA_MAX_RETRIES: "1"
+      REMITTANCE_QUOTE_SIGNING_KEY_HEX: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      NEXT_PUBLIC_REMITTANCE_RECIPIENTS_JSON: '{"ana":"0xabababababababababababababababababababababababababababababababab"}'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Start the production server
+        run: |
+          pnpm start > "$RUNNER_TEMP/convey-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/convey-server.pid"
+
+      - name: Wait for Convey
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Convey did not become ready."
+          exit 1
+
+      - name: Exercise the live Gonka remittance path
+        run: node scripts/verify-gonka-remittance.mjs
+
+      - name: Stop the server
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/convey-server.pid"; then
+            kill "$(cat "$RUNNER_TEMP/convey-server.pid")" 2>/dev/null || true
+          fi
