@@ -40,34 +40,54 @@ a completed fiat payout.
   <img src="docs/screenshots/convey-mobile.png" alt="Convey mobile interface" width="300" />
 </p>
 
-## Demo path
+## Demo path — one Ana journey
 
-1. **Open Pay** (`/`) and enter `Send RM500 to Ana in Manila for rent, maximum RM600`.
-2. Inspect the MYR amount, itemized reference fees, PHP estimate, exact USDC
-   amount, destination, quote expiry, and the **Family Rule** row (purpose and
-   within-limit status). None of this is a live FX or payout promise.
-3. Without a mapped recipient, attestation, and connected testnet wallet, the
-   flow stays **Prepared — not submitted**. With the required testnet setup,
-   approve the exact USDC transfer in the wallet and inspect the receipt's
-   **Rule verified** row separately from the **Awaiting payout partner** status.
-4. **Carry the quote across.** From the quote ticket, choose **Carry to another device** to
-   render a QR of the signed quote envelope. On a connected device open
-   **Pay offline** (`/qr-ferry`), tap **Scan QR**, and let the camera feed the
-   payload into the same strict import discrimination used by commerce. The
-   carried quote opens a **Quote carried — Not paid yet** review card that
+The demo is a single coherent journey, not a list of separate screens. Each
+step keeps three facts visibly separate: the **quote is verified**, the
+**carried transaction ID is not checked on Sui**, and the **fiat payout is
+still pending**.
+
+1. **Request.** Open **Pay** (`/`) and enter
+   `Send RM500 to Ana in Manila for rent, maximum RM600`. Speak it or type it;
+   the same text reaches the intent endpoint.
+2. **Quote.** Inspect the MYR amount, itemized reference fees, PHP estimate,
+   exact USDC amount, destination, quote expiry (10 minutes by default), and
+   the **Family Rule** row (purpose and within-limit status). The quote carries
+   a server-held HMAC seal. None of this is a live FX or payout promise.
+3. **Wallet or carry.** Without a mapped recipient, attestation, and connected
+   testnet wallet, the flow stays **Prepared — not submitted**. With the
+   required testnet setup, approve the exact USDC transfer in the wallet. To
+   move the quote to another device instead, choose **Carry to another device**
+   from the ticket to render a QR of the signed quote envelope, then on a
+   connected device open **Pay offline** (`/qr-ferry`), tap **Scan QR**, and
+   let the camera feed the payload into the same strict import discrimination.
+   The carried quote opens a **Quote carried — Not paid yet** review card that
    re-runs connected verification (attestation, recipient, corridor, amount,
    expiry) before your wallet opens. No funds move during the carry.
-5. **Optional ETH context.** From the quote ticket, open **Protect**
+4. **Confirmed receipt.** After a confirmed testnet transfer, inspect the
+   receipt's **Rule verified** row separately from the **Awaiting payout
+   partner** status. The receipt binds the carried transaction digest, explorer
+   URL, recipient, USDC amount, beneficiary reference, quote expiry, payout
+   status, and Family Rule fields back to the signed quote. The digest is
+   carried in by the receipt; it is not independently queried from Sui here.
+5. **Share / Export.** From a confirmed remittance settlement receipt, use
+   **Copy share link** (encodes the receipt in a `/proof?r=…` URL) or
+   **Export proof** (downloads the receipt JSON). Share and export appear only
+   after confirmation — an unconfirmed quote is explicitly not a receipt.
+6. **Reopened Verify.** Open **Verify** (`/proof`) and paste a native-SUI
+   commerce receipt or a confirmed remittance settlement receipt (or open a
+   shared link). Verify reports strict local structural findings and
+   settlement-to-quote binding, re-checks the remittance quote attestation
+   server-side (including historical evidence mode for an expired-but-genuine
+   quote), and states explicitly that no Sui ledger query was made. The
+   remittance evidence panel labels the digest **Carried transaction ID · not
+   checked on Sui** and keeps **Awaiting payout partner** separate from
+   on-chain confirmation.
+7. **Optional ETH context.** From the quote ticket, open **Protect**
    (`/strategy`) via the linked ETH-treasury preview. It shows an educational
    ETH position preview on Base/Thetanuts market data, clearly labelled as not
    protecting the MYR→PHP rate, not guaranteeing Ana's payout, and not executing
    a trade.
-6. **Verify a receipt.** Open **Verify** (`/proof`) and paste a native-SUI
-   commerce receipt or a confirmed remittance settlement receipt. Verify
-   reports strict local structural findings, settlement-to-quote binding, and
-   the explicit statement that no chain query was made. Remittance quote
-   attestation is re-checked separately by the server; an expired quote can be
-   shown only as historical evidence, never as payment authorization.
 
 ## Why Convey
 
@@ -248,28 +268,67 @@ distinct from the signed-quote remittance handoff wrapper.
 
 ### Verify — Portable receipt proof
 
-`/proof` accepts pasted JSON or a self-contained URL-safe payload produced by a
-native-SUI commerce settlement card or a confirmed Sui testnet-USDC remittance
-settlement. Remittance receipts are checked locally for strict structure and
-settlement-to-quote binding, then their quote attestation can be re-checked by
-the server. The page does not query the Sui ledger.
+`/proof` accepts pasted JSON, an imported file, or a self-contained URL-safe
+payload produced by a native-SUI commerce settlement card or a confirmed Sui
+testnet-USDC remittance settlement. It discriminates the receipt kind
+(commerce, remittance settlement, or an unconfirmed remittance quote) before
+any validation runs, then checks each kind with its own strict rules.
 
-- Strict schema and exact-key validation.
-- Canonical positive MIST amount and Sui merchant address checks.
-- Mode-consistent digest, label, and explorer URL rules.
-- Demo proof cannot carry an explorer URL.
-- Real-form proof must carry a base58-formatted digest and the matching Sui
-  testnet explorer URL.
+- Strict schema and exact-key validation for both commerce and remittance
+  receipts.
+- Canonical positive MIST amount and Sui merchant address checks (commerce).
+- Mode-consistent digest, label, and explorer URL rules (commerce).
+- Demo proof cannot carry an explorer URL; real-form proof must carry a
+  base58-formatted digest and the matching Sui testnet explorer URL.
 - Remittance proof binds the digest, explorer URL, recipient, USDC amount,
   beneficiary reference, quote expiry, payout status, and Family Rule fields
-  back to the signed quote.
+  back to the signed quote. A receipt that edits only one side is rejected with
+  a field-specific fail-closed error.
+- The remittance quote attestation is re-checked server-side via
+  `POST /api/remittance/quote/verify?evidence=1`. An unexpired, genuinely
+  attested quote reports **Quote re-verified**; an expired-but-genuine quote
+  reports **Quote verified (historical record — no longer valid for payment)**.
+  A rejected or unavailable check never shows verified wording.
+- An unconfirmed remittance quote handoff is detected and shown as **This is a
+  quote**, not a receipt; share and export are withheld.
 - Share and export controls appear only for a confirmed remittance settlement;
   an unconfirmed quote is explicitly not a receipt.
 - Local-only evidence: the verifier clearly says it did not query the chain.
 - Copy, download, share-link, and a clearly non-chain sample receipt.
 
-This is portable structural verification. A well-formed real receipt is not the
-same as proof that its transaction exists or succeeded on-chain.
+#### Evidence ladder
+
+Verify presents evidence in a strict, ordered ladder. Each rung is labelled
+honestly; a lower rung is never worded as a higher one.
+
+| Rung | What is actually checked | Where | Honest label |
+| --- | --- | --- | --- |
+| 1. Local schema | Strict Zod schema, exact keys, canonical amounts/addresses, mode-consistent digest/label/explorer URL | Browser | "Strict fields" |
+| 2. Cross-field binding | Settlement digest, recipient, USDC amount, beneficiary, quote expiry, payout status, and Family Rule bound back to the quote | Browser | "Receipt details and quote binding checked" |
+| 3. Server quote re-check | HMAC-SHA256 attestation re-verified in constant time, plus recipient/corridor/config binding; historical evidence mode relaxes only the expiry gate | Server (`/api/remittance/quote/verify?evidence=1`) | "Quote re-verified" or "Quote verified (historical record)" |
+| 4. Sui ledger query | Not performed | — | "This page did not check the Sui ledger; the transaction ID was carried in by the receipt" |
+| 5. Payout proof | Not performed | — | "Awaiting payout partner" stays separate from on-chain confirmation |
+
+#### Exact boundaries
+
+- **Local checks are schema and cross-field only.** Verify never calls the Sui
+  RPC, never reads transaction status, and never resolves a digest against the
+  ledger. A well-formed real receipt is not the same as proof that its
+  transaction exists or succeeded on-chain.
+- **The remittance quote HMAC is server-held symmetric integrity, not public
+  non-repudiation.** The same server key signs and verifies; anyone who holds
+  the key can produce a valid seal. It binds the quote fields against server
+  configuration, it is not a beneficiary-identity attestation, and it is not a
+  public signature a third party can verify without the key.
+- **Historical evidence mode is not authorization.** An expired-but-genuine
+  quote can be confirmed as a historical record, but the verify endpoint never
+  returns an executable authorization for an expired quote.
+- **A carried transaction ID is not chain verification.** The digest on a
+  remittance receipt was captured at finality and is carried in by the receipt;
+  Verify does not re-confirm it against Sui.
+- **On-chain confirmation is not payout.** A confirmed testnet USDC transfer
+  keeps **Awaiting payout partner** until a real payout integration provides
+  separate evidence. Verify never claims bank payout completion.
 
 ### Protect — Read-only ETH treasury preview
 
@@ -312,12 +371,12 @@ is therefore not a trade-complete options integration.
 | `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Pay offline** | Carry a signed remittance quote by QR, or transport an offline commerce intent | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Protect** | Educational ETH treasury preview and market evidence | Server-side read-only Base SDK calls; no trade execution |
-| `/proof` — **Verify** | Paste or open native-SUI commerce or remittance receipt proof | Local structural/binding verification; optional server quote re-check; no chain query |
+| `/proof` — **Verify** | Paste, import, or open a native-SUI commerce receipt or a confirmed remittance settlement receipt | Local schema + cross-field binding; server quote re-check (incl. historical evidence mode); no Sui ledger query; no payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional Gonka interpretation | Server configuration and optional HMAC attestation; no live FX or transaction |
-| `POST /api/remittance/quote/verify` | Validate quote before client transaction building | Server-side attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; no wallet signer |
+| `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
 | `POST /api/strategy` | Strategy mapping plus read-only market snapshot | No approval, signature, or trade |
 
 ## Architecture
@@ -357,6 +416,7 @@ flowchart TB
 
   subgraph Verify["Verify"]
     Proof["Commerce receipt inspection"]
+    Remit["Remittance receipt + quote re-check"]
   end
 
   Customer --> Pay
@@ -364,10 +424,13 @@ flowchart TB
   Verify --> Wallet
   Review --> Eth
   Customer --> Proof
+  Receipt --> Remit
 ```
 
 Only Pay and a verified Pay offline handoff can reach wallet approval. Protect
-and Verify are read-only; neither obtains wallet authority.
+and Verify are read-only; neither obtains wallet authority. Verify inspects both
+commerce receipts and confirmed remittance receipts, re-checks the remittance
+quote attestation server-side, and never queries the Sui ledger.
 
 ### Trust and authority boundary
 
@@ -528,7 +591,7 @@ route**. Neither fallback proves settlement.
 | `REMITTANCE_FEE_BPS` | Server only | Reference fee basis points; default `150` |
 | `REMITTANCE_MIN_MYR` | Server only | Minimum quote amount in MYR sen; default `100` |
 | `REMITTANCE_MAX_MYR` | Server only | Maximum quote amount in MYR sen; default `100000` |
-| `REMITTANCE_QUOTE_TTL_MS` | Server only | Quote lifetime; default `120000`, supported range `10000`–`600000` |
+| `REMITTANCE_QUOTE_TTL_MS` | Server only | Quote lifetime; default `600000` (10 minutes), supported range `10000`–`600000` |
 | `REMITTANCE_RECIPIENTS_JSON` | Server only | Empty; beneficiary alias to unique canonical Sui destination mapping |
 | `REMITTANCE_QUOTE_SIGNING_KEY_HEX` | Server only | Empty; 64 lowercase hex characters for the HMAC quote key; never a Sui wallet key |
 | `REMITTANCE_GONKA_MANIFEST_JSON` | Server only | Empty; overrides the default public Gonka remittance manifest (recipient aliases, destination cities, corridor country). No addresses or keys. |
@@ -570,18 +633,21 @@ funding or bank payout.
 
 Run the commands above against the exact revision being released. Final QA
 results are recorded with release evidence; this README deliberately does not
-present a changing test count as proof that the current worktree passed.
+present a changing test count as proof that the current worktree passed. The
+exact file and test totals shift as the suite grows, so they are not reproduced
+here — run `pnpm test` for the current count.
 
-The current full suite is **914 tests across 44 files**, covering deterministic
-parsing, Gonka schemas and adapter behavior for both commerce and remittance,
-the remittance candidate resolver, retry/repair boundaries, route provenance and
-fallback, candidate catalog resolution, Family Rule binding and `over_cap`
-rejection, checkout lifecycle, transaction shape and failures, voice cleanup,
-the signed-quote handoff wrapper and kind discrimination, the camera scanner,
-QR integrity/replay/expiry/storage behavior, commerce and remittance portable
-proof validation, receipt export/share gating, strategy
-mapping and read-only SDK states, the remittance-context ETH preview, PWA cache
-policy, navigation, accessibility, and the responsive experience.
+The full Vitest suite covers deterministic parsing, Gonka schemas and adapter
+behavior for both commerce and remittance, the remittance candidate resolver,
+retry/repair boundaries, route provenance and fallback, candidate catalog
+resolution, Family Rule binding and `over_cap` rejection, checkout lifecycle,
+transaction shape and failures, voice cleanup, the signed-quote handoff wrapper
+and kind discrimination, the camera scanner, QR integrity/replay/expiry/storage
+behavior, commerce and remittance portable proof validation, receipt
+export/share gating, the remittance receipt settlement-to-quote cross-binding
+and historical evidence mode, strategy mapping and read-only SDK states, the
+remittance-context ETH preview, PWA cache policy, navigation, accessibility,
+and the responsive experience.
 
 ## Security and threat model
 

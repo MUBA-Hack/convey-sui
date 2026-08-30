@@ -352,27 +352,60 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       data-testid="remittance-chat"
       data-palette="monochrome"
       aria-label="Send abroad"
-      className="cv-shell mx-auto flex w-full max-w-[920px] flex-col px-4 pt-5 md:pt-8"
+      className="cv-shell mx-auto flex w-full max-w-[1180px] flex-col px-4 pt-5 md:pt-8"
       style={{ minHeight: "calc(100svh - 60px)" }}
     >
       {showMoneySheet && (
-        <header className="mb-5 flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-              International transfer
-            </p>
-            <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[44px]">
-              Send money home.
-            </h1>
-          </div>
-          <p className="max-w-[330px] text-sm leading-relaxed text-neutral-600 sm:text-right">
-            Speak it or set the amount. Review the full cost before money moves.
-          </p>
-        </header>
-      )}
+        <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(560px,1.28fr)] lg:items-start lg:gap-14">
+          <div className="lg:sticky lg:top-24">
+            <header className="flex flex-col gap-3 px-1">
+              <div>
+                <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                  International transfer
+                </p>
+                <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[44px] lg:text-[58px]">
+                  Send money home.
+                </h1>
+              </div>
+              <p className="max-w-[360px] text-sm leading-relaxed text-neutral-600 lg:text-base">
+                Speak it or set the amount. Review the full cost before money moves.
+              </p>
+            </header>
 
-      {showMoneySheet && (
-        <div className="mx-auto w-full max-w-[760px]">
+            <aside
+              data-testid="remittance-promise"
+              aria-label="How Convey works"
+              className="mt-10 hidden border-t border-black/12 pt-5 lg:block"
+            >
+              <div className="flex items-center gap-3 font-narrow text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                <span>Malaysia</span>
+                <span aria-hidden className="h-px flex-1 bg-black/20" />
+                <span>Philippines</span>
+              </div>
+              <p className="mt-5 max-w-[320px] text-2xl font-semibold leading-tight tracking-[-0.035em] text-black">
+                One clear total. One approval.
+              </p>
+              <ol className="mt-6 space-y-4" aria-label="Transfer steps">
+                {[
+                  ["01", "Say who and how much"],
+                  ["02", "See the rate, fee and family rule"],
+                  ["03", "Approve once in your wallet"],
+                ].map(([step, label]) => (
+                  <li key={step} className="flex items-center gap-4 text-sm text-neutral-700">
+                    <span className="font-mono text-[10px] text-neutral-400">{step}</span>
+                    <span>{label}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-7 flex flex-wrap gap-2 border-t border-black/8 pt-5 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                <span className="rounded-full border border-black/12 px-3 py-2">Voice ready</span>
+                <span className="rounded-full border border-black/12 px-3 py-2">Offline handoff</span>
+                <span className="rounded-full border border-black/12 px-3 py-2">Family rules</span>
+              </div>
+            </aside>
+          </div>
+
+          <div className="mx-auto w-full max-w-[760px] lg:mx-0">
           <div
             data-testid="remittance-hero"
             className="cv-money-sheet cv-enter overflow-hidden rounded-2xl"
@@ -581,6 +614,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               </p>
             )}
           </div>
+        </div>
         </div>
       )}
 

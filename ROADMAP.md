@@ -14,8 +14,11 @@ reproduced.
 
 ## Implementation snapshot
 
-The current source implements the Ana remittance journey end to end on Sui
-testnet:
+The current source implements the Ana remittance **quote-to-wallet software
+path** on Sui testnet — from natural-language request through a signed
+reference quote, connected verification, and client-built testnet-USDC
+execution. This is not an end-to-end payout: there is no MYR collection, live
+FX, fiat funding, or bank disbursement in this path.
 
 - **Send abroad / Family Rule** is Pay's primary surface. It produces a
   deterministic MYR-to-PHP reference quote, binds an optional purpose and
@@ -47,12 +50,22 @@ testnet:
 - **Verify** accepts local, asset-aware native-SUI commerce and confirmed Sui
   testnet-USDC remittance receipts. Remittance receipts bind settlement
   evidence to the signed quote, expose share/export only after confirmation,
-  and can re-check quote attestation server-side. The surface does not query
-  the Sui ledger or imply bank payout completion.
+  and re-check quote attestation server-side including a historical evidence
+  mode for expired-but-genuine quotes. The surface does not query the Sui
+  ledger, does not prove payout, and labels the carried transaction ID as not
+  checked on Sui. The quote HMAC is server-held symmetric integrity, not public
+  non-repudiation.
+- **Seedless Sui onboarding (zkLogin via Enoki) is implemented.** Enoki wallet
+  registration and Google sign-in are wired through dApp Kit, with the
+  registered redirect URI pinned to the origin. Live session restoration,
+  salt/prover handling, and captured restoration evidence remain pending, so
+  the feature is not yet presented as a proven onboarding path.
 
-Fiat on/off-ramp, payout, zkLogin, Move escrow, recipient intelligence, receipt
-splits, real Thetanuts trade, and Sui Earn remain future work, not shipped
-capabilities.
+Fiat on/off-ramp, payout, Move escrow, recipient intelligence, receipt splits,
+a production signed offline envelope, real Thetanuts trade, and Sui Earn remain
+future work, not shipped capabilities. The signed-quote handoff wrapper in the
+tree is a transport envelope with no outer signature; a production signed
+offline envelope with cross-device replay authority is future work.
 
 ## Product principles
 
@@ -225,6 +238,14 @@ self-custodial Sui account with a familiar OAuth identity instead of a seed
 phrase. Sponsored gas is a separate capability and must use an allowlisted
 backend policy.
 
+**Status: implemented; live restoration/evidence pending.** Enoki wallet
+registration and Google sign-in are wired through dApp Kit, with the registered
+redirect URI pinned to the origin so a deep-route sign-in does not send an
+unregistered `redirect_uri`. The wallet is identified by Enoki's metadata
+feature, never by display name. Live session restoration across sessions,
+salt/prover lifecycle handling, and captured restoration evidence remain
+outstanding, so this is not yet a proven onboarding path.
+
 This feature does not provide credit-card funding, off-ramping, or autonomous
 control of the customer's funds.
 
@@ -389,13 +410,16 @@ Exit evidence:
 
 ## Track alignment
 
-| Track | Load-bearing product capability | Evidence judges should see |
-| --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance, Family Rule, stablecoin settlement, signed-quote carry, Pay offline, Protected Transfer, Convey Earn | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
-| Sui AI x Sui | Gonka-interpreted remittance intent followed by deterministic rebind and Sui action | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
-| Thetanuts Best Product Built on the SDK | Base-native future-purchase or treasury protection | Live SDK orders and a useful options workflow |
-| Thetanuts AI x Options | AI constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
-| GonkaRouter AI For Society | Accessible multilingual remittance interpretation, Family Rule, and evidence review | Real router request, uncertainty handling, social-impact user path |
+Each track lists which load-bearing capabilities are **current** (implemented in
+this source) and which are **future** (still required for a complete submission).
+
+| Track | Current capability | Future capability | Evidence judges should see |
+| --- | --- | --- | --- |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, Pay offline commerce handoff, portable receipt proof | Protected Transfer (Move escrow), Convey Earn, real USDC digest evidence, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
+| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; commerce intent candidate path | Live Gonka request evidence for remittance | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
+| Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
+| Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
+| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, visible provenance, honest local fallback | A live key/request and captured multilingual remittance evidence | Real router request, uncertainty handling, social-impact user path |
 
 ## Delivery gates
 

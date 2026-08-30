@@ -896,11 +896,12 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     );
   });
 
-  it("keeps the layout within a substantial finance panel on mobile and desktop", () => {
+  it("uses a wide desktop workspace while keeping the finance panel bounded", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
-    expect(section.className).toContain("max-w-[920px]");
-    // No horizontal-overflow risk: the hero card and composer are bounded.
+    expect(section.className).toContain("max-w-[1180px]");
+    expect(screen.getByTestId("remittance-promise").className).toContain("hidden");
+    expect(screen.getByTestId("remittance-promise").className).toContain("lg:block");
     const hero = screen.getByTestId("remittance-hero");
     expect(hero.className).toContain("rounded-2xl");
   });
