@@ -204,7 +204,10 @@ camera scanner uses `@zxing/browser` and feeds both commerce and remittance
 payloads into the same strict import discrimination; the connected device
 re-runs verification before the wallet opens. The wrapper adds no outer
 signature, checksum, or replay promise; quote attestation/expiry and the
-connected verify endpoint remain authoritative.
+connected verify endpoint remain authoritative. Its server-only verification
+evaluator uses the exact freshness interval `issuedAt <= now < expiresAt` and
+fails closed for invalid or pre-issuance clock input, with deterministic tests
+covering both boundaries and historical-evidence separation.
 
 Customer flow:
 

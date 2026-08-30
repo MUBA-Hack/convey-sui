@@ -204,6 +204,14 @@ export const VerifyRejectedSchema = z.strictObject({
 export type VerifyRejected = z.infer<typeof VerifyRejectedSchema>;
 
 /**
+ * Honest boundary note for historical evidence: a verified-but-expired quote
+ * cannot authorize execution. Defined once here so the schema literal and the
+ * evaluator share one source of truth.
+ */
+export const EVIDENCE_NOTE =
+  "Quote verified as a historical record. The quote has expired and can no longer be used for payment.";
+
+/**
  * Historical evidence verification result. Returned by
  * `/api/remittance/quote/verify?evidence=1` when a quote's attestation,
  * recipient mapping, corridor, and config binding all verify, but the quote
@@ -223,9 +231,7 @@ export const EvidenceVerifiedSchema = z.strictObject({
   /** The quote expiry timestamp that has passed. */
   expiresAt: z.number().int().finite().safe(),
   /** Honest boundary: this does not authorize execution. */
-  note: z.literal(
-    "Quote verified as a historical record. The quote has expired and can no longer be used for payment.",
-  ),
+  note: z.literal(EVIDENCE_NOTE),
 });
 
 export type EvidenceVerified = z.infer<typeof EvidenceVerifiedSchema>;

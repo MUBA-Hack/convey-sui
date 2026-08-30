@@ -110,6 +110,10 @@ reference quote and a guarded testnet-USDC transfer.
   that rebinds the quote to configuration, recipient, amount, asset, expiry, and
   the Family Rule. Attestation is a Convey integrity check, not beneficiary
   identity verification.
+- The verification policy is implemented by a server-only evaluator with the
+  exact freshness interval `issuedAt <= now < expiresAt`; invalid or
+  pre-issuance clock input fails closed, and injected-clock boundary tests keep
+  historical evidence from becoming payment authorization.
 - Client-built transfer of the pinned Sui testnet USDC coin type using
   `Transaction.coin({ type, balance }) → transferObjects`. USDC is sourced from
   the payer's existing coins, never from the native-SUI gas coin.
