@@ -82,6 +82,7 @@ export function RemittanceSettlementStatus({
   onReview: () => void;
 }) {
   const notFound = state.status === "rejected" && state.reason === "transaction_not_found";
+  const dominant = state.status !== "verified";
   const title =
     state.status === "checking"
       ? "Checking transfer on Sui"
@@ -107,21 +108,22 @@ export function RemittanceSettlementStatus({
     <section
       data-testid="remittance-transfer-status"
       data-settlement-status={state.status}
+      data-status-tone={dominant ? "dominant" : "subordinate"}
       aria-live="polite"
-      className="mt-5 rounded-2xl border border-black/12 bg-white p-5 sm:p-6"
+      className={`mt-5 rounded-2xl border p-5 sm:p-6 ${dominant ? "border-black bg-black text-white" : "border-black/12 bg-white text-black"}`}
     >
-      <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+      <p className={`font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] ${dominant ? "text-white/60" : "text-neutral-500"}`}>
         Transfer status
       </p>
-      <h2 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-black">
+      <h2 className={`mt-2 text-2xl font-semibold tracking-[-0.035em] ${dominant ? "text-white" : "text-black"}`}>
         {title}
       </h2>
-      <p className="mt-3 text-sm leading-6 text-neutral-600">{body}</p>
+      <p className={`mt-3 text-sm leading-6 ${dominant ? "text-white/75" : "text-neutral-600"}`}>{body}</p>
       {state.status === "unavailable" ? (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-black px-4 text-xs font-semibold text-white transition hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-semibold text-black transition hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
         >
           Try again
         </button>
@@ -129,7 +131,7 @@ export function RemittanceSettlementStatus({
         <button
           type="button"
           onClick={onReview}
-          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-black px-4 text-xs font-semibold text-white transition hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-semibold text-black transition hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
         >
           Review details
         </button>

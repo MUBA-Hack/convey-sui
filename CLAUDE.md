@@ -31,6 +31,16 @@ pnpm dev           # app on :3000
   valid quote attestation, pinned asset and corridor, a fresh quote, a connected
   testnet wallet, and explicit approval. Prepared or carried states are not
   settlement.
+- A carried receipt or digest alone is not independent chain evidence. The
+  server-only settlement route is fixed to Sui testnet and one read-only lookup;
+  verified requires a successful transaction plus exact digest, pinned USDC,
+  canonical recipient, and micro amount.
+- Settlement responses use the shared strict client-safe schema and must bind to
+  the active receipt before verified UI or share/export is allowed. Malformed,
+  extra, stale, mismatched, not-found, and unavailable evidence fails closed.
+- Sui settlement is never family bank or cash payout. Keep **Confirmed on Sui**
+  and **Awaiting family payout** separate; no live real-digest release artifact
+  is currently claimed.
 - The offline commerce envelope is a TRANSPORT envelope, not cryptographic payer
   authorization. The checksum detects tampering; the nonce registry defends
   against replay. No signature or authorization is implied.
@@ -41,8 +51,14 @@ pnpm dev           # app on :3000
 
 - `app/` — Next.js routes: `/` (family remittance), `/qr-ferry` (Continue
   elsewhere), `/proof` (Receipts), `/strategy` (Treasury), and typed APIs.
+- `app/api/remittance/settlement/verify/` — fixed-testnet, read-only receipt
+  verification; 16 KiB streamed body cap, one lookup, six-second abort,
+  `no-store`, strict safe response, and no signer or payout authority.
 - `lib/commerce/` — intent parser, payment core, QR Ferry envelope, and proof
   verification.
+- `lib/remittance/` — quote, transfer, and receipt rules plus the shared
+  settlement response schema, pure exact-match evaluator, and server-only Sui
+  reader.
 - `lib/protocol/hash.ts` — shared blake2b256 used by the QR Ferry checksum.
 - `components/remittance/` — the primary request, quote, Transfer checks,
   wallet approval, cross-device carry, and receipt journey.

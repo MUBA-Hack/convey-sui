@@ -62,9 +62,10 @@ FX, fiat funding, or bank disbursement in this path.
   transaction, pinned USDC type, recipient, and exact amount through a
   server-only read-only testnet lookup, expose share/export only after that
   check confirms, and re-check quote attestation server-side including a
-  historical evidence mode for expired-but-genuine quotes. The surface does
-  not prove bank or cash payout, and the quote HMAC is server-held symmetric
-  integrity, not public non-repudiation.
+  historical evidence mode for expired-but-genuine quotes. Checking, verified,
+  rejected, not-found, and unavailable remain distinct states. A carried receipt
+  alone is not proof; the surface does not prove bank or cash payout, and the
+  quote HMAC is server-held symmetric integrity, not public non-repudiation.
 - **Seedless Sui onboarding (zkLogin via Enoki) is implemented.** Enoki wallet
   registration and Google sign-in are wired through dApp Kit, with the
   registered redirect URI pinned to the origin. Live session restoration,
@@ -100,12 +101,14 @@ offline envelope with cross-device replay authority is future work.
 Turn a spoken or typed request into a transparent cross-border payment review
 with a signed Family Rule.
 
-**Status: implemented; exit evidence incomplete.** The source has a single
+**Status: software implementation complete; live artifact exit evidence
+incomplete.** The source has a single
 MYR-to-PHP reference corridor, integer fee/FX calculations, expiring quote
 envelopes, server-only attestation and verification, explicit recipient
 mapping, Family Rule (purpose and per-transfer maximum) binding, and
-client-built testnet-USDC execution. Live pricing, fiat funding/payout, and a
-reproducible real settlement receipt remain outstanding.
+client-built testnet-USDC execution. It also has an independent receipt verifier
+for exact Sui testnet settlement evidence. Live pricing, fiat funding/payout,
+and a reproducible real-digest settlement artifact remain outstanding.
 
 Customer flow:
 
@@ -127,16 +130,25 @@ Implementation boundary:
   is a separate decision.
 - Keep payout-provider and regulated-corridor claims behind real provider access.
 - Reference MYR/PHP amounts are not funds collected or disbursed. A testnet USDC
-  receipt must retain **Awaiting payout partner** until a real payout integration
+  receipt must retain **Awaiting family payout** until a real payout integration
   provides separate evidence.
 - Receipts now accepts an asset-aware remittance receipt schema after confirmed
   settlement; it checks local structure and quote binding, re-verifies the
   quote server-side, and independently checks Sui settlement through a bounded
   read-only testnet lookup. Payout verification remains separate.
+- `POST /api/remittance/settlement/verify` fixes Sui testnet, its RPC, and the
+  pinned USDC server-side; accepts the whole strict receipt through a 16 KiB
+  streaming cap; makes at most one `getTransaction`; aborts after six seconds;
+  returns a strict safe union with `no-store`; and never signs or submits.
+- Verified requires a successful transaction plus exact digest, pinned USDC,
+  canonical recipient, and micro amount. The shared client-safe schema binds the
+  response to the active receipt; malformed, extra, stale, or mismatched evidence
+  cannot unlock share/export.
 
 Exit evidence:
 
-- A real wallet approval and Sui transaction digest.
+- A real wallet approval and reproducible Sui transaction digest artifact,
+  independently re-checked through the receipt verifier.
 - A reproducible quote with itemized fees and no hidden exchange-rate spread.
 - Explicit recipient, asset, network, Family Rule, and payout-state binding.
 - A provider response for the payout leg, or a clear on-chain-only boundary.
@@ -427,7 +439,7 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof | Protected Transfer (Move escrow), Convey Earn, real USDC digest evidence, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof, independent read-only settlement verification | Protected Transfer (Move escrow), Convey Earn, reproducible real USDC digest artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
 | Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; commerce intent candidate path | Live Gonka request evidence for remittance | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
 | Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |

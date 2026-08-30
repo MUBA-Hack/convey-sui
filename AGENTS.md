@@ -45,8 +45,18 @@ and production build before a commit.
   authority. Validate model output and fail closed before payment preparation.
 - A real transfer requires a connected wallet, the expected network, canonical
   addresses, a pinned asset type, and explicit user approval.
-- A demo or prepared transaction is not settlement. A carried transaction ID is
-  not independent chain verification. Sui settlement is not fiat payout.
+- A demo or prepared transaction is not settlement. A carried transaction ID
+  alone is not independent chain verification. Sui settlement is not fiat payout.
+- The remittance settlement verifier is server-only, fixed to Sui testnet, and
+  read-only. It accepts no client RPC/network/coin override and makes at most one
+  bounded transaction lookup.
+- Verified receipt UI requires a strict response bound to the active receipt:
+  successful transaction, exact digest, pinned testnet USDC, canonical recipient,
+  and exact micro amount. Malformed, extra, stale, mismatched, not-found, or
+  unavailable evidence cannot unlock share/export.
+- Keep **Confirmed on Sui** distinct from **Awaiting family payout**. No worker
+  may claim a live real-digest artifact or bank/cash payout without captured
+  evidence.
 - The offline commerce envelope is a transport envelope. Its checksum detects
   changes and its device-local consume-once nonce limits replay; it is not payer
   authorization or a signature.
@@ -70,11 +80,15 @@ boundaries that workers commonly miss.
 - `app/` — product routes and typed APIs. `/` is Pay, `/qr-ferry` is Continue
   elsewhere, `/proof` is Receipts, and `/strategy` is Treasury.
 - `app/api/remittance/settlement/verify/` — server-only, read-only Sui testnet
-  settlement verification. It never signs or submits a transaction.
+  settlement verification. It enforces the 16 KiB streamed body cap, at most one lookup,
+  six-second abort, `no-store`, and a safe strict response union; it never signs
+  or submits a transaction.
 - `lib/commerce/` — nearby-commerce intent, payment, offline envelope, and proof
   verification.
 - `lib/remittance/` — remittance intent, quotes, transfer constraints, receipt
-  rules, and independent settlement evaluation.
+  rules, and independent settlement evaluation. `sui-settlement-response.ts` is
+  client-safe; `sui-settlement-verification.ts` is pure; and
+  `sui-settlement.server.ts` owns the fixed testnet RPC boundary.
 - `lib/protocol/hash.ts` — shared blake2b256 used by the offline checksum.
 - `components/remittance/` — primary family-transfer journey.
 - `components/commerce/` — nearby-commerce, cross-device handoff, and receipt UI.
@@ -145,7 +159,7 @@ GLM workers must check this list before returning work:
 - **Surface-only fixes:** changing labels while leaving duplicated state machines,
   dead callbacks, or conflicting actions underneath.
 - **Truth-boundary drift:** describing a checksum as authorization, an HMAC as a
-  public signature, a carried digest as chain verification, or settlement as
+  public signature, a carried digest alone as chain verification, or settlement as
   payout.
 - **Demo leakage:** putting “mock,” “simulation,” SDK versions, server-only notes,
   or “not submitted” badges in the primary customer experience.

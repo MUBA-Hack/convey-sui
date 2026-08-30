@@ -218,16 +218,25 @@ describe("ProofVerifier — remittance receipt rendering", () => {
     expect(result.textContent ?? "").not.toMatch(/DEMO|LOCAL\/DEMO|build/i);
   });
 
-  it("leads with a black stage containing the RM amount and estimated PHP reference; digest mark is subordinate", () => {
+  it("leads with the primary black money stage after the Sui transfer is verified", async () => {
     render(<ProofVerifier />);
     openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
 
+    await waitFor(() =>
+      expect(screen.getByTestId("remittance-transfer-status")).toHaveTextContent(
+        /Confirmed on Sui/i,
+      ),
+    );
     const stage = screen.getByTestId("remittance-stage");
+    const transferStatus = screen.getByTestId("remittance-transfer-status");
     expect(stage.className).toContain("bg-black");
     expect(stage.className).toContain("text-white");
     expect(stage).toHaveAttribute("data-money-slab", "dual-currency");
+    expect(stage).toHaveAttribute("data-money-tone", "primary");
+    expect(transferStatus).toHaveAttribute("data-status-tone", "subordinate");
+    expect(stage.compareDocumentPosition(transferStatus) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(stage).toHaveTextContent(/500/);
     expect(stage).toHaveTextContent(/6,104/);
     expect(stage.textContent ?? "").not.toMatch(/USDC/i);
@@ -397,6 +406,14 @@ describe("ProofVerifier — independent Sui settlement status", () => {
     expect(screen.getByTestId("remittance-transfer-status")).toHaveTextContent(
       /Checking transfer on Sui/i,
     );
+    expect(screen.getByTestId("remittance-transfer-status")).toHaveAttribute(
+      "data-status-tone",
+      "dominant",
+    );
+    expect(screen.getByTestId("remittance-stage")).toHaveAttribute(
+      "data-money-tone",
+      "subordinate",
+    );
     expect(screen.getByTestId("receipt-page-title")).toHaveTextContent(
       /Checking this transfer/i,
     );
@@ -468,11 +485,18 @@ describe("ProofVerifier — independent Sui settlement status", () => {
     );
     const pageTitle = screen.getByTestId("receipt-page-title");
     const moneySlab = screen.getByTestId("remittance-stage");
+    const transferStatus = screen.getByTestId("remittance-transfer-status");
     expect(pageTitle).toHaveTextContent(/This transfer needs review/i);
     expect(screen.getByTestId("receipt-page-intro")).toHaveTextContent(
       /could not find this transaction on Sui testnet/i,
     );
     expect(pageTitle.compareDocumentPosition(moneySlab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(transferStatus.compareDocumentPosition(moneySlab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(transferStatus).toHaveAttribute("data-status-tone", "dominant");
+    expect(transferStatus.className).toContain("bg-black");
+    expect(moneySlab).toHaveAttribute("data-money-tone", "subordinate");
+    expect(moneySlab.className).toContain("bg-neutral-50");
+    expect(moneySlab.className).not.toContain("bg-black");
     expect(screen.getByText("Receipt created")).toBeInTheDocument();
     expect(screen.queryByText(/^Confirmed$/i)).toBeNull();
     expect(screen.queryByText(/^Confirmed on Sui$/i)).toBeNull();

@@ -640,28 +640,49 @@ function RemittanceReceipt({
   const familyReceivesFixed = formatPhpFixedGrouped(quote.familyReceivesMinor);
   const fee = formatMyrGrouped(quote.totalFeeMinor);
   const explorerHref = settlement.explorerUrl;
+  const settlementVerified = settlementVerify.status === "verified";
+  const moneySlab = (
+    <RemittanceMoneySlab
+      receiveLabel={`${titleCase(quote.recipient)} · estimated receive`}
+      sendAmount={`RM${youPayFixed}`}
+      receiveAmount={`${quote.familyReceivesCurrency} ${familyReceivesFixed}`}
+      testId="remittance-stage"
+      dataProofMode="remittance"
+      tone={settlementVerified ? "primary" : "subordinate"}
+      className={settlementVerified ? "" : "mt-3"}
+    />
+  );
+  const destination = (
+    <p className="mt-2 text-xs text-neutral-500">
+      {titleCase(quote.recipient)} · {titleCase(quote.destinationCity)}, {quote.destinationCountry}
+    </p>
+  );
+  const transferStatus = (
+    <RemittanceSettlementStatus
+      state={settlementVerify}
+      onRetry={onRetrySettlement}
+      onReview={onReviewDetails}
+    />
+  );
 
   return (
     <div data-testid="remittance-result">
-      <RemittanceMoneySlab
-        receiveLabel={`${titleCase(quote.recipient)} · estimated receive`}
-        sendAmount={`RM${youPayFixed}`}
-        receiveAmount={`${quote.familyReceivesCurrency} ${familyReceivesFixed}`}
-        testId="remittance-stage"
-        dataProofMode="remittance"
-      />
-      <p className="mt-2 text-xs text-neutral-500">
-        {titleCase(quote.recipient)} · {titleCase(quote.destinationCity)}, {quote.destinationCountry}
-      </p>
-
-      <RemittanceSettlementStatus
-        state={settlementVerify}
-        onRetry={onRetrySettlement}
-        onReview={onReviewDetails}
-      />
+      {settlementVerified ? (
+        <>
+          {moneySlab}
+          {destination}
+          {transferStatus}
+        </>
+      ) : (
+        <>
+          {transferStatus}
+          {moneySlab}
+          {destination}
+        </>
+      )}
       <FamilyPayoutStatus
         recipient={titleCase(quote.recipient)}
-        settlementVerified={settlementVerify.status === "verified"}
+        settlementVerified={settlementVerified}
       />
 
       <div className="mt-5">
