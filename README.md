@@ -356,10 +356,10 @@ sequenceDiagram
     Customer->>Wallet: Approve transaction
     Wallet->>Sui: Sign and submit
     Sui-->>Pay: Transaction result and confirmation evidence
-    Pay-->>Customer: USDC receipt; fiat payout still awaiting partner
+    Pay-->>Customer: USDC receipt, fiat payout still awaiting partner
   else Missing prerequisites or verification rejected
     Verify-->>Pay: Non-executable or rejected state
-    Pay-->>Customer: Not submitted; no receipt or invented digest
+    Pay-->>Customer: Not submitted, no receipt or invented digest
   end
 ```
 
