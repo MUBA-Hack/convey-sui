@@ -333,34 +333,20 @@ validation cannot reach either confirmation gate.
 ### Send abroad: reference quote to testnet USDC
 
 ```mermaid
-sequenceDiagram
-  autonumber
-  actor Customer
-  participant Pay as Send abroad
-  participant Quote as Reference quote API
-  participant Verify as Quote verification API
-  participant Wallet as Customer wallet
-  participant Sui as Sui testnet
+flowchart LR
+  Request["Customer enters MYR amount and recipient"]
+  Quote["Reference quote with expiry"]
+  Review["Customer reviews amounts and payout limitation"]
+  Verify["Verify quote and payment constraints"]
+  Decision{"Ready for wallet approval"}
+  Wallet["Customer approves testnet USDC transfer"]
+  Sui["Submit to Sui testnet"]
+  Receipt["Show receipt and payout partner status"]
+  Stop["Stop without submission or receipt"]
 
-  Customer->>Pay: Send MYR amount to named recipient and destination
-  Pay->>Quote: Original text
-  Quote-->>Pay: Deterministic reference quote with expiry and optional attestation
-  Pay-->>Customer: Review reference amounts and payout limitation
-  Customer->>Pay: Review details and confirm payment
-  Pay->>Verify: Exact quote envelope
-  Verify->>Verify: Check HMAC, configuration, recipient, asset, amount, expiry
-  alt Quote is verified and wallet prerequisites hold
-    Verify-->>Pay: Canonical authorization
-    Pay->>Pay: Validate authorization and build pinned-USDC transaction
-    Pay->>Wallet: Request approval for existing testnet USDC
-    Customer->>Wallet: Approve transaction
-    Wallet->>Sui: Sign and submit
-    Sui-->>Pay: Transaction result and confirmation evidence
-    Pay-->>Customer: USDC receipt, fiat payout still awaiting partner
-  else Missing prerequisites or verification rejected
-    Verify-->>Pay: Non-executable or rejected state
-    Pay-->>Customer: Not submitted, no receipt or invented digest
-  end
+  Request --> Quote --> Review --> Verify --> Decision
+  Decision -->|Yes| Wallet --> Sui --> Receipt
+  Decision -->|No| Stop
 ```
 
 The server's attestation key authenticates Convey's quote fields; it cannot
