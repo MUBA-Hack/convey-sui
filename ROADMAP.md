@@ -146,16 +146,41 @@ Make everyday payments safer and more useful without adding new top-level naviga
 - **Recipient check:** explain concrete warning signals such as a changed destination, first-time recipient, unusual amount, expired Relay intent, replayed nonce, or merchant mismatch.
 - **Receipt split:** scan or paste a receipt, let AI propose line items, then require each person and amount to be confirmed before producing payment requests.
 - **Family payout:** save a verified recipient and payout preference, but require step-up review when account details change.
+- **Guardrails:** let customers set a spending envelope for a card, recipient, merchant category, amount band, date window, and destination country so a payment stays inside an explicit policy.
+- **Split request:** convert a bill, dinner, or trip receipt into confirmable split requests that reconcile exactly before any money moves.
+- **Proof-first history:** keep the original intent, edits, approvals, and settlement evidence together so the receipt can be explained later without implying hidden automation.
 
 Exit evidence:
 
 - Risk explanations cite deterministic signals and never invent fraud claims.
 - Receipt totals, tax, tip, rounding, and participant allocations reconcile exactly.
 - Changed-recipient and unusual-amount flows stop before authorization.
+- Spending envelopes reject out-of-policy requests before wallet approval.
+- Split requests produce exact totals and preserve each participant decision.
+
+### 7. Offline QR Ferry
+
+Build a compact offline handoff flow for the moments when connectivity is unreliable.
+
+This is a transport layer for payment intent, not offline settlement. It should feel native to Convey: one intent, one scan, one expiry, one redemption path, one receipt.
+
+Customer flow:
+
+1. Create a payment or checkout intent on one device.
+2. Display a compact QR handoff token with exact amount, asset, recipient, expiry, and nonce.
+3. Let the second device scan and verify the intent locally before any online submission.
+4. Submit once connectivity returns, then persist the resulting digest and proof.
+
+Exit evidence:
+
+- Replay, expiry, tamper, wrong-recipient, wrong-network, and clock-skew rejections are tested.
+- The handoff token binds exact amount, asset, recipient, destination, and expiry.
+- The handoff path fails closed when proof is incomplete or stale.
+- The UI remains readable on a small screen and does not claim settlement before the network confirms it.
 
 ## Then — useful treasury protection
 
-### 7. Protect with Thetanuts Finance
+### 8. Protect with Thetanuts Finance
 
 Use the official **Thetanuts Finance** SDK for a separate Base-mainnet workflow that protects a future purchase or treasury exposure. This is not a Sui settlement feature.
 
@@ -179,7 +204,7 @@ Exit evidence:
 
 ## Later — Sui-native savings
 
-### 8. Convey Earn
+### 9. Convey Earn
 
 Build the useful product idea behind risk-tranched stablecoin savings directly on Sui instead of adding a cross-chain dependency. Convey Earn would let customers explicitly move idle Sui stablecoins into transparent Move vaults with two risk positions:
 
@@ -239,6 +264,9 @@ Every roadmap increment must pass the same gates before it is presented as compl
 
 ## Decisions still required
 
+- Replace the home-screen bank payout simulation with a live, compliant funding
+  and payout partner; preserve explicit pending, failed, refunded, and settled
+  states without treating an on-chain transfer as proof of bank disbursement.
 - Production corridor approval, payout partner, KYC flow, refund policy, and jurisdiction coverage; MYR-to-PHP is currently a reference corridor only.
 - Mainnet stablecoin and execution approval. The current testnet increment already pins six-decimal Sui USDC; it does not authorize production deployment.
 - Bridge commercial access and supported payout geography.

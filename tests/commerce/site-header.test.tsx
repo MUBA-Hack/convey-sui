@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import type { ComponentPropsWithoutRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+
+// next/image is no longer used by the header (the brand mark is an inline
+// SVG), so no next/image mock is needed here.
 
 /**
  * DOM tests pinning the commerce site header navigation.
@@ -50,12 +53,6 @@ vi.mock("@/components/wallet/connect-button", () => ({
   ),
 }));
 
-vi.mock("next/image", () => ({
-  // Pass-through so the original src is observable in jsdom (next/image
-  // otherwise rewrites src to a /_next/image optimizer URL).
-  default: (props: ComponentPropsWithoutRef<"img">) => <img {...props} />,
-}));
-
 import { SiteHeader } from "@/components/site-header";
 
 const DEAD_HREFS = ["/app", "/fact-check", "/claims", "/agents", "/verify", "/status", "/build-progress"];
@@ -69,7 +66,8 @@ afterEach(() => {
 });
 
 describe("SiteHeader — commerce navigation", () => {
-  it("renders the Pay, Relay, Protect, and Verify commerce links", () => {
+  it("renders the Pay, Relay, Protect, and Verify commerce links on a non-Pay route", () => {
+    pathname.current = "/qr-ferry";
     render(<SiteHeader />);
 
     const pay = screen.getByRole("link", { name: "Pay" });
@@ -81,6 +79,26 @@ describe("SiteHeader — commerce navigation", () => {
     expect(relay).toHaveAttribute("href", "/qr-ferry");
     expect(protect).toHaveAttribute("href", "/strategy");
     expect(verify).toHaveAttribute("href", "/proof");
+  });
+
+  it("hides the full Pay/Relay/Protect/Verify desktop rail on the Pay homepage but keeps the routes in the compact menu", () => {
+    // Pay homepage: the desktop chip rail is hidden so the amount card
+    // dominates the first frame. Brand, Sign in, and a compact menu keep
+    // every other product area one tap away — no route is removed.
+    pathname.current = "/";
+    render(<SiteHeader />);
+
+    // The full rail is not rendered directly on the homepage.
+    expect(screen.queryByRole("link", { name: "Relay" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Protect" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Verify" })).not.toBeInTheDocument();
+
+    // The accessible compact menu reveals them.
+    fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
+    expect(screen.getByRole("link", { name: "Pay" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Relay" })).toHaveAttribute("href", "/qr-ferry");
+    expect(screen.getByRole("link", { name: "Protect" })).toHaveAttribute("href", "/strategy");
+    expect(screen.getByRole("link", { name: "Verify" })).toHaveAttribute("href", "/proof");
   });
 
   it("marks the active commerce route with aria-current=page", () => {
@@ -97,15 +115,23 @@ describe("SiteHeader — commerce navigation", () => {
 });
 
 describe("SiteHeader — brand mark", () => {
-  it("renders the Convey brand link and logo image", () => {
+  it("renders the Convey brand link and the vector mark lockup", () => {
     render(<SiteHeader />);
 
     const brand = screen.getByRole("link", { name: "Convey home" });
     expect(brand).toHaveAttribute("href", "/");
 
-    const logo = brand.querySelector("img");
-    expect(logo).not.toBeNull();
-    expect(logo).toHaveAttribute("src", "/brand/convey-mark.png");
+    // The mark is a deterministic inline SVG (currentColor vector), not a
+    // raster — it inherits the wordmark's black and stays crisp at any size.
+    const mark = brand.querySelector("[data-testid='convey-mark']");
+    expect(mark).not.toBeNull();
+    expect(mark?.tagName.toLowerCase()).toBe("svg");
+    // The wordmark is a deliberate finance-house weight, not a thin generic
+    // SaaS wordmark.
+    const wordmark = brand.querySelector(".text-\\[23px\\]");
+    expect(wordmark).not.toBeNull();
+    expect(wordmark?.textContent).toBe("Convey");
+    expect(wordmark?.className).toMatch(/font-semibold/);
   });
 });
 

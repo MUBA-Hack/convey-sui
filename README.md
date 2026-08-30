@@ -21,6 +21,11 @@ Rates, fees, arrival estimates, and payout methods are reference information;
 on-chain confirmation never changes the separate **Awaiting payout partner**
 status into a completed fiat payout.
 
+The home-screen **Preview payout** interaction is a UI simulation for the demo.
+It does not charge MYR, move USDC, contact a bank, or create an on-chain
+settlement. The resulting preview is labelled **Simulation only** in the
+product. A live funding and payout integration remains roadmap work.
+
 The commerce intent route includes a real GonkaRouter adapter with strict output
 schemas, request/model provenance, deterministic catalog policy checks, and a
 safe local fallback. The current checkout still works without provider
@@ -687,6 +692,7 @@ lib/
 public/
   brand/                       Convey mark
   icons/                       PWA icons
+  people/ana.jpg               demo recipient portrait
   sw.js                        static-only service worker
 tests/
   commerce/                    product, safety, proof, PWA and responsive tests
@@ -713,6 +719,12 @@ tests/
   registry.
 - Expand catalog and merchant onboarding beyond the current sample inventory.
 - Perform an independent security audit before any production or real-money use.
+
+## Asset credit
+
+The demo recipient portrait is adapted from Kimy Moto's
+[Portrait of a Filipina in Manila](https://www.pexels.com/photo/portrait-of-a-filipina-in-manila-27862790/),
+used under the Pexels license. It represents a fictional Convey recipient.
 
 Convey's central invariant should remain unchanged as these capabilities grow:
 **AI can interpret; deterministic policy can validate; only the user can

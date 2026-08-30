@@ -1,0 +1,8 @@
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Convey">
+  <!-- Convey mark: an open C (carry) with a route arrow passing through its
+       opening — value carried across an air gap. Original geometric
+       construction, monochrome, currentColor. Legible at 26–32px. -->
+  <path d="M23.1 7.6A11 11 0 1 0 23.1 24.4" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+  <path d="M11 16h15" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M22 12.2L27 16l-5 3.8" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -96,7 +96,7 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
     usdcMicro: "109000000",
     usdcAmount: "109",
     settlementRail: "Sui testnet USDC",
-    payoutMethod: "Bank deposit (reference)",
+    payoutMethod: "Bank payout · Not available yet",
     estimatedArrival: "Within minutes after on-chain confirmation",
     payoutStatus: "Awaiting payout partner",
     issuedAt,
@@ -181,7 +181,12 @@ describe("RemittancePaymentAction — prepared mode", () => {
     wallet.network = "testnet";
     render(<RemittancePaymentAction quote={quote({ recipientAddress: ADDR, attestation: null })} />);
     expect(screen.getByTestId("remittance-prepared")).toBeInTheDocument();
-    expect(screen.getByText(/Quote attestation is missing/i)).toBeInTheDocument();
+    // Honest copy: no operator-configuration instructions are shown to the
+    // customer (no "configure recipient", no "attestation missing").
+    expect(screen.getByText(/Testnet transfer is unavailable/i)).toBeInTheDocument();
+    const text = screen.getByTestId("remittance-prepared").textContent ?? "";
+    expect(text).not.toMatch(/configure a recipient/i);
+    expect(text).not.toMatch(/attestation/i);
   });
 });
 

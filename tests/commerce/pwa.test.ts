@@ -456,6 +456,31 @@ describe("layout.tsx — PWA head metadata exports", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 3d. Root layout — product shell: no marketing footer, no grid-paper field
+// ---------------------------------------------------------------------------
+
+describe("layout.tsx — product shell (no marketing footer, no grid-paper)", () => {
+  const src = () => readFileSync(layoutPath, "utf8");
+
+  it("does not mount the marketing footer on any route", () => {
+    const s = src();
+    // The landing footer is removed from the app shell entirely; product
+    // navigation lives in the header menu, so no marketing slab can appear in
+    // the first product viewport.
+    expect(s).not.toMatch(/LandingFooter/);
+    expect(s).not.toMatch(/landing\/footer/);
+  });
+
+  it("does not paint the grid-paper ambient shell on the product surface", () => {
+    const s = src();
+    // No engineering grid or glow wash behind the product — a quiet neutral
+    // field only.
+    expect(s).not.toMatch(/cv-grid/);
+    expect(s).not.toMatch(/cv-glow/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 4. Service-worker registration — non-fatal, client-side
 // ---------------------------------------------------------------------------
 

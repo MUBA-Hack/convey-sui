@@ -3,7 +3,6 @@ import "./globals.css";
 import { Archivo, Archivo_Narrow, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/site-header";
-import { LandingFooter } from "@/components/landing/footer";
 import { WalletProviders } from "@/components/wallet/providers";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
@@ -60,12 +59,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="antialiased min-h-screen flex flex-col bg-background">
-        {/* Ambient shell: a fine engineering grid under one soft Sui-blue wash. */}
-        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-          <div className="cv-grid absolute inset-0" />
-          <div className="cv-glow absolute inset-0" />
-        </div>
-
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground"
@@ -74,14 +67,14 @@ export default function RootLayout({
         </a>
 
         <WalletProviders>
+          {/* Product shell: the header carries all product navigation. No
+              marketing footer renders on any route, so the first viewport is
+              always the product surface, never a dead marketing slab. */}
           <div className="relative z-10 flex min-h-screen flex-col">
             <SiteHeader />
             <main id="main" className="flex-1">
               {children}
             </main>
-            {/* One footer for the whole product — the landing's deep-blue
-                close, on every route. */}
-            <LandingFooter />
           </div>
           {/* PWA: register /sw.js client-side, non-fatally. Renders nothing. */}
           <ServiceWorkerRegister />

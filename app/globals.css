@@ -104,8 +104,8 @@
     /* One accent blue, one light surface, sharp corners. The product pages
        inherit these anchors so the whole site reads as one design. */
     --cv-accent: #0e76ff; /* arrow chips, pins, links, accents */
-    --cv-surface: #f3f3f3; /* chips, buttons, light text on dark */
-    --cv-paper: #f7f7f5; /* body background */
+    --cv-surface: #f3f3f1; /* chips, buttons, light text on dark */
+    --cv-paper: #f3f3f1; /* body background — quiet warm/cool neutral field */
     --cv-ink: #000000;
     --cv-line: rgb(0 0 0 / 15%); /* hairlines on light */
     --cv-line-strong: rgb(0 0 0 / 32%); /* the same hairline, under a pointer */
@@ -122,7 +122,7 @@
     --brand-aqua: #c4d5e7; /* pale tinted surfaces + highlights */
 
     /* --- Neutral paper --------------------------------------------------- */
-    --background: #f7f7f5;
+    --background: #f3f3f1;
     --foreground: #0b1b28;
     --card: #ffffff;
     --card-foreground: #0b1b28;
@@ -531,6 +531,17 @@
 .cv-nav-chip:focus-visible {
     outline: 2px solid #000;
     outline-offset: 2px;
+}
+
+/* A quieter secondary nav chip for non-primary routes (Relay / Protect /
+   Verify) on desktop: lower-contrast text that firms up on hover/focus. Pay,
+   the active route, and the mobile sheet never use it. The active state's
+   black ground still wins because [data-active="true"] is more specific. */
+.cv-nav-chip--quiet {
+    color: rgb(0 0 0 / 42%);
+}
+.cv-nav-chip--quiet:hover:not(:disabled) {
+    color: rgb(0 0 0 / 80%);
 }
 
 /* The one chip that carries an action rather than a destination: the crossing
@@ -984,6 +995,67 @@
     border-radius: 14px;
 }
 
+/* Money sheet — one elevated white outer sheet with intentional radius and
+   layered but restrained shadow + sheet-edge depth. Monochrome, no gradients.
+   Hairlines inside carry the rhythm. */
+.cv-money-sheet {
+    background: #fff;
+    border: 1px solid rgb(0 0 0 / 8%);
+    border-radius: 22px;
+    box-shadow:
+        0 0 0 1px rgb(0 0 0 / 2%),
+        0 1px 0 rgb(0 0 0 / 3%),
+        0 18px 40px -28px rgb(0 0 0 / 34%),
+        0 4px 12px -10px rgb(0 0 0 / 14%);
+}
+.cv-money-sheet__stack {
+    /* The offset back edge — a ground-toned ring that reads as a stacked sheet. */
+    border: 1px solid rgb(0 0 0 / 6%);
+    border-radius: 24px;
+    background: #f3f3f1;
+}
+.cv-hairline {
+    border-color: rgb(0 0 0 / 8%);
+}
+
+/* Black amount/receive tile — the financial focal point. Strong depth so the
+   tile reads as inset into the white sheet, matching the home's material
+   language. White financial sans numerals live here (callers set the type). */
+.cv-money-tile {
+    box-shadow:
+        0 1px 0 rgb(255 255 255 / 4%) inset,
+        0 14px 30px -22px rgb(0 0 0 / 55%);
+}
+
+/* Rich contact monogram — a circular black disc with layered monochrome rings
+   so it reads as a contact chip, not a boxed letter. No fake photo. */
+.cv-monogram {
+    background: #000;
+    box-shadow:
+        0 0 0 1px rgb(0 0 0 / 8%),
+        0 0 0 4px #fff,
+        0 0 0 5px rgb(0 0 0 / 10%);
+}
+
+.cv-contact-portrait {
+    position: relative;
+    display: block;
+    width: 48px;
+    height: 48px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8e8e5 url("/people/ana.jpg") center 32% / cover no-repeat;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 14%);
+    filter: grayscale(1) contrast(1.06);
+}
+.cv-contact-portrait__head {
+    display: none;
+}
+.cv-contact-portrait__body {
+    display: none;
+}
+
 /* Strong black primary button; secondary is white with a hairline. Both keep
    a 44px hit target and a visible black focus ring. */
 .cv-btn-solid {
@@ -1225,7 +1297,24 @@
     }
 }
 .cv-preview-in {
-    animation: cv-preview-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: cv-preview-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Disclosure panel entrance — a 180ms fade/rise for the collapsed technical
+   rows. The global prefers-reduced-motion block above already zeroes
+   animation-duration, so reduced-motion users see no movement. */
+@keyframes cv-disclosure-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.cv-disclosure-panel {
+    animation: cv-disclosure-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Loading pulse — functional, not decorative; kept restrained. */

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { WalletConnectButton } from "@/components/wallet/connect-button";
@@ -18,28 +17,56 @@ const COMMERCE_ITEMS = [
 ];
 
 /**
- * The Convey mark — a fixed black raster at `public/brand/convey-mark.png`,
- * rendered via next/image. It is a single-tone black PNG on a transparent
- * background and does NOT inherit `currentColor`: it stays black regardless
- * of the surrounding text colour, so it is only visible on light grounds.
- * Sized in px via the `size` prop; the intrinsic source is high-resolution so
- * it stays crisp at the header's 26px and the home's larger placements.
+ * The Convey mark — a bold filled monochrome app icon: a black squircle
+ * carrier with a white crossing route (an open carry arc + a through-arrow),
+ * suggesting value carried across. Inline SVG; the source also lives at
+ * `public/brand/convey-mark.svg`. Ownable at 28–30px.
  */
-export function BrandMark({ size = 26 }: { size?: number }) {
+export function BrandMark({ size = 28 }: { size?: number }) {
   return (
-    <Image
-      src="/brand/convey-mark.png"
-      alt=""
+    <svg
+      data-testid="convey-mark"
+      aria-hidden
       width={size}
       height={size}
+      viewBox="0 0 32 32"
+      fill="none"
       className="shrink-0"
-      priority
-    />
+    >
+      <circle cx="16" cy="16" r="14" fill="#000" />
+      <path
+        d="M21.8 10.8A8 8 0 1 0 21.8 21.2"
+        stroke="#fff"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10 16h12"
+        stroke="#fff"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="m18.8 12.8 3.5 3.2-3.5 3.2"
+        stroke="#fff"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
 export function SiteHeader() {
   const pathname = usePathname();
+
+  // The Pay homepage is a focused amount-first surface: the full
+  // Pay/Relay/Protect/Verify desktop chip rail is hidden there so the first
+  // frame reads as one product, not a lab sitemap. Brand, Sign in, and a
+  // compact menu keep every other product area one tap away. Routes are not
+  // removed — they remain in the mobile/compact sheet and on every other
+  // route's desktop rail.
+  const isPayHome = pathname === "/";
 
   // The sheet is keyed to the route it was opened on, so navigating away
   // closes it without an effect fighting React's render pass.
@@ -57,37 +84,62 @@ export function SiteHeader() {
         "top-0 z-[999] w-full sticky border-b border-[var(--cv-line)] bg-[var(--cv-paper)]/85 backdrop-blur-xl",
       )}
     >
-      <div className="flex h-[60px] items-center justify-between gap-4 px-5 md:px-7">
-        {/* Brand */}
+      <div className="flex h-[68px] items-center justify-between gap-4 px-5 md:px-8">
+        {/* Brand lockup — mark + wordmark aligned as one unit. The mark is a
+            currentColor vector so it tracks the wordmark's black on light
+            grounds. Stronger weight and tighter tracking read as a finance
+            house, not a generic SaaS wordmark. */}
         <Link
           href="/"
           aria-label="Convey home"
           className="flex shrink-0 items-center gap-2.5 text-black transition-colors"
         >
-          <BrandMark size={26} />
-          <span className="text-[19px] leading-none font-medium tracking-[-0.01em]">
-            Convey
+          <BrandMark size={34} />
+          <span className="flex flex-col">
+            <span className="text-[23px] leading-none font-semibold tracking-[-0.035em]">Convey</span>
+            <span className="mt-1 hidden font-narrow text-[8px] font-semibold uppercase tracking-[0.2em] text-neutral-500 sm:block">
+              Move with intent
+            </span>
           </span>
         </Link>
 
-        {/* Chip rail */}
-        <div className="hidden items-center gap-[2px] lg:flex">
-          {COMMERCE_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              data-active={isActive(item.href) ? "true" : undefined}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              className="cv-nav-chip"
-            >
-              {item.label}
-            </Link>
-          ))}
-          <WalletConnectButton />
-        </div>
+        {/* Full desktop chip rail — hidden on the Pay homepage so the amount
+            card dominates the first frame. On every other route, Pay stays
+            primary and Relay/Protect/Verify are quieter secondary
+            destinations. Routes, names, and active state are unchanged. */}
+        {!isPayHome && (
+          <div className="hidden items-center gap-[2px] lg:flex">
+            {COMMERCE_ITEMS.map((item) => {
+              const active = isActive(item.href);
+              const isPay = item.href === "/";
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  data-active={active ? "true" : undefined}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "cv-nav-chip",
+                    !active && !isPay && "cv-nav-chip--quiet",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+            <WalletConnectButton />
+          </div>
+        )}
 
-        {/* Compact rail */}
-        <div className="flex items-center gap-[2px] lg:hidden">
+        {/* Compact rail — brand + Sign in + an accessible menu for the other
+            product areas. On the Pay homepage this is the only desktop rail;
+            on every route it is the mobile rail. */}
+        <div
+          className={cn(
+            "flex items-center gap-[2px]",
+            isPayHome ? "flex" : "lg:hidden",
+          )}
+        >
           <WalletConnectButton />
           <button
             type="button"
@@ -121,7 +173,14 @@ export function SiteHeader() {
       </div>
 
       {menuOpen && (
-        <nav className="flex flex-col gap-[2px] px-5 pb-5 lg:hidden bg-[var(--cv-paper)]/97">
+        <nav
+          className={cn(
+            "flex flex-col gap-[2px] px-5 pb-5 bg-[var(--cv-paper)]/97",
+            // On the Pay homepage the sheet is the desktop menu too; otherwise
+            // it stays the mobile-only sheet.
+            isPayHome ? "" : "lg:hidden",
+          )}
+        >
           {COMMERCE_ITEMS.map((item) => (
             <Link
               key={item.href}

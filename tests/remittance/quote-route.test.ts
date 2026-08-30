@@ -63,7 +63,7 @@ describe("POST /api/remittance/quote — golden paths", () => {
     expect(body.youPayMinor).toBe("50000");
     expect(body.youPayCurrency).toBe("MYR");
     expect(body.familyReceivesCurrency).toBe("PHP");
-    expect(body.exchangeRate.rateText).toBe("1 MYR = 12.44 PHP");
+    expect(body.exchangeRate.rateText).toBe("1 MYR = 12.444444 PHP");
     expect(body.totalFeeMinor).toBe("950");
     expect(body.usdcMicro).toBe("109000000");
     expect(body.settlementRail).toBe("Sui testnet USDC");
@@ -156,7 +156,7 @@ describe("POST /api/remittance/quote — env overrides and per-beneficiary recip
     expect(body.kind).toBe("quote");
     expect(body.usdcMicro).toBe("125000000");
     expect(body.familyReceivesMinor).toBe("750000");
-    expect(body.exchangeRate.rateText).toBe("1 MYR = 15.00 PHP");
+    expect(body.exchangeRate.rateText).toBe("1 MYR = 15.000000 PHP");
     expect(body.provenance.myrPerUsdc).toBe("400");
     expect(body.provenance.phpPerUsdc).toBe("6000");
   });

@@ -19,7 +19,22 @@ import type { RemittanceIntentInput, RemittanceClarificationCode } from "./parse
 import type { QuoteEnvelope } from "./quote-schema";
 
 export type { QuoteEnvelope } from "./quote-schema";
-export { formatMinor, formatMyr, formatPhp, formatUsdc } from "./money";
+export {
+  formatMinor,
+  formatMinorFixed,
+  formatMinorFixedGrouped,
+  formatMyr,
+  formatMyrFixed,
+  formatMyrFixedGrouped,
+  formatPhp,
+  formatPhpFixedGrouped,
+  formatUsdc,
+  formatMinorGrouped,
+  formatMyrGrouped,
+  formatPhpGrouped,
+  formatUsdcGrouped,
+  groupInteger,
+} from "./money";
 
 export interface RemittanceQuoteError {
   kind: "clarification";
@@ -123,11 +138,17 @@ export function buildQuote(
     };
   }
 
-  // Exchange rate text: 1 MYR = (phpPerUsdc / myrPerUsdc) PHP, to 2 decimals.
-  const rateScaled = (config.phpPerUsdc * 100n) / config.myrPerUsdc;
-  const rateWhole = rateScaled / 100n;
-  const rateFrac = rateScaled % 100n;
-  const rateText = `1 MYR = ${rateWhole.toString()}.${rateFrac.toString().padStart(2, "0")} PHP`;
+  // Exchange rate text: 1 MYR = (phpPerUsdc / myrPerUsdc) PHP. Emit enough
+  // deterministic decimal precision that multiplying the displayed converted
+  // MYR amount by the displayed rate rounds to the displayed PHP centavos.
+  // For the pinned corridor (5600/450 = 12.444444…), six decimals reconcile
+  // after cent rounding. Integer-only: scale by 10^6 and floor, never float.
+  const RATE_DECIMALS = 6n;
+  const rateScale = 10n ** RATE_DECIMALS;
+  const rateScaled = (config.phpPerUsdc * rateScale) / config.myrPerUsdc;
+  const rateWhole = rateScaled / rateScale;
+  const rateFrac = rateScaled % rateScale;
+  const rateText = `1 MYR = ${rateWhole.toString()}.${rateFrac.toString().padStart(Number(RATE_DECIMALS), "0")} PHP`;
 
   const issuedAt = now;
   const expiresAt = now + config.quoteTtlMs;

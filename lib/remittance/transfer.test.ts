@@ -69,7 +69,7 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
     usdcMicro: "109000000",
     usdcAmount: "109",
     settlementRail: "Sui testnet USDC",
-    payoutMethod: "Bank deposit (reference)",
+    payoutMethod: "Bank payout · Not available yet",
     estimatedArrival: "Within minutes after on-chain confirmation",
     payoutStatus: "Awaiting payout partner",
     issuedAt: 1_700_000_000_000,

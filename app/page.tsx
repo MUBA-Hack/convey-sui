@@ -10,10 +10,11 @@ export const metadata: Metadata = {
 /**
  * The home route is the Convey Pay workspace.
  *
- * A thin mode switch lets the customer choose "Send abroad" (default —
- * voice-first cross-border remittance) or "Buy nearby" (the existing catalog
- * purchase flow, unchanged). The remittance module lives beside the commerce
- * purchase module; neither is rewritten. No new top-level route is added.
+ * Send abroad (the default voice-first cross-border remittance money sheet)
+ * dominates the first fold. Buy nearby (the existing catalog purchase flow,
+ * unchanged) is reachable only through a quiet secondary link on the sheet.
+ * The remittance module lives beside the commerce purchase module; neither is
+ * rewritten. No new top-level route is added.
  */
 export default function HomePage() {
   return <PayWorkspace />;

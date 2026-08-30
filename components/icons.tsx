@@ -44,6 +44,7 @@ export const Data = icon(Iconsax.Data, "Data");
 export const DocumentCode = icon(Iconsax.DocumentCode, "DocumentCode");
 export const DocumentDownload = icon(Iconsax.DocumentDownload, "DocumentDownload");
 export const DocumentText = icon(Iconsax.DocumentText, "DocumentText");
+export const Edit2 = icon(Iconsax.Edit2, "Edit2");
 export const Element3 = icon(Iconsax.Element3, "Element3");
 export const ExportSquare = icon(Iconsax.ExportSquare, "ExportSquare");
 export const Eye = icon(Iconsax.Eye, "Eye");

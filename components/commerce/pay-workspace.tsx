@@ -5,62 +5,35 @@ import { CommerceChat } from "@/components/commerce/commerce-chat";
 import { RemittanceChat } from "@/components/remittance/remittance-chat";
 
 /**
- * Pay workspace — the home route's single surface for choosing what to pay for.
+ * Pay workspace — the home route's single surface.
  *
- * Two modes share the existing Pay nav entry:
- *  - "send"  (default) — Send abroad: voice-first cross-border remittance with
- *                        transparent fees and Sui USDC settlement.
- *  - "buy"            — Buy nearby: the existing catalog purchase flow,
- *                        unchanged and fully functional.
- *
- * The default is "send" so a fresh viewer understands in ten seconds that
- * Convey is voice-first cross-border remittance. No new top-level route, demo
- * page, or implementation-detail panel is added.
+ * Send abroad (the default, voice-first cross-border remittance money sheet)
+ * dominates the first fold with no competing mode pills. Buy nearby (the
+ * existing catalog purchase flow, unchanged) stays reachable only through a
+ * quiet secondary link on the money sheet — never a competing first-fold
+ * control. A quiet "Send abroad" link on the Buy side returns to the money
+ * sheet. No new top-level route, demo page, or implementation-detail panel.
  */
 
 type PayMode = "send" | "buy";
 
-const MODE_TABS: { key: PayMode; label: string }[] = [
-  { key: "send", label: "Send abroad" },
-  { key: "buy", label: "Buy nearby" },
-];
-
 export function PayWorkspace() {
   const [mode, setMode] = useState<PayMode>("send");
 
-  return (
-    <div className="cv-shell__ground flex min-h-[calc(100vh-60px)] flex-col">
-      <div className="mx-auto w-full max-w-[1120px] px-4 pt-3 md:pt-6">
-        <div
-          role="tablist"
-          aria-label="Pay mode"
-          className="inline-flex items-center gap-[2px] rounded-xl border border-black/10 bg-white p-1"
+  if (mode === "buy") {
+    return (
+      <div className="cv-shell mx-auto w-full max-w-[720px] px-4 pt-4 md:pt-6">
+        <button
+          type="button"
+          data-testid="switch-to-send"
+          onClick={() => setMode("send")}
+          className="inline-flex min-h-[32px] items-center text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500 underline-offset-4 hover:text-neutral-800 hover:underline"
         >
-          {MODE_TABS.map((tab) => {
-            const active = mode === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                data-pay-mode={tab.key}
-                data-active={active ? "true" : undefined}
-                onClick={() => setMode(tab.key)}
-                className={`inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em] transition-colors ${
-                  active
-                    ? "bg-black text-white"
-                    : "bg-transparent text-neutral-600 hover:bg-neutral-100"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+          Send abroad
+        </button>
+        <CommerceChat />
       </div>
-
-      {mode === "send" ? <RemittanceChat /> : <CommerceChat />}
-    </div>
-  );
+    );
+  }
+  return <RemittanceChat onSwitchToBuy={() => setMode("buy")} />;
 }

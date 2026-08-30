@@ -22,7 +22,7 @@ import {
   type RemittanceWalletErrorCode,
   type WaitForTransactionResponse,
 } from "@/lib/remittance/transfer";
-import { formatUsdc } from "@/lib/remittance/money";
+import { formatUsdcGrouped } from "@/lib/remittance/money";
 import {
   CanonicalAuthorizationSchema,
   isExpired,
@@ -45,6 +45,14 @@ import {
 
 export interface RemittancePaymentActionProps {
   quote: QuoteEnvelope;
+  /**
+   * When true, the parent (checkout dialog) renders the consumer summary card
+   * and the collapsed "Transfer details" disclosure, so this action hides its
+   * own pre-confirm technical rows and only renders the Confirm/Cancel controls
+   * and the post-submit lifecycle surfaces (error / unknown / submitted-pending
+   * / settlement). Default false keeps the standalone behavior intact.
+   */
+  summaryMode?: boolean;
   onCancel?: () => void;
   onSettled?: (result: RemittanceSettlement) => void;
   onPendingChange?: (pending: boolean) => void;
@@ -92,6 +100,7 @@ type Status =
 
 export function RemittancePaymentAction({
   quote,
+  summaryMode = false,
   onCancel,
   onSettled,
   onPendingChange,
@@ -138,7 +147,7 @@ export function RemittancePaymentAction({
     authorizedRecipient: quote.recipientAddress,
     attestation: quote.attestation,
   });
-  const usdcAmount = formatUsdc(quote.usdcMicro);
+  const usdcAmount = formatUsdcGrouped(quote.usdcMicro);
   const recipientAddress = quote.recipientAddress;
   const isReal = mode === "real" && !quoteExpired;
   const terminal =
@@ -325,36 +334,38 @@ export function RemittancePaymentAction({
 
   return (
     <div className="space-y-4" aria-label="USDC remittance transfer action">
-      <div className="space-y-2 rounded-xl border border-border bg-surface p-3 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Settlement</span>
-          <span className="font-mono tabular-nums text-foreground">{usdcAmount} USDC</span>
+      {!summaryMode && (
+        <div className="space-y-2 rounded-xl border border-border bg-surface p-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Settlement</span>
+            <span className="font-mono tabular-nums text-foreground">{usdcAmount} USDC</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Recipient</span>
+            <span className="font-mono text-foreground" title={recipientAddress ?? undefined}>
+              {shortAddress(recipientAddress)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Reference</span>
+            <span className="font-mono text-xs text-foreground">{quote.beneficiaryRef}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Rail</span>
+            <span className="text-foreground">{quote.settlementRail}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Status</span>
+            {quoteExpired ? (
+              <span className="font-semibold text-foreground">Quote expired</span>
+            ) : isReal ? (
+              <span className="font-semibold text-foreground">Real testnet transfer</span>
+            ) : (
+              <span className="font-semibold text-foreground">Prepared — not submitted</span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Recipient</span>
-          <span className="font-mono text-foreground" title={recipientAddress ?? undefined}>
-            {shortAddress(recipientAddress)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Reference</span>
-          <span className="font-mono text-xs text-foreground">{quote.beneficiaryRef}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Rail</span>
-          <span className="text-foreground">{quote.settlementRail}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Status</span>
-          {quoteExpired ? (
-            <span className="font-semibold text-foreground">Quote expired</span>
-          ) : isReal ? (
-            <span className="font-semibold text-foreground">Real testnet transfer</span>
-          ) : (
-            <span className="font-semibold text-foreground">Prepared — not submitted</span>
-          )}
-        </div>
-      </div>
+      )}
 
       {status === "error" && errorCode && (
         <div
@@ -509,17 +520,9 @@ export function RemittancePaymentAction({
         >
           <p className="font-medium text-black">Prepared — not submitted</p>
           <p className="mt-1 text-neutral-600">
-            A real testnet USDC transfer requires a connected wallet on testnet, a verified
-            recipient address for this quote, and a valid quote attestation.
+            Testnet transfer is unavailable for this corridor right now. No USDC has
+            moved and no MYR has been charged.
           </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-neutral-600">
-            {!account && <li>Connect a Sui wallet.</li>}
-            {account && network !== "testnet" && <li>Switch the wallet to testnet.</li>}
-            {!recipientAddress && <li>Configure a recipient Sui address for this beneficiary.</li>}
-            {recipientAddress && !quote.attestation && (
-              <li>Quote attestation is missing — get a new quote.</li>
-            )}
-          </ul>
           <button
             type="button"
             className="cv-btn-ghost mt-3 inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 text-xs font-medium uppercase tracking-wide"

@@ -111,5 +111,5 @@ export const DEFAULT_CONFIG = {
   usdcCoinType: USDC_COIN_TYPE_TESTNET,
   usdcDecimals: USDC_DECIMALS,
   estimatedArrival: "Within minutes after on-chain confirmation",
-  payoutMethod: "Bank deposit (reference)",
+  payoutMethod: "Bank payout · Not available yet",
 } as const;

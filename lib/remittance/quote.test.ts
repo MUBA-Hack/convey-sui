@@ -80,9 +80,9 @@ describe("buildQuote — RM500 golden path (default reference pricing)", () => {
     }
   });
 
-  it("exchange rate text is 1 MYR = 12.44 PHP", () => {
+  it("exchange rate text is 1 MYR = 12.444444 PHP (six decimals reconcile)", () => {
     if (q.kind === "quote") {
-      expect(q.exchangeRate.rateText).toBe("1 MYR = 12.44 PHP");
+      expect(q.exchangeRate.rateText).toBe("1 MYR = 12.444444 PHP");
     }
   });
 
@@ -92,7 +92,7 @@ describe("buildQuote — RM500 golden path (default reference pricing)", () => {
       expect(q.destinationCity).toBe("manila");
       expect(q.destinationCountry).toBe("Philippines");
       expect(q.settlementRail).toBe("Sui testnet USDC");
-      expect(q.payoutMethod).toBe("Bank deposit (reference)");
+      expect(q.payoutMethod).toBe("Bank payout · Not available yet");
       expect(q.estimatedArrival).toBeTruthy();
       expect(q.payoutStatus).toBe("Awaiting payout partner");
       expect(q.corridor).toEqual({ source: "MYR", destination: "PHP" });
@@ -143,6 +143,48 @@ describe("buildQuote — rounding floors at each FX step", () => {
   });
 });
 
+describe("buildQuote — displayed FX reconciliation (no floating point)", () => {
+  /**
+   * Parse "1 MYR = 12.444444 PHP" into an exact rational numerator/scale
+   * (BigInt), then prove that multiplying the displayed converted MYR amount
+   * by the displayed rate rounds (half-up, to centavos) to the displayed PHP
+   * centavos. Pure integer arithmetic — never float.
+   */
+  function parseRate(rateText: string): { num: bigint; scale: bigint } {
+    const m = /^1 MYR = (\d+)\.(\d+) PHP$/.exec(rateText);
+    if (!m) throw new Error(`unparseable rate text: ${rateText}`);
+    const frac = m[2] as string;
+    const scale = 10n ** BigInt(frac.length);
+    const num = BigInt(m[1] as string) * scale + BigInt(frac);
+    return { num, scale };
+  }
+
+  it("RM500 golden path: RM490.50 × 12.444444 rounds to ₱6,104.00 (610400 centavos)", () => {
+    const q = buildQuote(intent("50000"), null, config(), NOW);
+    expect(q.kind).toBe("quote");
+    if (q.kind !== "quote") return;
+    const convertedSen = BigInt(q.youPayMinor) - BigInt(q.totalFeeMinor);
+    const { num, scale } = parseRate(q.exchangeRate.rateText);
+    // centavos = round((convertedSen * num) / scale)  (half-up)
+    const numerator = convertedSen * num;
+    const centavos = (numerator + scale / 2n) / scale;
+    expect(centavos).toBe(BigInt(q.familyReceivesMinor));
+  });
+
+  it("the displayed rate is the exact rational phpPerUsdc/myrPerUsdc truncated to 6 decimals", () => {
+    const q = buildQuote(intent("50000"), null, config(), NOW);
+    expect(q.kind).toBe("quote");
+    if (q.kind !== "quote") return;
+    const { num, scale } = parseRate(q.exchangeRate.rateText);
+    // num/scale must equal floor(phpPerUsdc * 10^6 / myrPerUsdc) / 10^6.
+    const phpPerUsdc = BigInt(q.provenance.phpPerUsdc);
+    const myrPerUsdc = BigInt(q.provenance.myrPerUsdc);
+    const expectedNum = (phpPerUsdc * scale) / myrPerUsdc;
+    expect(num).toBe(expectedNum);
+    expect(scale).toBe(1_000_000n);
+  });
+});
+
 describe("buildQuote — bounds and cap", () => {
   it("rejects zero send amount", () => {
     const q = buildQuote(intent("0"), null, config(), NOW);
@@ -187,7 +229,7 @@ describe("buildQuote — custom rates and fees", () => {
       expect(q.usdcMicro).toBe("125000000");
       expect(q.familyReceivesMinor).toBe("750000");
       expect(q.totalFeeMinor).toBe("0");
-      expect(q.exchangeRate.rateText).toBe("1 MYR = 15.00 PHP");
+      expect(q.exchangeRate.rateText).toBe("1 MYR = 15.000000 PHP");
     }
   });
 });
