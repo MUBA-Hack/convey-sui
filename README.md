@@ -344,7 +344,7 @@ sequenceDiagram
 
   Customer->>Pay: Send MYR amount to named recipient and destination
   Pay->>Quote: Original text
-  Note over Quote: Deterministic parsing and reference pricing; no Gonka call
+  Note right of Quote: Deterministic parsing and reference pricing; no Gonka call
   Quote-->>Pay: Itemized quote, expiry, recipient, optional attestation
   Pay-->>Customer: Review reference amounts and payout limitation
   Customer->>Pay: Review details and confirm payment
