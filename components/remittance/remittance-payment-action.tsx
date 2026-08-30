@@ -23,6 +23,7 @@ import {
   type WaitForTransactionResponse,
 } from "@/lib/remittance/transfer";
 import { formatUsdcGrouped } from "@/lib/remittance/money";
+import { formatMyr } from "@/lib/remittance/quote";
 import {
   CanonicalAuthorizationSchema,
   isExpired,
@@ -68,6 +69,10 @@ export interface RemittanceSettlement {
   quoteExpiresAt: number;
   beneficiaryRef: string;
   payoutStatus: "Awaiting payout partner";
+  /** Verified family-rule purpose carried from the authorized quote, or null. */
+  purpose: string | null;
+  /** Verified family-rule max cap in minor MYR, or null. */
+  maximumFamilyLimitMinor: string | null;
 }
 
 export type RemittanceTerminalState =
@@ -82,6 +87,7 @@ const ERROR_MESSAGES: Record<RemittanceWalletErrorCode, string> = {
   failure: "Transfer failed. Check the wallet and your balance, then try again.",
   expired: "Quote expired — get a new quote.",
   verification: "This quote could not be verified. Get a new quote to continue.",
+  over_cap: "This transfer exceeds the verified family limit. Get a new quote to continue.",
 };
 
 function shortAddress(addr: string | null): string {
@@ -289,6 +295,8 @@ export function RemittancePaymentAction({
           quoteExpiresAt: auth.expiresAt,
           beneficiaryRef: auth.beneficiaryRef,
           payoutStatus: "Awaiting payout partner",
+          purpose: auth.purpose,
+          maximumFamilyLimitMinor: auth.maximumFamilyLimitMinor,
         };
         setSettlement(real);
         setStatus("confirmed");
@@ -464,6 +472,26 @@ export function RemittancePaymentAction({
                 <dt className="text-neutral-500">Payout status</dt>
                 <dd className="font-semibold">Awaiting payout partner</dd>
               </div>
+              {/* Rule verified row — only when the verified authorization
+                  actually carries a rule (purpose or per-transfer maximum).
+                  Ordinary transfers render no rule row, so a no-rule transfer
+                  never implies a rule was verified. */}
+              {(settlement.purpose || settlement.maximumFamilyLimitMinor) && (
+                <div className="mt-1 border-t border-black/10 pt-2">
+                  <p
+                    data-testid="remittance-rule-verified"
+                    className="text-[11px] leading-relaxed text-neutral-600"
+                  >
+                    Rule verified
+                    {settlement.purpose
+                      ? ` · ${settlement.purpose.charAt(0).toUpperCase()}${settlement.purpose.slice(1)}`
+                      : ""}
+                    {settlement.maximumFamilyLimitMinor
+                      ? ` · Within RM${formatMyr(settlement.maximumFamilyLimitMinor)} maximum`
+                      : ""}
+                  </p>
+                </div>
+              )}
             </dl>
           </div>
         </div>

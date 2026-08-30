@@ -47,6 +47,8 @@ function auth(overrides: Partial<CanonicalAuthorization> = {}): CanonicalAuthori
     feeBps: 150,
     recipient: "Ana",
     destinationCity: "manila",
+    purpose: null,
+    maximumFamilyLimitMinor: null,
     ...overrides,
   };
 }
@@ -86,6 +88,15 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
     recipientAddress: ADDR_A,
     beneficiaryRef: "R-ABCD1234",
     attestation: VALID_ATTESTATION,
+    intentReview: {
+      reviewer: "local",
+      mode: "fallback",
+      provider: "deterministic",
+      fallbackReason: "not_configured",
+      purpose: null,
+      maximumFamilyLimitMinor: null,
+      ruleStatus: "not_set",
+    },
     clarification: null,
     ...overrides,
   };
@@ -160,6 +171,77 @@ describe("bindAuthorizationToQuote", () => {
     expect(bindAuthorizationToQuote(auth({ coinType: "0xwrong::usdc::USDC" }), quote())).toBe(
       "verification",
     );
+  });
+
+  it("rejects a tampered purpose (rule is bound to the authorization)", () => {
+    const q = quote({
+      intentReview: {
+        reviewer: "local",
+        mode: "fallback",
+        provider: "deterministic",
+        fallbackReason: "not_configured",
+        purpose: "school supplies",
+        maximumFamilyLimitMinor: null,
+        ruleStatus: "within_limit",
+      },
+    });
+    // Auth carries null purpose; quote carries "school supplies" → mismatch.
+    expect(bindAuthorizationToQuote(auth(), q)).toBe("verification");
+  });
+
+  it("rejects a tampered maximumFamilyLimitMinor (rule is bound to the authorization)", () => {
+    const q = quote({
+      intentReview: {
+        reviewer: "local",
+        mode: "fallback",
+        provider: "deterministic",
+        fallbackReason: "not_configured",
+        purpose: null,
+        maximumFamilyLimitMinor: "52000",
+        ruleStatus: "within_limit",
+      },
+    });
+    // Auth carries null cap; quote carries "52000" → mismatch.
+    expect(bindAuthorizationToQuote(auth(), q)).toBe("verification");
+  });
+
+  it("accepts an exact match when both auth and quote carry the same rule", () => {
+    const rule = {
+      purpose: "school supplies" as const,
+      maximumFamilyLimitMinor: "52000" as const,
+    };
+    const q = quote({
+      intentReview: {
+        reviewer: "local",
+        mode: "fallback",
+        provider: "deterministic",
+        fallbackReason: "not_configured",
+        purpose: rule.purpose,
+        maximumFamilyLimitMinor: rule.maximumFamilyLimitMinor,
+        ruleStatus: "within_limit",
+      },
+    });
+    expect(bindAuthorizationToQuote(auth(rule), q)).toBeNull();
+  });
+
+  it("rejects over-cap: an authorized max below the send amount (core execution invariant)", () => {
+    // Send RM500 (50000 sen), authorized cap RM400 (40000 sen) — cap below amount.
+    expect(
+      bindAuthorizationToQuote(
+        auth({ maximumFamilyLimitMinor: "40000" }),
+        quote({
+          intentReview: {
+            reviewer: "local",
+            mode: "fallback",
+            provider: "deterministic",
+            fallbackReason: "not_configured",
+            purpose: null,
+            maximumFamilyLimitMinor: "40000",
+            ruleStatus: "within_limit",
+          },
+        }),
+      ),
+    ).toBe("over_cap");
   });
 });
 

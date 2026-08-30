@@ -284,6 +284,45 @@ describe("createGonkaCommerceRouter — JSON mode fallback", () => {
     const fallbackCall = (deps as unknown as { _calls: { body: unknown }[] })._calls[1];
     expect(fallbackCall).toBeDefined();
   });
+
+  it("preserves retry consumption: timeout->retry->400 leaves no retry budget for the fallback", async () => {
+    const unsupportedBody = httpErrorBody(
+      400,
+      "response_format json_object is not supported by this model",
+    );
+    const deps = DEPS([
+      { kind: "throw", error: timeoutError() },
+      { kind: "http", status: 400, body: unsupportedBody },
+      { kind: "throw", error: timeoutError() },
+    ]);
+    const router = createGonkaCommerceRouter(CFG, deps);
+    const result = await router.run(TEST_INPUT);
+    expect(isGonkaRunErr(result)).toBe(true);
+    if (!isGonkaRunErr(result)) return;
+    expect(result.reason).toBe("PROVIDER_ERROR");
+    // Exactly 3 fetch calls: primary timeout, primary retry 400, fallback
+    // timeout (no second retry — the single retry was already consumed).
+    const calls = (deps as unknown as { _calls: unknown[] })._calls;
+    expect(calls).toHaveLength(3);
+  });
+
+  it("preserves retry consumption and still succeeds when the fallback responds on first attempt", async () => {
+    const unsupportedBody = httpErrorBody(
+      400,
+      "response_format json_object is not supported by this model",
+    );
+    const deps = DEPS([
+      { kind: "throw", error: timeoutError() },
+      { kind: "http", status: 400, body: unsupportedBody },
+      okSpec(validCandidateJson(), "req_fallback"),
+    ]);
+    const router = createGonkaCommerceRouter(CFG, deps);
+    const result = await router.run(TEST_INPUT);
+    expect(isGonkaRunOk(result)).toBe(true);
+    if (!isGonkaRunOk(result)) return;
+    const calls = (deps as unknown as { _calls: unknown[] })._calls;
+    expect(calls).toHaveLength(3);
+  });
 });
 
 describe("createGonkaCommerceRouter — repair", () => {

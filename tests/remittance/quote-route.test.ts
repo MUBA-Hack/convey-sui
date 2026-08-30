@@ -1,4 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  __setGonkaRemittanceRouterFactoryForTest,
+  type GonkaRemittanceRouterFactory,
+} from "@/app/api/remittance/quote/route";
+import type {
+  GonkaRemittanceRouter,
+  GonkaRemittanceCandidate,
+} from "@/lib/gonka/remittance";
+import type { GonkaRunResultGeneric } from "@/lib/gonka/core";
 
 /**
  * POST /api/remittance/quote and /api/remittance/quote/verify — API route
@@ -13,6 +22,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const GOLDEN_EN = "Send RM500 to Ana in Manila";
 const GOLDEN_MALAY = "Hantar RM500 kepada Ana di Manila";
+const GOLDEN_REMITTANCE =
+  "Hantar RM500 to Ana in Manila for school supplies; jangan lebih RM520.";
 const SECRET = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ADDR_ANA = "0x" + "ab".repeat(32);
 const ADDR_MARIA = "0x" + "cd".repeat(32);
@@ -43,9 +54,13 @@ beforeEach(() => {
   vi.stubEnv("REMITTANCE_QUOTE_TTL_MS", "");
   vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", "");
   vi.stubEnv("REMITTANCE_QUOTE_SIGNING_KEY_HEX", "");
+  vi.stubEnv("GONKA_ROUTER_API_KEY", "");
+  vi.stubEnv("REMITTANCE_GONKA_MANIFEST_JSON", "");
+  __setGonkaRemittanceRouterFactoryForTest(null);
 });
 
 afterEach(() => {
+  __setGonkaRemittanceRouterFactoryForTest(null);
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -98,6 +113,122 @@ describe("POST /api/remittance/quote — golden paths", () => {
     expect(json).not.toContain("signature");
     expect(json).not.toContain("transactionBytes");
     expect(json.toLowerCase()).not.toContain("digest");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gonka live review — golden family-limit request routed through a fake
+// router with no network access. The candidate is UNTRUSTED; the resolver
+// rebinds every field against the original text and the public manifest.
+// ---------------------------------------------------------------------------
+
+/** A valid candidate matching the golden family-limit request. */
+function goldenCandidate(): GonkaRemittanceCandidate {
+  return {
+    recipientAlias: "Ana",
+    destinationCity: "Manila",
+    destinationCountry: "Philippines",
+    sendAmountMyr: "500",
+    purpose: "school supplies",
+    maxAmountMyr: "520",
+    detectedLanguage: "ms",
+    explanation: "User wants to send RM500 to Ana in Manila for school supplies.",
+    confidence: 0.92,
+    uncertain: false,
+    needsReview: false,
+  };
+}
+
+/** Build a fake router factory that returns a fixed Gonka run-ok result. */
+function fakeLiveRouterFactory(
+  candidate: GonkaRemittanceCandidate,
+): GonkaRemittanceRouterFactory {
+  return () => {
+    const router: GonkaRemittanceRouter = {
+      run: vi.fn(async (): Promise<GonkaRunResultGeneric<GonkaRemittanceCandidate>> => ({
+        type: "gonka-run-ok",
+        candidate,
+        metadata: {
+          gonkaRequestId: "req_rem_live_1",
+          responseModel: "deepseek-ai/DeepSeek-V4-Flash-0731",
+          latencyMs: 420,
+          usage: { inputTokens: 42, outputTokens: 7 },
+        },
+        attempts: [
+          {
+            type: "gonka-attempt",
+            kind: "PRIMARY",
+            status: "SCHEMA_VALID",
+            requestedAtMs: 1_700_000_000_000,
+            completedAtMs: 1_700_000_000_420,
+            latencyMs: 420,
+            gonkaRequestId: "req_rem_live_1",
+            responseModel: "deepseek-ai/DeepSeek-V4-Flash-0731",
+            usage: { inputTokens: 42, outputTokens: 7 },
+          },
+        ],
+      })),
+    };
+    return router;
+  };
+}
+
+describe("POST /api/remittance/quote — Gonka live review (golden family-limit)", () => {
+  it("produces a quote for Ana in Manila with purpose, max RM520, within_limit, reviewed by Gonka", async () => {
+    __setGonkaRemittanceRouterFactoryForTest(fakeLiveRouterFactory(goldenCandidate()));
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReq(GOLDEN_REMITTANCE));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("quote");
+    // The golden request has no explicit city; Gonka + the resolver rebind
+    // Ana's unique manifest city (Manila).
+    expect(body.recipient).toBe("Ana");
+    expect(body.destinationCity).toBe("manila");
+    expect(body.destinationCountry).toBe("Philippines");
+    expect(body.youPayMinor).toBe("50000");
+    expect(body.usdcMicro).toBe("109000000");
+    // intentReview — live Gonka attribution with family-rule fields.
+    expect(body.intentReview.reviewer).toBe("gonka");
+    expect(body.intentReview.mode).toBe("live");
+    expect(body.intentReview.provider).toBe("gonkarouter");
+    expect(body.intentReview.requestId).toBe("req_rem_live_1");
+    expect(body.intentReview.detectedLanguage).toBe("ms");
+    expect(body.intentReview.confidence).toBe(0.92);
+    expect(body.intentReview.purpose).toBe("school supplies");
+    expect(body.intentReview.maximumFamilyLimitMinor).toBe("52000");
+    expect(body.intentReview.ruleStatus).toBe("within_limit");
+    // Never exposes wallet addresses, secrets, raw model output, or attempt trails.
+    const json = JSON.stringify(body);
+    expect(json).not.toContain("walletAddress");
+    expect(json).not.toContain("transactionBytes");
+    expect(json).not.toContain("attempts");
+    expect(json.toLowerCase()).not.toContain("digest");
+  });
+});
+
+describe("POST /api/remittance/quote — deterministic fallback (local review)", () => {
+  it("returns a quote with intentReview.reviewer=local and Checked-locally provenance", async () => {
+    // No Gonka API key, no test router — honest local-review fallback.
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReq(GOLDEN_EN));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("quote");
+    expect(body.recipient).toBe("Ana");
+    expect(body.destinationCity).toBe("manila");
+    expect(body.youPayMinor).toBe("50000");
+    // intentReview — honest local fallback, never implies Gonka ran.
+    expect(body.intentReview.reviewer).toBe("local");
+    expect(body.intentReview.mode).toBe("fallback");
+    expect(body.intentReview.provider).toBe("deterministic");
+    expect(body.intentReview.fallbackReason).toBe("not_configured");
+    expect(body.intentReview.requestId).toBeUndefined();
+    expect(body.intentReview.responseModel).toBeUndefined();
+    // No purpose/max in the deterministic golden-EN prompt.
+    expect(body.intentReview.purpose).toBeNull();
+    expect(body.intentReview.maximumFamilyLimitMinor).toBeNull();
+    expect(body.intentReview.ruleStatus).toBe("not_set");
   });
 });
 
@@ -392,6 +523,56 @@ describe("POST /api/remittance/quote/verify — fail closed", () => {
     const body = await res.json();
     expect(body.kind).toBe("rejected");
     expect(body.reason).toBe("unverified");
+  });
+
+  it("rejects when the family-rule purpose is tampered (rule is bound to the HMAC)", async () => {
+    vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", JSON.stringify({ ana: ADDR_ANA }));
+    vi.stubEnv("REMITTANCE_QUOTE_SIGNING_KEY_HEX", SECRET);
+    // Use the golden family-limit request so the quote carries a purpose.
+    const quote = await getQuote(GOLDEN_REMITTANCE);
+    const tampered = {
+      ...quote,
+      intentReview: {
+        ...(quote.intentReview as object),
+        purpose: "tuition",
+      },
+    };
+    const { POST: verifyPost } = await import("@/app/api/remittance/quote/verify/route");
+    const res = await verifyPost(verifyReq(tampered));
+    const body = await res.json();
+    expect(body.kind).toBe("rejected");
+    expect(body.reason).toBe("unverified");
+  });
+
+  it("rejects when the family-rule maximumFamilyLimitMinor is tampered (rule is bound to the HMAC)", async () => {
+    vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", JSON.stringify({ ana: ADDR_ANA }));
+    vi.stubEnv("REMITTANCE_QUOTE_SIGNING_KEY_HEX", SECRET);
+    const quote = await getQuote(GOLDEN_REMITTANCE);
+    const tampered = {
+      ...quote,
+      intentReview: {
+        ...(quote.intentReview as object),
+        maximumFamilyLimitMinor: "99999",
+      },
+    };
+    const { POST: verifyPost } = await import("@/app/api/remittance/quote/verify/route");
+    const res = await verifyPost(verifyReq(tampered));
+    const body = await res.json();
+    expect(body.kind).toBe("rejected");
+    expect(body.reason).toBe("unverified");
+  });
+
+  it("verifies and returns the rule fields in the canonical authorization for the golden family-limit request", async () => {
+    vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", JSON.stringify({ ana: ADDR_ANA }));
+    vi.stubEnv("REMITTANCE_QUOTE_SIGNING_KEY_HEX", SECRET);
+    const quote = await getQuote(GOLDEN_REMITTANCE);
+    const { POST: verifyPost } = await import("@/app/api/remittance/quote/verify/route");
+    const res = await verifyPost(verifyReq(quote));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("authorization");
+    expect(body.purpose).toBe("school supplies");
+    expect(body.maximumFamilyLimitMinor).toBe("52000");
   });
 
   it("rejects an expired quote", async () => {

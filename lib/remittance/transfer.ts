@@ -28,7 +28,8 @@ export type RemittanceWalletErrorCode =
   | "insufficient"
   | "failure"
   | "expired"
-  | "verification";
+  | "verification"
+  | "over_cap";
 
 export interface RemittanceTransferModeInput {
   account: string | null;
@@ -125,6 +126,12 @@ export function buildExplorerUrl(digest: string): string {
 /**
  * Bind a verified authorization to the customer-reviewed quote and client-pinned
  * constants. Any mismatch rejects before the wallet is invoked.
+ *
+ * The family-rule fields (`purpose`, `maximumFamilyLimitMinor`) are bound here
+ * too: a tampered rule is a verification failure. The one core execution
+ * invariant — the authorized max cap must not be below the authorized send
+ * amount — returns `"over_cap"` so the customer sees an honest, specific
+ * rejection rather than a generic verification error.
  */
 export function bindAuthorizationToQuote(
   auth: CanonicalAuthorization,
@@ -148,9 +155,22 @@ export function bindAuthorizationToQuote(
   if (auth.feeBps !== quote.provenance.feeBps) return "verification";
   if (auth.recipient !== quote.recipient) return "verification";
   if (auth.destinationCity !== quote.destinationCity) return "verification";
+  if (auth.purpose !== quote.intentReview.purpose) return "verification";
+  if (auth.maximumFamilyLimitMinor !== quote.intentReview.maximumFamilyLimitMinor) {
+    return "verification";
+  }
   try {
     const micro = BigInt(auth.usdcMicro);
     if (micro <= 0n || micro > MAX_USDC_MICRO) return "verification";
+    // Core execution invariant: an authorized family-rule cap must not be
+    // below the authorized send amount. This is the single rule boundary the
+    // wallet seam enforces — not a broad failure matrix.
+    if (
+      auth.maximumFamilyLimitMinor !== null &&
+      BigInt(auth.maximumFamilyLimitMinor) < BigInt(auth.youPayMinor)
+    ) {
+      return "over_cap";
+    }
   } catch {
     return "verification";
   }

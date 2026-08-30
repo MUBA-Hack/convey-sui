@@ -14,8 +14,8 @@ import { CheckoutDialog } from "@/components/commerce/checkout-dialog";
 import type { PurchaseIntentPreview } from "@/lib/commerce/intent";
 
 /**
- * Checkout lifecycle gauntlet — regression tests for the real-wallet race
- * fixed in this change.
+ * Checkout lifecycle regression tests for the real-wallet race fixed in
+ * this change.
  *
  * The payment step must not be dismissible via dialog chrome (X / Escape /
  * outside-pointer) while a wallet resolution is pending, and a late async

@@ -45,6 +45,15 @@ describe("strict schemas", () => {
       recipientAddress: null,
       beneficiaryRef: "R-ABCD1234",
       attestation: null,
+      intentReview: {
+        reviewer: "local",
+        mode: "fallback",
+        provider: "deterministic",
+        fallbackReason: "not_configured",
+        purpose: null,
+        maximumFamilyLimitMinor: null,
+        ruleStatus: "not_set",
+      },
       clarification: null,
       smuggled: true,
     });
@@ -74,6 +83,8 @@ describe("strict schemas", () => {
       feeBps: 150,
       recipient: "Ana",
       destinationCity: "manila",
+      purpose: null,
+      maximumFamilyLimitMinor: null,
     });
     expect(result.success).toBe(false);
   });

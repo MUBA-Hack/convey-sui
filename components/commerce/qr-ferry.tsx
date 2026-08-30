@@ -11,23 +11,17 @@ import {
   type QrFerryEnvelope,
   type ReplayRegistry,
 } from "@/lib/commerce/qr-ferry";
+import {
+  decodeHandoff,
+  RemittanceHandoffError,
+  sniffHandoffKind,
+} from "@/lib/remittance/offline-handoff";
+import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
+import { ArrowRight2 } from "@/components/icons";
+import { cn } from "@/lib/utils";
 import { PaymentAction } from "./payment-action";
-
-/**
- * Offline QR Ferry UI — Device A → offline transfer → Device B.
- *
- * Two panels tell a two-device story:
- *  - Device A (offline): creates a tamper-evident envelope from a safe demo
- *    purchase and renders a QR code plus copy/download payload.
- *  - Device B (connected): pastes/imports the payload, validates it, reviews
- *    item/qty/SUI/address/expiry, consumes the nonce once via a
- *    localStorage-backed ReplayRegistry, and hands the validated envelope
- *    into the SAME guarded checkout/proof path the home chat uses.
- *
- * This is a TRANSPORT envelope, not cryptographic payer authorization. The
- * checksum detects tampering; the nonce registry defends against replay.
- * No signature or authorization is implied.
- */
+import { QrScanner } from "./qr-scanner";
+import { RemittanceHandoffCard } from "@/components/remittance/remittance-handoff-card";
 
 // --- Demo purchase (simulation) -------------------------------------------
 
@@ -256,6 +250,21 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Import failed.";
 }
 
+const REMITTANCE_HANDOFF_ERRORS: Record<string, string> = {
+  malformed_json: "Malformed JSON — the carried quote is not valid JSON.",
+  oversized: "Oversized — the carried quote payload is too large.",
+  wrong_kind: "Wrong kind — this payload is not a carried remittance quote.",
+  unsupported_version: "Unsupported version — this carried quote uses an unknown version.",
+  invalid_shape: "Invalid shape — the carried quote is not well-formed.",
+};
+
+function remittanceHandoffErrorMessage(err: unknown): string {
+  if (err instanceof RemittanceHandoffError) {
+    return REMITTANCE_HANDOFF_ERRORS[err.reason] ?? err.message;
+  }
+  return err instanceof Error ? err.message : "Import failed.";
+}
+
 // --- Component -------------------------------------------------------------
 
 export interface QrFerryProps {
@@ -267,12 +276,23 @@ export interface QrFerryProps {
   onValidatedEnvelope?: (env: QrFerryEnvelope) => void;
 }
 
+type ImportedPayment =
+  | { kind: "commerce"; envelope: QrFerryEnvelope }
+  | { kind: "remittance"; quote: QuoteEnvelope };
+
 export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
   const [envelope, setEnvelope] = useState<QrFerryEnvelope | null>(null);
   const [payload, setPayload] = useState("");
-  const [imported, setImported] = useState<QrFerryEnvelope | null>(null);
+  const [importedPayment, setImportedPayment] = useState<ImportedPayment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkoutPreview, setCheckoutPreview] = useState<PurchaseIntentPreview | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const imported =
+    importedPayment?.kind === "commerce" ? importedPayment.envelope : null;
+  const importedRemittance =
+    importedPayment?.kind === "remittance" ? importedPayment.quote : null;
 
   const registryRef = useRef<LocalStorageReplayRegistry | null>(null);
   const [, setReplayRevision] = useState(0);
@@ -332,25 +352,50 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     setPayload(text);
   };
 
-  const handleImport = () => {
-    // Defense in depth: the import button is disabled while degraded, but
-    // even if an import is attempted, refuse to consult a degraded registry.
-    // The registry itself also fails closed (tryConsume returns false).
+  const runImport = (raw: string) => {
     if (replayDegraded) return;
+
+    const kind = sniffHandoffKind(raw);
+    if (kind === "convey.remittance-quote") {
+      try {
+        const handoff = decodeHandoff(raw);
+        setImportedPayment({ kind: "remittance", quote: handoff.quote });
+        setCheckoutPreview(null);
+        setError(null);
+        setPayload("");
+      } catch (err) {
+        setImportedPayment(null);
+        setError(remittanceHandoffErrorMessage(err));
+        setManualOpen(true);
+      }
+      return;
+    }
+
     try {
       const registry = registryRef.current ?? new LocalStorageReplayRegistry();
       registryRef.current = registry;
-      const env = importEnvelope(payload, {
+      const env = importEnvelope(raw, {
         registry,
       });
-      setImported(env);
+      setImportedPayment({ kind: "commerce", envelope: env });
       setCheckoutPreview(null);
       setError(null);
+      setPayload("");
       onValidatedEnvelope?.(env);
     } catch (err) {
-      setImported(null);
+      setImportedPayment(null);
       setError(errorMessage(err));
+      setManualOpen(true);
     }
+  };
+
+  const handleImport = () => {
+    runImport(payload);
+  };
+
+  const handleScanned = (text: string) => {
+    setPayload(text);
+    runImport(text);
   };
 
   const handoffToCheckout = () => {
@@ -386,379 +431,524 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     registry.recover();
     setReplayRevision((value) => value + 1);
     setError(null);
-    setImported(null);
+    setImportedPayment(null);
+  };
+
+  const handleScanAnother = () => {
+    setImportedPayment(null);
+    setCheckoutPreview(null);
+    setError(null);
+    setPayload("");
+    setManualOpen(false);
+    setCreateOpen(false);
   };
 
   const envelopeJson = envelope ? exportEnvelopeJson(envelope) : "";
+  const pageIdentity = importedRemittance
+    ? { eyebrow: "Quote carried", title: "Continue to Ana" }
+    : imported
+      ? { eyebrow: "Payment carried", title: "Review and pay" }
+      : { eyebrow: "Offline payment", title: "Pay offline" };
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-5 py-8 md:py-12">
-      <header className="flex flex-col gap-2">
-        <p className="cv-micro cv-micro-sm text-neutral-500">
-          Device A → offline transfer → Device B
+    <section className="cv-shell mx-auto w-full max-w-[760px] px-4 pt-5 md:pt-8">
+      <header className="mb-5 flex flex-col gap-1 px-1">
+        <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          {pageIdentity.eyebrow}
         </p>
-        <h1 className="text-2xl font-medium tracking-tight">
-          Relay
+        <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[40px]">
+          {pageIdentity.title}
         </h1>
-        <div
-          data-testid="transport-explanation"
-          className="mt-2 border border-[var(--cv-line)] bg-[var(--cv-paper)] p-4 text-sm leading-relaxed text-neutral-700"
-        >
-          <p>
-            This is a <strong>tamper-evident transport envelope</strong>, not
-            cryptographic payer authorization. A deterministic checksum
-            (blake2b256 over a canonical encoding) detects any change to item,
-            quantity, amount, merchant address, payer address, nonce, or
-            expiry. Replay is defended by a consume-once nonce stored in
-            localStorage on the importing device. No signature or
-            authorization is implied — the connected device must still approve
-            any payment.
-          </p>
-          <p className="mt-2 text-neutral-500">
-            Demo scope: localStorage nonces persist across refresh but are
-            device-local. Production requires an on-chain nonce registry or
-            trusted sponsor index.
-          </p>
-        </div>
       </header>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
-        {/* --- Device A (offline) --- */}
-        <div
-          data-testid="generate-panel"
-          className="flex flex-col gap-4 border border-[var(--cv-line)] bg-white p-5"
-        >
-          <div>
-            <h2 className="text-lg font-medium tracking-tight">
-              Device A — offline
-            </h2>
-            <p className="cv-micro cv-micro-sm mt-1 text-neutral-500">
-              Generate envelope
-            </p>
+      {importedRemittance ? (
+        <>
+          <RemittanceHandoffCard quote={importedRemittance} />
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              data-hit-target="true"
+              data-testid="scan-another"
+              onClick={handleScanAnother}
+              className="cv-btn-ghost inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+            >
+              Scan another
+            </button>
           </div>
+        </>
+      ) : imported ? (
+        <div
+          data-testid="validated-envelope"
+          role="status"
+          className="cv-money-sheet cv-preview-in overflow-hidden rounded-2xl bg-white p-4"
+        >
+          <p className="cv-micro cv-micro-sm text-neutral-500">
+            Payment approved
+          </p>
+          <dl className="mt-3 flex flex-col gap-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">Item</dt>
+              <dd className="font-medium">{imported.item}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">Quantity</dt>
+              <dd className="font-mono tabular-nums">
+                {imported.quantity}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">Total</dt>
+              <dd className="font-mono tabular-nums">
+                {mistToSui(imported.totalMist)} SUI
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">Merchant</dt>
+              <dd className="font-medium">{DEMO_MERCHANT_NAME}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-neutral-500">Expires</dt>
+              <dd className="text-right font-mono text-xs">
+                {formatTime(imported.expiresAt)}
+              </dd>
+            </div>
+          </dl>
 
-          {/* Demo purchase summary */}
-          <div className="border border-[var(--cv-line)] p-4">
-            <p className="cv-micro cv-micro-sm text-neutral-500">
-              Demo purchase (simulation)
-            </p>
-            <dl className="mt-3 flex flex-col gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Item</dt>
-                <dd className="font-medium">{DEMO_ITEM}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Quantity</dt>
-                <dd className="font-mono tabular-nums">{DEMO_QUANTITY}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Unit price</dt>
-                <dd className="font-mono tabular-nums">
-                  {mistToSui(DEMO_UNIT_PRICE_MIST.toString())} SUI
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Total</dt>
-                <dd className="font-mono tabular-nums">
-                  {mistToSui(DEMO_TOTAL_MIST.toString())} SUI
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Merchant</dt>
-                <dd className="font-medium">{DEMO_MERCHANT_NAME}</dd>
-              </div>
+          <details className="mt-3 border-t border-black/8 pt-3 text-sm">
+            <summary className="cursor-pointer select-none text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600">
+              Technical details
+            </summary>
+            <dl className="mt-3 flex flex-col gap-2">
               <div className="flex justify-between gap-3">
                 <dt className="shrink-0 text-neutral-500">Merchant address</dt>
                 <dd
                   className="min-w-0 break-all text-right font-mono text-xs"
-                  title={DEMO_MERCHANT_ADDRESS}
+                  title={imported.merchantAddress}
                 >
-                  {shortId(DEMO_MERCHANT_ADDRESS)}
+                  {shortId(imported.merchantAddress)}
+                </dd>
+              </div>
+              {imported.payerAddress && (
+                <div className="flex justify-between gap-3">
+                  <dt className="shrink-0 text-neutral-500">Payer address</dt>
+                  <dd
+                    className="min-w-0 break-all text-right font-mono text-xs"
+                    title={imported.payerAddress}
+                  >
+                    {shortId(imported.payerAddress)}
+                  </dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-3">
+                <dt className="shrink-0 text-neutral-500">Nonce</dt>
+                <dd
+                  className="min-w-0 break-all text-right font-mono text-xs"
+                  title={imported.nonce}
+                >
+                  {shortId(imported.nonce)}
                 </dd>
               </div>
             </dl>
-          </div>
+          </details>
 
+          <p className="mt-4 border-t border-black/8 pt-3 text-sm font-semibold">
+            Ready to hand off into the same guarded checkout
+          </p>
           <button
             type="button"
-            onClick={handleGenerate}
-            className="min-h-11 w-full bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+            data-hit-target="true"
+            onClick={handoffToCheckout}
+            className="cv-btn-ghost mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
           >
-            Generate envelope
+            Continue to checkout
           </button>
+          <p className="mt-2 text-xs text-neutral-500">
+            The connected device still applies the same payment gate and
+            proof as the home chat before anything settles.
+          </p>
 
-          {envelope && (
-            <div className="flex flex-col gap-4">
-              {/* QR code */}
-              <div className="flex justify-center border border-[var(--cv-line)] p-4">
-                <QRCodeSVG
-                  value={envelopeJson}
-                  size={200}
-                  level="M"
-                  marginSize={4}
-                  fgColor="#000000"
-                  bgColor="#ffffff"
-                  title="Offline QR Ferry envelope"
-                />
-              </div>
+          <div className="mt-4 flex justify-center border-t border-black/8 pt-3">
+            <button
+              type="button"
+              data-hit-target="true"
+              data-testid="scan-another"
+              onClick={handleScanAnother}
+              className="cv-btn-ghost inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+            >
+              Scan another
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div
+            data-testid="scan-card"
+            className="cv-money-sheet cv-preview-in overflow-hidden rounded-2xl"
+          >
+            <div className="px-5 pt-5 pb-3">
+              <h2 className="text-sm font-semibold tracking-[-0.01em] text-black">
+                Scan a payment
+              </h2>
+              <p className="mt-1 text-[12px] text-neutral-500">
+                Open a carried payment on a connected device — scan the code,
+                then approve.
+              </p>
+            </div>
 
-              {/* Payload */}
-              <div>
-                <p className="cv-micro cv-micro-sm text-neutral-500">
-                  Payload (JSON)
+            {/* Fail-closed degraded warning: replay protection is unavailable
+                until the user explicitly resets the local protection key. No
+                nonce is auto-accepted. */}
+            {replayDegraded && (
+              <div
+                role="alert"
+                data-testid="replay-degraded-warning"
+                className="mx-5 rounded-lg border border-black bg-white p-4 text-sm leading-relaxed text-black"
+              >
+                <p className="font-semibold">
+                  Payment protection unavailable
                 </p>
-                <pre
-                  data-testid="envelope-payload"
-                  className="mt-1 max-h-48 overflow-auto border border-[var(--cv-line)] bg-[var(--cv-paper)] p-3 font-mono text-xs whitespace-pre-wrap break-all"
-                >
-                  {envelopeJson}
-                </pre>
-              </div>
-
-              {/* Copy + Download */}
-              <div className="flex gap-3">
+                <p className="mt-1">
+                  This device&apos;s replay protection could not be loaded —
+                  its stored data is corrupt, so approving a payment is
+                  blocked until protection is deliberately reset. No payment
+                  can be accepted until then.
+                </p>
                 <button
                   type="button"
-                  onClick={handleCopy}
-                  className="min-h-11 flex-1 border border-black bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-neutral-100"
+                  data-hit-target="true"
+                  onClick={handleRecoverReplayStorage}
+                  className="cv-btn-ghost mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
                 >
-                  Copy payload
+                  Reset protection
                 </button>
+                <p className="mt-2 text-neutral-500">
+                  This clears only the local replay key and reconstructs
+                  protection. Other stored data is untouched.
+                </p>
+              </div>
+            )}
+
+            <div className="px-5 pb-5">
+              <QrScanner onDecode={handleScanned} disabled={replayDegraded} />
+            </div>
+
+            {error && (
+              <div
+                role="alert"
+                className="mx-5 mb-5 rounded-lg border border-black bg-white p-4 text-sm font-medium text-black"
+              >
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-xl border border-black/8 bg-[var(--cv-paper)]">
+            <button
+              type="button"
+              data-hit-target="true"
+              data-testid="manual-entry-disclosure"
+              aria-expanded={manualOpen}
+              onClick={() => setManualOpen((v) => !v)}
+              className="flex w-full min-h-[44px] items-center justify-between gap-3 px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              <span>Enter manually</span>
+              <ArrowRight2
+                size={14}
+                variant="Linear"
+                className={cn(
+                  "shrink-0 text-neutral-400 transition-transform",
+                  manualOpen && "rotate-90",
+                )}
+              />
+            </button>
+            {manualOpen && (
+              <div className="px-4 pb-4">
+                <div>
+                  <label
+                    htmlFor="qr-ferry-payload"
+                    className="cv-micro cv-micro-sm text-neutral-500"
+                  >
+                    Paste payment code
+                  </label>
+                  <textarea
+                    id="qr-ferry-payload"
+                    placeholder="Paste payment code…"
+                    value={payload}
+                    onChange={(e) => setPayload(e.target.value)}
+                    rows={6}
+                    className="mt-1 w-full resize-y rounded-lg border border-black/10 bg-white p-3 font-mono text-xs"
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <label
+                    htmlFor="qr-ferry-file"
+                    className="cv-micro cv-micro-sm text-neutral-500"
+                  >
+                    Open from file
+                  </label>
+                  <input
+                    id="qr-ferry-file"
+                    type="file"
+                    accept=".json,.txt,application/json,text/plain"
+                    onChange={handleFile}
+                    className="mt-1 block w-full text-sm file:min-h-11 file:mr-3 file:rounded-lg file:border file:border-black/14 file:bg-white file:px-4 file:py-2 file:font-semibold file:text-black hover:file:bg-neutral-100"
+                  />
+                </div>
+
                 <button
                   type="button"
-                  onClick={handleDownload}
-                  className="min-h-11 flex-1 border border-black bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-neutral-100"
+                  data-hit-target="true"
+                  onClick={handleImport}
+                  disabled={replayDegraded || payload.trim().length === 0}
+                  className="cv-btn-ghost mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em] disabled:cursor-not-allowed disabled:text-neutral-400"
                 >
-                  Download payload
+                  Open payment
                 </button>
               </div>
+            )}
+          </div>
 
-              {/* Envelope details */}
-              <div className="border border-[var(--cv-line)] p-4 text-sm">
-                <p className="cv-micro cv-micro-sm text-neutral-500">
-                  Envelope details
-                </p>
-                <dl className="mt-3 flex flex-col gap-2">
-                  <div className="flex justify-between gap-3">
-                    <dt className="shrink-0 text-neutral-500">Nonce</dt>
-                    <dd
-                      className="min-w-0 break-all text-right font-mono text-xs"
-                      title={envelope.nonce}
-                    >
-                      {shortId(envelope.nonce)}
+          <div className="mt-4 overflow-hidden rounded-xl border border-black/8 bg-[var(--cv-paper)]">
+            <button
+              type="button"
+              data-hit-target="true"
+              data-testid="create-shop-payment-disclosure"
+              aria-expanded={createOpen}
+              onClick={() => setCreateOpen((v) => !v)}
+              className="flex w-full min-h-[44px] items-center justify-between gap-3 px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              <span>Create a shop payment</span>
+              <ArrowRight2
+                size={14}
+                variant="Linear"
+                className={cn(
+                  "shrink-0 text-neutral-400 transition-transform",
+                  createOpen && "rotate-90",
+                )}
+              />
+            </button>
+            {createOpen && (
+              <div
+                data-testid="generate-panel"
+                className="cv-money-sheet cv-preview-in overflow-hidden rounded-2xl"
+              >
+                {/* Identity row — River Cafe / Iced Coffee */}
+                <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+                  <span
+                    aria-hidden
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white"
+                  >
+                    RC
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold tracking-[-0.01em] text-black">
+                      {DEMO_MERCHANT_NAME}
+                    </p>
+                    <p className="mt-0.5 truncate text-[12px] text-neutral-500">
+                      {DEMO_ITEM}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Black figure block — 6 SUI + Pay when connected state */}
+                <div className="cv-money-tile mx-5 rounded-[18px] bg-black p-4 text-white">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
+                    Pay when connected
+                  </p>
+                  <div className="mt-1 font-sans text-[32px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-white">
+                    {mistToSui(DEMO_TOTAL_MIST.toString())} SUI
+                  </div>
+                  <p className="mt-2 text-[12px] text-white/55">Offline payment</p>
+                </div>
+
+                {/* Labeled rows — quantity, merchant, approval */}
+                <dl className="space-y-1.5 px-5 pt-3 pb-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-neutral-500">Quantity</dt>
+                    <dd className="font-sans font-medium tabular-nums text-neutral-700">
+                      {DEMO_QUANTITY}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="shrink-0 text-neutral-500">Created</dt>
-                    <dd className="text-right font-mono text-xs">
-                      {formatTime(envelope.createdAt)}
-                    </dd>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-neutral-500">Merchant</dt>
+                    <dd className="text-right text-neutral-700">{DEMO_MERCHANT_NAME}</dd>
                   </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="shrink-0 text-neutral-500">Expires</dt>
-                    <dd className="text-right font-mono text-xs">
-                      {formatTime(envelope.expiresAt)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="shrink-0 text-neutral-500">Checksum</dt>
-                    <dd
-                      className="min-w-0 break-all text-right font-mono text-xs"
-                      title={envelope.checksum}
-                    >
-                      {shortId(envelope.checksum)}
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-neutral-500">Approval</dt>
+                    <dd className="text-right text-neutral-700">
+                      On connected device
                     </dd>
                   </div>
                 </dl>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* --- Device B (connected) --- */}
-        <div className="flex flex-col gap-4 border border-[var(--cv-line)] bg-white p-5">
-          <div>
-            <h2 className="text-lg font-medium tracking-tight">
-              Device B — connected
-            </h2>
-            <p className="cv-micro cv-micro-sm mt-1 text-neutral-500">
-              Import and validate
-            </p>
-          </div>
+                {/* Constraint strip — payment code protects details, still needs approval */}
+                <p className="px-5 pb-3 text-[11px] leading-relaxed text-neutral-500">
+                  The payment code protects details from changes and still
+                  requires approval on a connected device.
+                </p>
 
-          {/* Fail-closed degraded warning: replay storage is corrupt or
-              wrong-shaped, so import/replay validation is unavailable until
-              the user explicitly resets the QR nonce key. No nonce is
-              auto-accepted. */}
-          {replayDegraded && (
-            <div
-              role="alert"
-              data-testid="replay-degraded-warning"
-              className="border border-black bg-white p-4 text-sm leading-relaxed text-black"
-            >
-              <p className="font-semibold">
-                Replay protection unavailable
-              </p>
-              <p className="mt-1">
-                The local replay registry could not be loaded — its stored
-                data is corrupt or misshapen, so import and replay validation
-                are blocked. No envelope can be accepted until replay storage
-                is deliberately reset.
-              </p>
-              <button
-                type="button"
-                onClick={handleRecoverReplayStorage}
-                className="mt-3 min-h-11 w-full border border-black bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-neutral-100"
-              >
-                Reset replay storage
-              </button>
-              <p className="mt-2 text-neutral-500">
-                This clears only the QR Ferry nonce key and reconstructs
-                protection. Other stored data is untouched.
-              </p>
-            </div>
-          )}
-
-          {/* Paste textarea */}
-          <div>
-            <label
-              htmlFor="qr-ferry-payload"
-              className="cv-micro cv-micro-sm text-neutral-500"
-            >
-              Paste envelope payload
-            </label>
-            <textarea
-              id="qr-ferry-payload"
-              placeholder="Paste envelope payload JSON…"
-              value={payload}
-              onChange={(e) => setPayload(e.target.value)}
-              rows={6}
-              className="mt-1 w-full resize-y border border-[var(--cv-line)] bg-white p-3 font-mono text-xs"
-            />
-          </div>
-
-          {/* File import */}
-          <div>
-            <label
-              htmlFor="qr-ferry-file"
-              className="cv-micro cv-micro-sm text-neutral-500"
-            >
-              Import from file
-            </label>
-            <input
-              id="qr-ferry-file"
-              type="file"
-              accept=".json,.txt,application/json,text/plain"
-              onChange={handleFile}
-              className="mt-1 block w-full text-sm file:min-h-11 file:mr-3 file:border file:border-black file:bg-white file:px-4 file:py-2 file:font-semibold file:text-black hover:file:bg-neutral-100"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={replayDegraded || payload.trim().length === 0}
-            className="min-h-11 w-full bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
-          >
-            Import and validate
-          </button>
-
-          {/* Error */}
-          {error && (
-            <div
-              role="alert"
-              className="border border-black bg-white p-4 text-sm font-medium text-black"
-            >
-              {error}
-            </div>
-          )}
-
-          {/* Validated envelope review */}
-          {imported && (
-            <div
-              data-testid="validated-envelope"
-              role="status"
-              className="border border-black p-4"
-            >
-              <p className="cv-micro cv-micro-sm text-neutral-500">
-                Validated envelope
-              </p>
-              <dl className="mt-3 flex flex-col gap-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">Item</dt>
-                  <dd className="font-medium">{imported.item}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">Quantity</dt>
-                  <dd className="font-mono tabular-nums">
-                    {imported.quantity}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">Total</dt>
-                  <dd className="font-mono tabular-nums">
-                    {mistToSui(imported.totalMist)} SUI
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="shrink-0 text-neutral-500">Merchant address</dt>
-                  <dd
-                    className="min-w-0 break-all text-right font-mono text-xs"
-                    title={imported.merchantAddress}
-                  >
-                    {shortId(imported.merchantAddress)}
-                  </dd>
-                </div>
-                {imported.payerAddress && (
-                  <div className="flex justify-between gap-3">
-                    <dt className="shrink-0 text-neutral-500">Payer address</dt>
-                    <dd
-                      className="min-w-0 break-all text-right font-mono text-xs"
-                      title={imported.payerAddress}
+                {/* Primary action */}
+                {!envelope && (
+                  <div className="px-5 pb-5">
+                    <button
+                      type="button"
+                      data-hit-target="true"
+                      onClick={handleGenerate}
+                      className="cv-btn-solid inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
                     >
-                      {shortId(imported.payerAddress)}
-                    </dd>
+                      Create payment QR
+                    </button>
                   </div>
                 )}
-                <div className="flex justify-between gap-3">
-                  <dt className="shrink-0 text-neutral-500">Expiry</dt>
-                  <dd className="text-right font-mono text-xs">
-                    {formatTime(imported.expiresAt)}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="shrink-0 text-neutral-500">Nonce</dt>
-                  <dd
-                    className="min-w-0 break-all text-right font-mono text-xs"
-                    title={imported.nonce}
-                  >
-                    {shortId(imported.nonce)}
-                  </dd>
-                </div>
-              </dl>
-              <p className="mt-4 border-t border-[var(--cv-line)] pt-3 text-sm font-semibold">
-                Ready to hand off into the same guarded checkout
-              </p>
-              <button
-                type="button"
-                onClick={handoffToCheckout}
-                className="mt-3 min-h-11 w-full border border-black bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-neutral-100"
-              >
-                Continue to checkout
-              </button>
-              <p className="mt-2 text-xs text-neutral-500">
-                This keeps QR Ferry as transport only. Device B still applies the same deterministic payment gate and proof as the home chat.
-              </p>
-            </div>
-          )}
+
+                {/* After generation — QR within the same card/state */}
+                {envelope && (
+                  <div className="border-t border-black/8 p-5">
+                    <div className="flex justify-center rounded-xl border border-black/8 bg-white p-4">
+                      <QRCodeSVG
+                        value={envelopeJson}
+                        size={200}
+                        level="M"
+                        marginSize={4}
+                        fgColor="#000000"
+                        bgColor="#ffffff"
+                        title="Offline payment code"
+                      />
+                    </div>
+
+                    {/* Quiet secondary actions */}
+                    <div className="mt-3 flex gap-3">
+                      <button
+                        type="button"
+                        data-hit-target="true"
+                        onClick={handleCopy}
+                        className="cv-btn-ghost inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+                      >
+                        Copy code
+                      </button>
+                      <button
+                        type="button"
+                        data-hit-target="true"
+                        onClick={handleDownload}
+                        className="cv-btn-ghost inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+                      >
+                        Download code
+                      </button>
+                    </div>
+
+                    {/* Technical details — collapsed, off the default flow */}
+                    <details className="mt-4 rounded-lg border border-black/8 p-4 text-sm">
+                      <summary className="cursor-pointer select-none text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600">
+                        Technical details
+                      </summary>
+                      <div className="mt-3 flex flex-col gap-4">
+                        <div>
+                          <p className="cv-micro cv-micro-sm text-neutral-500">
+                            Payment code (JSON)
+                          </p>
+                          <pre
+                            data-testid="envelope-payload"
+                            className="mt-1 max-h-48 overflow-auto rounded-lg border border-black/8 bg-[var(--cv-paper)] p-3 font-mono text-xs whitespace-pre-wrap break-all"
+                          >
+                            {envelopeJson}
+                          </pre>
+                        </div>
+
+                        <div>
+                          <p className="cv-micro cv-micro-sm text-neutral-500">
+                            Envelope details
+                          </p>
+                          <dl className="mt-3 flex flex-col gap-2">
+                            <div className="flex justify-between gap-3">
+                              <dt className="shrink-0 text-neutral-500">Merchant address</dt>
+                              <dd
+                                className="min-w-0 break-all text-right font-mono text-xs"
+                                title={DEMO_MERCHANT_ADDRESS}
+                              >
+                                {shortId(DEMO_MERCHANT_ADDRESS)}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="shrink-0 text-neutral-500">Unit price</dt>
+                              <dd className="font-mono tabular-nums">
+                                {mistToSui(DEMO_UNIT_PRICE_MIST.toString())} SUI
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="shrink-0 text-neutral-500">Nonce</dt>
+                              <dd
+                                className="min-w-0 break-all text-right font-mono text-xs"
+                                title={envelope.nonce}
+                              >
+                                {shortId(envelope.nonce)}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="shrink-0 text-neutral-500">Created</dt>
+                              <dd className="text-right font-mono text-xs">
+                                {formatTime(envelope.createdAt)}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="shrink-0 text-neutral-500">Expires</dt>
+                              <dd className="text-right font-mono text-xs">
+                                {formatTime(envelope.expiresAt)}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="shrink-0 text-neutral-500">Checksum</dt>
+                              <dd
+                                className="min-w-0 break-all text-right font-mono text-xs"
+                                title={envelope.checksum}
+                              >
+                                {shortId(envelope.checksum)}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* How offline payment works — collapsed accuracy caveats, near the
+          bottom. Not a hero essay. */}
+      <details className="mt-4 rounded-xl border border-black/8 bg-[var(--cv-paper)] p-4 text-sm leading-relaxed text-neutral-700">
+        <summary className="cursor-pointer select-none text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600">
+          How offline payment works
+        </summary>
+        <div
+          data-testid="transport-explanation"
+          className="mt-3 flex flex-col gap-2"
+        >
+          <p>
+            The payment code is a <strong>tamper-evident transport
+            envelope</strong>, not cryptographic payer authorization. A
+            checksum detects any change to the item, quantity, amount, or
+            merchant, and a consume-once code prevents the same payment from
+            being approved twice. No signature or authorization is implied —
+            the connected device must still approve any payment.
+          </p>
+          <p className="text-neutral-500">
+            This prototype uses device-local replay protection, so it persists
+            across refresh on this device but is not shared across devices. A
+            production rollout would use an on-chain registry or trusted
+            sponsor index.
+          </p>
         </div>
-      </div>
+      </details>
 
       {checkoutPreview && (
-        <div className="mt-6 rounded-xl border border-black/10 bg-white p-4 md:p-5">
+        <div className="mt-4 rounded-xl border border-black/10 bg-white p-4 md:p-5">
           <div className="mb-3">
             <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-              Device B — same guarded checkout
+              Same guarded checkout
             </p>
             <h2 className="mt-1 text-lg font-medium tracking-tight">
               Settle the imported purchase

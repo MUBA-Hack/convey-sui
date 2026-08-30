@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
 import { StrategyDesk } from "@/components/strategy/strategy-desk";
+import { parseRemittanceContext } from "@/lib/strategy/remittance-context";
 
 export const metadata: Metadata = {
   title: "Protect — Convey",
-  description: "A read-only educational options strategy mapper with live Base market context from the Thetanuts Finance SDK.",
+  description: "Describe a downside-protection goal and see a tailored strategy preview beside live Base market context.",
 };
 
-export default function StrategyPage() {
-  return <StrategyDesk />;
+export default async function StrategyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const remittanceContext = parseRemittanceContext(params);
+  return <StrategyDesk remittanceContext={remittanceContext} />;
 }

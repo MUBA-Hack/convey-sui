@@ -73,6 +73,8 @@ function auth(overrides: Partial<CanonicalAuthorization> = {}): CanonicalAuthori
     feeBps: 150,
     recipient: "Ana",
     destinationCity: "manila",
+    purpose: null,
+    maximumFamilyLimitMinor: null,
     ...overrides,
   };
 }
@@ -113,6 +115,15 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
     recipientAddress: null,
     beneficiaryRef: "R-ABCD1234",
     attestation: null,
+    intentReview: {
+      reviewer: "local",
+      mode: "fallback",
+      provider: "deterministic",
+      fallbackReason: "not_configured",
+      purpose: null,
+      maximumFamilyLimitMinor: null,
+      ruleStatus: "not_set",
+    },
     clarification: null,
     ...overrides,
   };

@@ -1,13 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { QuoteEnvelope } from "@/lib/remittance/quote";
+import { createPortal } from "react-dom";
+import { QRCodeSVG } from "qrcode.react";
+import Link from "next/link";
+import { formatMyr, type QuoteEnvelope } from "@/lib/remittance/quote";
 import { isExpired } from "@/lib/remittance/quote-schema";
-import { Edit2, Refresh } from "@/components/icons";
+import { hasValidAttestation } from "@/lib/remittance/transfer";
+import { CloseCircle, Copy, DocumentDownload, Edit2, Refresh } from "@/components/icons";
 import { WalletConnectButton } from "@/components/wallet/connect-button";
-import { buildQuoteViewModel, buildRefreshCommand } from "@/lib/remittance/quote-form";
+import { buildQuoteViewModel, buildRefreshCommand, titleCaseCity } from "@/lib/remittance/quote-form";
+import { encodeHandoff, wrapQuote } from "@/lib/remittance/offline-handoff";
 import { SheetDisclosure } from "./sheet-disclosure";
 import { RemittanceEditTransferForm } from "./remittance-edit-transfer-form";
+
+function isHandoffEligible(quote: QuoteEnvelope, now: number): boolean {
+  if (isExpired(quote.expiresAt, now)) return false;
+  if (!quote.recipientAddress) return false;
+  return hasValidAttestation(quote.attestation);
+}
+
+function formatExpiryLabel(secondsRemaining: number): string {
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = String(secondsRemaining % 60).padStart(2, "0");
+  return `${minutes}m ${seconds}s`;
+}
+
+function buildEthHedgeHref(quote: QuoteEnvelope): string {
+  const params = new URLSearchParams({
+    source: "remittance",
+    amountMyr: formatMyr(quote.youPayMinor),
+    recipient: quote.recipient,
+    city: titleCaseCity(quote.destinationCity),
+  });
+  return `/strategy?${params.toString()}`;
+}
 
 /**
  * Quote settlement ticket — one review surface, never a chat transcript.
@@ -60,6 +87,7 @@ export interface RemittanceQuotePreviewProps {
   onCancel: () => void;
   onReopen: () => void;
   onSubmitQuote: (command: string) => void;
+  confirmLabel?: string;
 }
 
 // Locked lifecycle states render one shared block; data drives the copy.
@@ -91,11 +119,13 @@ export function RemittanceQuotePreview({
   onCancel,
   onReopen,
   onSubmitQuote,
+  confirmLabel,
 }: RemittanceQuotePreviewProps) {
   const vm = buildQuoteViewModel(quote);
 
   const [editMode, setEditMode] = useState(false);
   const [demoPreview, setDemoPreview] = useState(false);
+  const [carryOpen, setCarryOpen] = useState(false);
   // Reactive clock so an expiring quote flips to Refresh without a reload.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -106,8 +136,21 @@ export function RemittanceQuotePreview({
   const locked = status === "submitted" || status === "unknown" || status === "confirmed";
   const expired = isExpired(quote.expiresAt, now);
   const secondsRemaining = Math.max(0, Math.ceil((quote.expiresAt - now) / 1000));
-  const expiryLabel = `${Math.floor(secondsRemaining / 60)}m ${String(secondsRemaining % 60).padStart(2, "0")}s`;
+  const expiryLabel = formatExpiryLabel(secondsRemaining);
   const humanRate = quote.exchangeRate.rateText.replace(/(\d+\.\d{4})\d+/, "$1");
+  const handoffEligible = isHandoffEligible(quote, now);
+
+  if (status === "pending" && carryOpen && handoffEligible) {
+    return (
+      <CarryToAnotherDevice
+        quote={quote}
+        city={vm.city}
+        sendAmount={`RM${vm.sendAmount}`}
+        secondsRemaining={secondsRemaining}
+        onClose={() => setCarryOpen(false)}
+      />
+    );
+  }
 
   return (
     <div
@@ -211,20 +254,26 @@ export function RemittanceQuotePreview({
         </div>
       </dl>
 
+      <FamilyRulePanel quote={quote} />
+
       <p className="px-4 pb-3 text-[11px] leading-relaxed text-neutral-500">
         Reference FX · no MYR charge until you approve.
       </p>
 
       {status === "pending" && !editMode && !demoPreview && (
         <PendingAction
+          quote={quote}
           expired={expired}
           blocker={blocker}
           recipientName={quote.recipient}
+          confirmLabel={confirmLabel}
           onConfirm={onConfirm}
           onEdit={() => setEditMode(true)}
           onDismiss={onCancel}
           onRefresh={() => onSubmitQuote(buildRefreshCommand(quote))}
           onDemo={() => setDemoPreview(true)}
+          handoffEligible={handoffEligible}
+          onCarry={() => setCarryOpen(true)}
         />
       )}
 
@@ -321,15 +370,95 @@ export function RemittanceQuotePreview({
   );
 }
 
+/**
+ * Family Rule panel — a substantial first-class decision object inside the
+ * quote, not a hairline row. Visual mass is comparable to the primary
+ * send/receive amount block, but it sits below it and stays visually distinct.
+ *
+ * Rendered ONLY when the request carries a real rule (a purpose or a
+ * per-transfer maximum). Ordinary transfers with neither render nothing — no
+ * panel, no "Checked locally" reviewer label, no chrome — so a no-rule
+ * transfer never implies a rule exists.
+ *
+ * Hierarchy, black on white: the purpose is the semantic headline (the reason
+ * this transfer exists), the cap is the prominent financial metric on a black
+ * band, and the reviewer status/provenance is a subordinate line. No tabs, no
+ * debug labels, no decorative icons, no color. The wording never claims a
+ * stored account-wide family policy — the rule is the per-transfer cap stated
+ * in this request and verified at settlement.
+ */
+function FamilyRulePanel({ quote }: { quote: QuoteEnvelope }) {
+  const review = quote.intentReview;
+  const hasRule =
+    review.maximumFamilyLimitMinor !== null || review.purpose !== null;
+  if (!hasRule) return null;
+
+  const limitLabel =
+    review.maximumFamilyLimitMinor !== null
+      ? `Within RM${formatMyr(review.maximumFamilyLimitMinor)}`
+      : null;
+  const purposeLabel = review.purpose
+    ? review.purpose.charAt(0).toUpperCase() + review.purpose.slice(1)
+    : null;
+  const reviewerLabel =
+    review.reviewer === "gonka" ? "Reviewed by Gonka" : "Checked locally";
+
+  return (
+    <div
+      data-testid="family-rule-panel"
+      className="mx-4 mb-3 overflow-hidden rounded-xl border border-black/12"
+    >
+      {/* Purpose — the semantic headline of the rule. */}
+      {purposeLabel && (
+        <div className="bg-white px-4 pt-3.5 pb-3">
+          <p
+            data-testid="family-rule-purpose"
+            className="text-[19px] font-semibold leading-tight tracking-[-0.01em] text-black"
+          >
+            {purposeLabel}
+          </p>
+        </div>
+      )}
+      {/* Cap — the prominent financial metric on a black band. */}
+      {limitLabel && (
+        <div className="flex items-baseline justify-between gap-3 bg-black px-4 py-3 text-white">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
+            Maximum
+          </span>
+          <span
+            data-testid="family-rule-limit"
+            className="font-sans text-[22px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-white"
+          >
+            {limitLabel}
+          </span>
+        </div>
+      )}
+      {/* Reviewer status/provenance — subordinate. */}
+      <div className="bg-white px-4 py-2">
+        <p
+          data-testid="family-rule-reviewer"
+          className="text-[11px] leading-snug text-neutral-500"
+        >
+          {reviewerLabel}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 interface PendingActionProps {
+  quote: QuoteEnvelope;
   expired: boolean;
   blocker: QuoteBlocker;
   recipientName: string;
+  confirmLabel?: string;
   onConfirm: () => void;
   onEdit: () => void;
   onDismiss: () => void;
   onRefresh: () => void;
   onDemo: () => void;
+  handoffEligible: boolean;
+  onCarry: () => void;
 }
 
 /** Compact inline blocker copy — one honest line per missing prerequisite. */
@@ -345,16 +474,48 @@ function blockerCopy(
   return { title: "Preview only", body: "This quote cannot be approved for wallet settlement." };
 }
 
+function SecondaryQuoteActions({
+  quote,
+  onCarry,
+}: {
+  quote: QuoteEnvelope;
+  onCarry: () => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-col items-center gap-1.5 text-[11px] text-neutral-500">
+      <button
+        type="button"
+        data-testid="carry-to-device"
+        className="inline-flex min-h-9 items-center text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline"
+        onClick={onCarry}
+      >
+        Carry to another device
+      </button>
+      <Link
+        href={buildEthHedgeHref(quote)}
+        data-testid="preview-eth-hedge"
+        className="inline-flex min-h-9 items-center text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline"
+      >
+        Preview ETH hedge
+      </Link>
+    </div>
+  );
+}
+
 /** The above-fold primary action, branched on the exact missing prerequisite. */
 function PendingAction({
+  quote,
   expired,
   blocker,
   recipientName,
+  confirmLabel,
   onConfirm,
   onEdit,
   onDismiss,
   onRefresh,
   onDemo,
+  handoffEligible,
+  onCarry,
 }: PendingActionProps) {
   if (expired) {
     return (
@@ -387,11 +548,12 @@ function PendingAction({
       <div className="border-t border-black/8 p-4">
         <button
           type="button"
+          data-testid="review-transfer"
           data-hit-target="true"
           className="cv-btn-solid inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
           onClick={onConfirm}
         >
-          Review testnet transfer
+          {confirmLabel ?? "Review testnet transfer"}
         </button>
         <div className="mt-2 flex gap-2">
           <button
@@ -413,6 +575,9 @@ function PendingAction({
             Dismiss
           </button>
         </div>
+        {handoffEligible && (
+          <SecondaryQuoteActions quote={quote} onCarry={onCarry} />
+        )}
       </div>
     );
   }
@@ -497,6 +662,164 @@ function PendingAction({
       >
         Dismiss
       </button>
+      {handoffEligible && (
+        <SecondaryQuoteActions quote={quote} onCarry={onCarry} />
+      )}
     </div>
+  );
+}
+
+function CarryToAnotherDevice({
+  quote,
+  city,
+  sendAmount,
+  secondsRemaining,
+  onClose,
+}: {
+  quote: QuoteEnvelope;
+  city: string;
+  sendAmount: string;
+  secondsRemaining: number;
+  onClose: () => void;
+}) {
+  const recipient = quote.recipient;
+  const json = encodeHandoff(wrapQuote(quote));
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(json);
+    } catch {
+      return;
+    }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "convey-remittance-quote.json";
+    document.body.appendChild(anchor);
+    try {
+      anchor.click();
+    } finally {
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const expired = secondsRemaining <= 0;
+  const expiryLabel = formatExpiryLabel(secondsRemaining);
+
+  return createPortal(
+    <div
+      data-testid="carry-to-device-surface"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Carry this ${recipient} quote to another device`}
+      className="cv-enter fixed inset-0 top-[68px] z-[998] flex flex-col overflow-y-auto bg-[var(--cv-paper)] px-5 pb-8 pt-6 sm:px-6"
+    >
+      <div className="mx-auto w-full max-w-md text-center">
+        <p
+          data-testid="carry-step-eyebrow"
+          className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500"
+        >
+          Cross-device handoff
+        </p>
+        <h1
+          data-testid="carry-step-title"
+          className="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.02em] text-black sm:text-[30px]"
+        >
+          Carry this {recipient} quote
+        </h1>
+      </div>
+
+      <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3">
+        <p
+          data-testid="carry-step-identity"
+          className="truncate text-sm font-medium text-neutral-700"
+        >
+          {recipient} · {city}
+        </p>
+        <p
+          data-testid="carry-step-amount"
+          className="shrink-0 font-sans text-base font-semibold tabular-nums tracking-[-0.01em] text-black"
+        >
+          {sendAmount}
+        </p>
+      </div>
+
+      <div className="mx-auto mt-6 flex w-full max-w-md flex-1 flex-col items-center justify-center">
+        <div className="flex w-full max-w-[280px] justify-center rounded-2xl border border-black/8 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+          <QRCodeSVG
+            value={json}
+            size={280}
+            level="M"
+            marginSize={4}
+            fgColor="#000000"
+            bgColor="#ffffff"
+            title={`Carry ${recipient} quote to a connected device`}
+            style={{ width: "100%", height: "auto" }}
+          />
+        </div>
+      </div>
+
+      <div className="mx-auto mt-6 flex w-full max-w-md gap-3">
+        <button
+          type="button"
+          data-testid="carry-copy"
+          data-hit-target="true"
+          className="cv-btn-ghost inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+          onClick={handleCopy}
+        >
+          <Copy size={16} variant="Linear" />
+          Copy code
+        </button>
+        <button
+          type="button"
+          data-testid="carry-download"
+          data-hit-target="true"
+          className="cv-btn-ghost inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+          onClick={handleDownload}
+        >
+          <DocumentDownload size={16} variant="Linear" />
+          Download code
+        </button>
+      </div>
+
+      <p
+        data-testid="carry-to-device-copy"
+        className="mx-auto mt-4 w-full max-w-md text-center text-[12px] leading-relaxed text-neutral-500"
+      >
+        No funds move here. Open this quote on a connected device and verify it
+        before wallet approval.{" "}
+        <span data-testid="carry-step-expiry" className="text-neutral-700">
+          {expired
+            ? "This quote has expired."
+            : `Quote expires in ${expiryLabel}.`}
+        </span>
+      </p>
+
+      <div className="mx-auto mt-5 flex w-full max-w-md justify-center">
+        <button
+          type="button"
+          data-testid="carry-close"
+          data-hit-target="true"
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-medium text-neutral-500 underline-offset-4 hover:text-neutral-800 hover:underline"
+          onClick={onClose}
+        >
+          <CloseCircle size={15} variant="Linear" />
+          Close
+        </button>
+      </div>
+    </div>,
+    document.body,
   );
 }

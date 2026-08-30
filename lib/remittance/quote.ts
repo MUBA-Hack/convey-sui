@@ -16,7 +16,7 @@
 import { MYR_PHP_CORRIDOR } from "./constants";
 import { formatUsdc } from "./money";
 import type { RemittanceIntentInput, RemittanceClarificationCode } from "./parser";
-import type { QuoteEnvelope } from "./quote-schema";
+import type { QuoteEnvelope, IntentReviewLocal } from "./quote-schema";
 
 export type { QuoteEnvelope } from "./quote-schema";
 export {
@@ -40,6 +40,23 @@ export interface RemittanceQuoteError {
   kind: "clarification";
   clarification: { code: RemittanceClarificationCode; reason: string };
 }
+
+/**
+ * Default local intent review attached by `buildQuote`. The route overwrites
+ * this with a live Gonka review (when Gonka succeeds) or an enriched local
+ * review (with purpose/max-cap from the deterministic field extractor). The
+ * fallback reason defaults to `not_configured`; the route updates it to match
+ * the actual fallback cause.
+ */
+const DEFAULT_LOCAL_INTENT_REVIEW: IntentReviewLocal = {
+  reviewer: "local",
+  mode: "fallback",
+  provider: "deterministic",
+  fallbackReason: "not_configured",
+  purpose: null,
+  maximumFamilyLimitMinor: null,
+  ruleStatus: "not_set",
+};
 
 /**
  * Build a deterministic reference quote envelope from a validated intent, a
@@ -189,6 +206,7 @@ export function buildQuote(
     recipientAddress,
     beneficiaryRef,
     attestation: null,
+    intentReview: DEFAULT_LOCAL_INTENT_REVIEW,
     clarification: null,
   };
 

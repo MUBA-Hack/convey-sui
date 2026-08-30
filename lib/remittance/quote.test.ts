@@ -267,6 +267,8 @@ describe("attestation.server — sign and verify (server-only)", () => {
       expiresAt: q.expiresAt,
       recipient: q.recipient,
       destinationCity: q.destinationCity,
+      purpose: q.intentReview.purpose,
+      maximumFamilyLimitMinor: q.intentReview.maximumFamilyLimitMinor,
     };
   }
 
@@ -289,9 +291,11 @@ describe("attestation.server — sign and verify (server-only)", () => {
       expiresAt: 1_700_000_120_000,
       recipient: "Ana",
       destinationCity: "manila",
+      purpose: null,
+      maximumFamilyLimitMinor: null,
     };
     expect(computeAttestation(key, fields)).toBe(
-      "0x166db0cb4d70b20c135b950e41b7cec3b51ac3d09ee70e7ca0a4028e06007966",
+      "0xbb87b6d502b5f89f28c38acf8b09e90a6e3f1ec39e55d5d8b1b93ab8aa17cf81",
     );
   });
 
@@ -378,6 +382,8 @@ describe("canonicalMessage — control/newline rejection", () => {
       expiresAt: NOW + 120_000,
       recipient: "Ana",
       destinationCity: "manila",
+      purpose: null,
+      maximumFamilyLimitMinor: null,
     };
   }
 

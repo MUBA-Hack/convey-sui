@@ -7,11 +7,11 @@ import { WalletConnectButton } from "@/components/wallet/connect-button";
 import { cn } from "@/lib/utils";
 
 // Commerce is the only surface. Home ("/") is the commerce chat per the
-// locked product rules; Relay, Protect, and Verify land under their own
-// routes. The wallet connection is the sole account control.
+// locked product rules; Pay offline, Protect, and Verify land under their
+// own routes. The wallet connection is the sole account control.
 const COMMERCE_ITEMS = [
   { href: "/", label: "Pay" },
-  { href: "/qr-ferry", label: "Relay" },
+  { href: "/qr-ferry", label: "Pay offline" },
   { href: "/strategy", label: "Protect" },
   { href: "/proof", label: "Verify" },
 ];
@@ -61,10 +61,10 @@ export function SiteHeader() {
   const pathname = usePathname();
 
   // The Pay homepage is a focused amount-first surface: the full
-  // Pay/Relay/Protect/Verify desktop chip rail is hidden there so the first
-  // frame reads as one product, not a lab sitemap. Brand, Sign in, and a
-  // compact menu keep every other product area one tap away. Routes are not
-  // removed — they remain in the mobile/compact sheet and on every other
+  // Pay/Pay offline/Protect/Verify desktop chip rail is hidden there so the
+  // first frame reads as one product, not a lab sitemap. Brand, Sign in, and
+  // a compact menu keep every other product area one tap away. Routes are
+  // not removed — they remain in the mobile/compact sheet and on every other
   // route's desktop rail.
   const isPayHome = pathname === "/";
 
@@ -105,7 +105,7 @@ export function SiteHeader() {
 
         {/* Full desktop chip rail — hidden on the Pay homepage so the amount
             card dominates the first frame. On every other route, Pay stays
-            primary and Relay/Protect/Verify are quieter secondary
+            primary and Pay offline/Protect/Verify are quieter secondary
             destinations. Routes, names, and active state are unchanged. */}
         {!isPayHome && (
           <div className="hidden items-center gap-[2px] lg:flex">

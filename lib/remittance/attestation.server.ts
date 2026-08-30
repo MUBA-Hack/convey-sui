@@ -29,6 +29,10 @@ export interface CanonicalFields {
   expiresAt: number;
   recipient: string;
   destinationCity: string;
+  /** Verified family-rule purpose, or null when no rule was stated. */
+  purpose: string | null;
+  /** Verified family-rule max cap in minor MYR, or null when no cap was stated. */
+  maximumFamilyLimitMinor: string | null;
 }
 
 const CONTROL_OR_NEWLINE = /[\x00-\x1F\x7F]/;
@@ -55,6 +59,10 @@ export function canonicalMessage(fields: CanonicalFields): string {
   assertSafeString(fields.fixedFeeMyr, "fixedFeeMyr");
   assertSafeString(fields.recipient, "recipient");
   assertSafeString(fields.destinationCity, "destinationCity");
+  if (fields.purpose !== null) assertSafeString(fields.purpose, "purpose");
+  if (fields.maximumFamilyLimitMinor !== null) {
+    assertSafeString(fields.maximumFamilyLimitMinor, "maximumFamilyLimitMinor");
+  }
 
   return JSON.stringify({
     v: ATTESTATION_VERSION,
@@ -74,6 +82,8 @@ export function canonicalMessage(fields: CanonicalFields): string {
     expiresAt: fields.expiresAt,
     recipient: fields.recipient,
     destinationCity: fields.destinationCity,
+    purpose: fields.purpose,
+    maximumFamilyLimitMinor: fields.maximumFamilyLimitMinor,
   });
 }
 
@@ -128,6 +138,8 @@ export function verifyAttestation(
       expiresAt: envelope.expiresAt,
       recipient: envelope.recipient,
       destinationCity: envelope.destinationCity,
+      purpose: envelope.intentReview.purpose,
+      maximumFamilyLimitMinor: envelope.intentReview.maximumFamilyLimitMinor,
     });
     return constantTimeHexEqual(expected, envelope.attestation.hmac);
   } catch {
@@ -154,5 +166,7 @@ export function toAuthorization(envelope: QuoteEnvelope, coinType: string): Cano
     feeBps: envelope.provenance.feeBps,
     recipient: envelope.recipient,
     destinationCity: envelope.destinationCity,
+    purpose: envelope.intentReview.purpose,
+    maximumFamilyLimitMinor: envelope.intentReview.maximumFamilyLimitMinor,
   };
 }

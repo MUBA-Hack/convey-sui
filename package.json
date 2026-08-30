@@ -25,6 +25,8 @@
     "@noble/hashes": "^2.3.0",
     "@thetanuts-finance/thetanuts-client": "0.3.0",
     "@wallet-standard/errors": "0.1.2",
+    "@zxing/browser": "0.2.1",
+    "@zxing/library": "^0.23.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ethers": "6.17.0",

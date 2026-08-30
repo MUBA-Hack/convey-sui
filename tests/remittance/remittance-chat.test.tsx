@@ -70,6 +70,15 @@ const QUOTE: QuoteEnvelope = {
   recipientAddress: null,
   beneficiaryRef: "R-ABCD1234",
   attestation: null,
+  intentReview: {
+    reviewer: "local",
+    mode: "fallback",
+    provider: "deterministic",
+    fallbackReason: "not_configured",
+    purpose: null,
+    maximumFamilyLimitMinor: null,
+    ruleStatus: "not_set",
+  },
   clarification: null,
 };
 
@@ -94,6 +103,8 @@ function matchingAuth(quote: QuoteEnvelope): CanonicalAuthorization {
     feeBps: quote.provenance.feeBps,
     recipient: quote.recipient,
     destinationCity: quote.destinationCity,
+    purpose: quote.intentReview.purpose,
+    maximumFamilyLimitMinor: quote.intentReview.maximumFamilyLimitMinor,
   };
 }
 
@@ -1100,5 +1111,137 @@ describe("RemittanceChat — exact blocker copy", () => {
     expect(
       within(preview).queryByRole("button", { name: /Review testnet transfer/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RemittanceChat — family-rule panel and settlement rule-verified copy
+// ---------------------------------------------------------------------------
+
+describe("RemittanceChat — family-rule panel and verified rule copy", () => {
+  const ADDR = "0x" + "1234567890abcdef".repeat(4);
+  const ACCOUNT = "0x" + "22".repeat(32);
+  const VALID_DIGEST = "DnKz7eQwFR1i6Sd2L3pJ8mVoHgYsAaBcXcVbNbMzK9eR";
+
+  function ruleQuote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
+    return {
+      ...QUOTE,
+      recipientAddress: ADDR,
+      attestation: VALID_ATTESTATION,
+      intentReview: {
+        reviewer: "local",
+        mode: "fallback",
+        provider: "deterministic",
+        fallbackReason: "not_configured",
+        purpose: "school supplies",
+        maximumFamilyLimitMinor: "52000",
+        ruleStatus: "within_limit",
+      },
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    wallet.account = { address: ACCOUNT };
+    wallet.network = "testnet";
+  });
+
+  it("renders the Family-rule identity and a substantial rule module (purpose headline, cap metric, reviewer) with no stored-policy claim", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(ruleQuote()));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+
+    // Page identity — compact eyebrow + H1, only for a rule quote.
+    const identity = await screen.findByTestId("family-rule-identity");
+    expect(identity).toHaveTextContent(/Family rule/i);
+    expect(identity).toHaveTextContent(/Send to Ana/i);
+
+    // Rule module — purpose is the semantic headline, cap the prominent
+    // metric, reviewer status subordinate.
+    const panel = within(preview).getByTestId("family-rule-panel");
+    expect(within(panel).getByTestId("family-rule-purpose")).toHaveTextContent(
+      /School supplies/i,
+    );
+    expect(within(panel).getByTestId("family-rule-limit")).toHaveTextContent(
+      /Within RM520/i,
+    );
+    expect(within(panel).getByTestId("family-rule-reviewer")).toBeInTheDocument();
+    // The old thin "Transfer rule" strip label is gone.
+    expect(within(panel).queryByTestId("family-rule-label")).not.toBeInTheDocument();
+    // Never claims a stored account-wide family policy.
+    const text = panel.textContent ?? "";
+    expect(text).not.toMatch(/your.*family limit/i);
+    expect(text).not.toMatch(/account.*policy/i);
+  });
+
+  it("renders NO rule identity or rule panel for an ordinary transfer with no purpose or cap", async () => {
+    // Base QUOTE carries purpose: null and maximumFamilyLimitMinor: null.
+    vi.mocked(globalThis.fetch).mockReturnValue(
+      jsonResponse({ ...QUOTE, recipientAddress: ADDR, attestation: VALID_ATTESTATION }),
+    );
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    expect(within(preview).queryByTestId("family-rule-panel")).not.toBeInTheDocument();
+    // No Family-rule page identity for a no-rule transfer.
+    expect(screen.queryByTestId("family-rule-identity")).not.toBeInTheDocument();
+    // No reviewer label leaks for a no-rule transfer.
+    expect(within(preview).queryByText(/Checked locally/i)).not.toBeInTheDocument();
+    expect(within(preview).queryByText(/Reviewed by Gonka/i)).not.toBeInTheDocument();
+  });
+
+  it("renders a Rule verified / purpose / cap line in the settlement receipt", async () => {
+    const q = ruleQuote();
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() =>
+      expect(within(dialog).getByTestId("remittance-rule-verified")).toBeInTheDocument(),
+    );
+    const ruleLine = within(dialog).getByTestId("remittance-rule-verified");
+    expect(ruleLine).toHaveTextContent(/Rule verified/i);
+    expect(ruleLine).toHaveTextContent(/School supplies/i);
+    expect(ruleLine).toHaveTextContent(/Within RM520 maximum/i);
+  });
+
+  it("renders NO Rule verified row for an ordinary transfer with no purpose or cap", async () => {
+    // Base QUOTE carries purpose: null and maximumFamilyLimitMinor: null;
+    // matchingAuth mirrors those nulls in the verified authorization.
+    const q: QuoteEnvelope = {
+      ...QUOTE,
+      recipientAddress: ADDR,
+      attestation: VALID_ATTESTATION,
+    };
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() =>
+      expect(within(dialog).getByTestId("remittance-settlement")).toBeInTheDocument(),
+    );
+    expect(
+      within(dialog).queryByTestId("remittance-rule-verified"),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/Rule verified/i)).not.toBeInTheDocument();
   });
 });

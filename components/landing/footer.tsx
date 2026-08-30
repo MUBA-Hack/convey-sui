@@ -11,7 +11,7 @@ import Link from "next/link";
  */
 const NAVIGATION = [
   { href: "/", label: "Pay" },
-  { href: "/qr-ferry", label: "Relay" },
+  { href: "/qr-ferry", label: "Pay offline" },
   { href: "/strategy", label: "Protect" },
   { href: "/proof", label: "Verify" },
 ];

@@ -37,6 +37,60 @@ export const ProvenanceSchema = z.strictObject({
   feeBps: z.number().int().min(0).max(10_000),
 });
 
+/**
+ * Client-safe intent review — compact, consumer-aligned metadata that tells
+ * the customer who reviewed their request and what family rule applied.
+ *
+ * Discriminated on `reviewer`:
+ *  - `gonka`  → live GonkaRouter review. Carries only safe provider metadata
+ *    (request id, response model) plus detected language, confidence, and a
+ *    short explanation. Never carries wallet addresses, secrets, raw model
+ *    output, or attempt trails.
+ *  - `local`  → honest deterministic fallback. Carries a safe fallback reason
+ *    enum; never implies Gonka ran.
+ *
+ * Both variants carry the consumer-facing family-rule fields: an optional
+ * purpose, an optional maximum-family-limit in minor MYR, and a within-limit /
+ * not-set rule status. Settlement logic (parse/buildQuote/attestation) stays
+ * authoritative; this object never authorizes payment.
+ */
+export const IntentReviewLiveSchema = z.strictObject({
+  reviewer: z.literal("gonka"),
+  mode: z.literal("live"),
+  provider: z.literal("gonkarouter"),
+  requestId: z.string().min(1).max(120),
+  responseModel: z.string().min(1).max(120),
+  detectedLanguage: z.string().min(1).max(32),
+  confidence: z.number().min(0).max(1),
+  explanation: z.string().min(1).max(500),
+  purpose: z.string().min(1).max(120).nullable(),
+  maximumFamilyLimitMinor: MinorAmountString.nullable(),
+  ruleStatus: z.enum(["within_limit", "not_set"]),
+});
+
+export const IntentReviewLocalSchema = z.strictObject({
+  reviewer: z.literal("local"),
+  mode: z.literal("fallback"),
+  provider: z.literal("deterministic"),
+  fallbackReason: z.enum([
+    "not_configured",
+    "provider_error",
+    "candidate_rejected",
+  ]),
+  purpose: z.string().min(1).max(120).nullable(),
+  maximumFamilyLimitMinor: MinorAmountString.nullable(),
+  ruleStatus: z.enum(["within_limit", "not_set"]),
+});
+
+export const IntentReviewSchema = z.discriminatedUnion("reviewer", [
+  IntentReviewLiveSchema,
+  IntentReviewLocalSchema,
+]);
+
+export type IntentReview = z.infer<typeof IntentReviewSchema>;
+export type IntentReviewLive = z.infer<typeof IntentReviewLiveSchema>;
+export type IntentReviewLocal = z.infer<typeof IntentReviewLocalSchema>;
+
 export const CorridorSchema = z.strictObject({
   source: z.literal("MYR"),
   destination: z.literal("PHP"),
@@ -69,11 +123,20 @@ export const QuoteEnvelopeSchema = z.strictObject({
   recipientAddress: SuiAddressString.nullable(),
   beneficiaryRef: z.string().regex(/^R-[A-Z0-9]{8}$/),
   attestation: AttestationSchema.nullable(),
+  intentReview: IntentReviewSchema,
   clarification: z.null(),
 });
 
 export type QuoteEnvelope = z.infer<typeof QuoteEnvelopeSchema>;
 
+/**
+ * Canonical authorization — the verified, HMAC-bound fields the client builds a
+ * transfer from. The family-rule fields (`purpose`, `maximumFamilyLimitMinor`)
+ * are bound into the signed canonical message so a tampered rule invalidates
+ * the attestation. Both are nullable: `null` means no rule was stated for this
+ * transfer (the common case), and the canonical representation uses JSON `null`
+ * unambiguously — never an empty string or omitted key.
+ */
 export const CanonicalAuthorizationSchema = z.strictObject({
   kind: z.literal("authorization"),
   recipientAddress: SuiAddressString,
@@ -92,6 +155,8 @@ export const CanonicalAuthorizationSchema = z.strictObject({
   feeBps: z.number().int().min(0).max(10_000),
   recipient: z.string().min(1).max(40),
   destinationCity: z.string().min(1).max(40),
+  purpose: z.string().min(1).max(120).nullable(),
+  maximumFamilyLimitMinor: MinorAmountString.nullable(),
 });
 
 export type CanonicalAuthorization = z.infer<typeof CanonicalAuthorizationSchema>;

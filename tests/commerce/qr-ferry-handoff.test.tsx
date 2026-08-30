@@ -9,9 +9,10 @@ import {
 } from "@/lib/commerce/qr-ferry";
 
 /**
- * Focused test for the QR Ferry handoff: a validated envelope on Device B
- * reaches the SAME guarded checkout/proof path (PaymentAction) the home chat
- * uses. The dapp-kit hooks are mocked so PaymentAction resolves to DEMO mode.
+ * Focused test for the QR Ferry handoff: an approved payment on the connected
+ * device reaches the SAME guarded checkout/proof path (PaymentAction) the
+ * home chat uses. The dapp-kit hooks are mocked so PaymentAction resolves to
+ * DEMO mode.
  */
 
 const MERCHANT = "0x".concat("11".repeat(32)) as `0x${string}`;
@@ -62,14 +63,21 @@ afterEach(() => {
 });
 
 describe("QrFerry — handoff to the same guarded checkout", () => {
-  it("Device B: import -> validate -> continue to checkout renders PaymentAction", () => {
+  // The manual paste/file fallback is collapsed behind "Enter manually" by
+  // default; open it before driving the manual import path.
+  function openManual() {
+    fireEvent.click(screen.getByTestId("manual-entry-disclosure"));
+  }
+
+  it("connected device: import -> validate -> continue to checkout renders PaymentAction", () => {
     render(<QrFerry />);
+    openManual();
 
     const json = craftJson("nonce-handoff-001");
-    fireEvent.change(screen.getByPlaceholderText(/Paste envelope payload/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Paste payment code/i), {
       target: { value: json },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Import and validate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
     expect(screen.getByTestId("validated-envelope")).toBeInTheDocument();
 
     // Continue to checkout hands the validated envelope into PaymentAction.
@@ -83,24 +91,26 @@ describe("QrFerry — handoff to the same guarded checkout", () => {
     ).toBeInTheDocument();
   });
 
-  it("Device B: the checkout header labels it as the same guarded checkout", () => {
+  it("connected device: the checkout header labels it as the same guarded checkout", () => {
     render(<QrFerry />);
+    openManual();
     const json = craftJson("nonce-handoff-002");
-    fireEvent.change(screen.getByPlaceholderText(/Paste envelope payload/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Paste payment code/i), {
       target: { value: json },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Import and validate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
     fireEvent.click(screen.getByRole("button", { name: /Continue to checkout/i }));
     expect(screen.getAllByText(/same guarded checkout/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it("Device B: settling the DEMO payment produces a proof card without calling the wallet", () => {
+  it("connected device: settling the DEMO payment produces a proof card without calling the wallet", () => {
     render(<QrFerry />);
+    openManual();
     const json = craftJson("nonce-handoff-003");
-    fireEvent.change(screen.getByPlaceholderText(/Paste envelope payload/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Paste payment code/i), {
       target: { value: json },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Import and validate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
     fireEvent.click(screen.getByRole("button", { name: /Continue to checkout/i }));
     fireEvent.click(screen.getByRole("button", { name: /Confirm payment/i }));
 

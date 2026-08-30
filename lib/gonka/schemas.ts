@@ -21,7 +21,7 @@ export const MAX_EXPLANATION_BYTES = 1_000;
 export const MAX_QUANTITY = 100;
 export const MAX_SPEND_SUI_BYTES = 32;
 
-const byteLengthAtMost =
+export const byteLengthAtMost =
   (limit: number) =>
   (value: string): boolean =>
     new TextEncoder().encode(value).byteLength <= limit;

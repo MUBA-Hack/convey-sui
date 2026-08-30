@@ -32,6 +32,10 @@ import {
   USDC_DECIMALS,
 } from "./constants";
 import { validateRecipientAddress } from "./transfer";
+import {
+  gonkaRemittanceManifestSchema,
+  type GonkaRemittanceManifest,
+} from "@/lib/gonka/remittance";
 
 export interface RemittanceConfig {
   sourceCurrency: "MYR";
@@ -231,4 +235,45 @@ export function resolveRecipientForAlias(
   const key = alias.trim().toLowerCase();
   if (key.length === 0) return null;
   return recipients.get(key) ?? null;
+}
+
+/**
+ * Default public Gonka remittance manifest — recipient aliases, their allowed
+ * destination cities, and the supported corridor. Contains NO wallet
+ * addresses, NO keys, NO authority. This is the only data the model receives.
+ */
+const DEFAULT_GONKA_REMITTANCE_MANIFEST: GonkaRemittanceManifest = {
+  recipients: [
+    { alias: "Ana", destinationCities: ["Manila"], destinationCountry: "Philippines" },
+    { alias: "Maria", destinationCities: ["Cebu", "Quezon City"], destinationCountry: "Philippines" },
+  ],
+  corridor: {
+    source: "MYR",
+    destination: "PHP",
+    destinationCountry: "Philippines",
+    destinationCities: ["manila", "cebu", "quezon city"],
+  },
+};
+
+/**
+ * Resolve the public, non-sensitive Gonka remittance manifest from env. When
+ * `REMITTANCE_GONKA_MANIFEST_JSON` is unset or malformed, the safe default
+ * manifest is used. The manifest never carries wallet addresses, keys, or any
+ * execution authority — it is the only data the model receives.
+ */
+export function resolveGonkaRemittanceManifest(
+  env: NodeJS.ProcessEnv = process.env,
+): GonkaRemittanceManifest {
+  const raw = env.REMITTANCE_GONKA_MANIFEST_JSON;
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    return DEFAULT_GONKA_REMITTANCE_MANIFEST;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const result = gonkaRemittanceManifestSchema.safeParse(parsed);
+    if (result.success) return result.data;
+    return DEFAULT_GONKA_REMITTANCE_MANIFEST;
+  } catch {
+    return DEFAULT_GONKA_REMITTANCE_MANIFEST;
+  }
 }

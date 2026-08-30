@@ -1,0 +1,134 @@
+"use client";
+
+import { useState } from "react";
+import { useCurrentAccount, useCurrentNetwork } from "@mysten/dapp-kit-react";
+import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
+import { hasValidAttestation } from "@/lib/remittance/transfer";
+import {
+  RemittanceQuotePreview,
+  type QuoteBlocker,
+  type QuotePreviewStatus,
+} from "./remittance-quote-preview";
+import { RemittanceCheckoutDialog } from "./remittance-checkout-dialog";
+import type {
+  RemittanceSettlement,
+  RemittanceTerminalState,
+} from "./remittance-payment-action";
+
+export interface RemittanceHandoffCardProps {
+  quote: QuoteEnvelope;
+}
+
+const TERMINAL_STATUSES: ReadonlySet<QuotePreviewStatus> = new Set([
+  "submitted",
+  "unknown",
+  "confirmed",
+]);
+
+function resolveBlocker(
+  quote: QuoteEnvelope,
+  hasAccount: boolean,
+  network: string,
+): QuoteBlocker {
+  if (!quote.recipientAddress) return "unmapped";
+  if (!hasValidAttestation(quote.attestation)) return "unapproved";
+  if (!hasAccount) return "wallet";
+  return network === "testnet" ? "none" : "wrong-network";
+}
+
+export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
+  const account = useCurrentAccount();
+  const network = useCurrentNetwork();
+
+  const [status, setStatus] = useState<QuotePreviewStatus>("pending");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [settlement, setSettlement] = useState<RemittanceSettlement | null>(null);
+
+  const blocker = resolveBlocker(quote, Boolean(account), network);
+  const isExecutable = blocker === "none";
+
+  const openCheckout = () => {
+    if (!isExecutable || TERMINAL_STATUSES.has(status)) return;
+    setDialogOpen(true);
+  };
+
+  const handleSettled = (result: RemittanceSettlement) => {
+    setSettlement(result);
+    setStatus("confirmed");
+  };
+
+  const handleTerminal = (state: RemittanceTerminalState) => {
+    switch (state.kind) {
+      case "submitted":
+      case "unknown":
+        setStatus(state.kind);
+        break;
+      case "confirmed":
+        setStatus("confirmed");
+        setSettlement(state.settlement);
+        break;
+    }
+  };
+
+  return (
+    <div data-testid="remittance-handoff-card" className="mt-3 rounded-xl border border-black bg-white p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+        Quote carried
+      </p>
+      <p className="mt-1 text-sm font-semibold text-black">Not paid yet</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+        Connected verification checks the attestation, recipient, corridor,
+        amount, and expiry before your wallet opens.
+      </p>
+
+      <RemittanceQuotePreview
+        quote={quote}
+        status={status}
+        blocker={blocker}
+        confirmLabel="Review and approve"
+        onConfirm={openCheckout}
+        onCancel={() => setStatus("cancelled")}
+        onReopen={() => setStatus("pending")}
+        onSubmitQuote={() => undefined}
+      />
+
+      {settlement && (
+        <div data-testid="remittance-settlement" className="mt-3 rounded-xl border border-black/10 bg-white p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+            Transaction digest
+          </p>
+          <p
+            data-testid="remittance-digest"
+            className="mt-1 truncate font-mono text-xs text-black"
+            title={settlement.digest}
+            data-full={settlement.digest}
+          >
+            {settlement.digest}
+          </p>
+          <a
+            href={settlement.explorerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-black/15 bg-white px-2.5 text-[11px] font-semibold text-black underline-offset-4 hover:border-black/40 hover:underline"
+          >
+            View on SuiScan
+          </a>
+          <dl className="mt-3 space-y-1.5 border-t border-black/10 pt-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-neutral-500">Payout status</dt>
+              <dd className="font-semibold">Awaiting payout partner</dd>
+            </div>
+          </dl>
+        </div>
+      )}
+
+      <RemittanceCheckoutDialog
+        open={dialogOpen}
+        quote={quote}
+        onOpenChange={setDialogOpen}
+        onSettled={handleSettled}
+        onTerminal={handleTerminal}
+      />
+    </div>
+  );
+}

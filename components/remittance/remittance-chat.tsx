@@ -54,6 +54,17 @@ import type { RemittanceSettlement, RemittanceTerminalState } from "./remittance
  * quote expiry, and an explicit "Awaiting payout partner" payout status.
  */
 
+/**
+ * A quote carries a real family rule when the intent review states either a
+ * purpose or a per-transfer maximum cap. A no-rule transfer (both null) keeps
+ * its existing behavior and never gets the Family-rule page identity.
+ */
+function hasFamilyRule(
+  review: QuoteEnvelope["intentReview"],
+): boolean {
+  return review.maximumFamilyLimitMinor !== null || review.purpose !== null;
+}
+
 function MicGlyph({ size = 18 }: { size?: number }) {
   return (
     <svg
@@ -75,6 +86,8 @@ function MicGlyph({ size = 18 }: { size?: number }) {
 }
 
 const MALAY_PROMPT = "Hantar RM750 kepada Maria di Cebu";
+const GOLDEN_REMITTANCE_PROMPT =
+  "Hantar RM500 to Ana in Manila for school supplies; jangan lebih RM520.";
 
 const HERO_RECIPIENT = "Ana";
 const HERO_CITY = "Manila";
@@ -463,6 +476,16 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               >
                 Continue · Send {amount.trim() ? `RM${amount.trim()} ` : ""}to Ana
               </button>
+              <button
+                type="button"
+                data-testid="use-golden-remittance"
+                data-example-prompt="true"
+                onClick={() => void send(GOLDEN_REMITTANCE_PROMPT)}
+                className="mt-2 inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 text-[11px] font-medium text-neutral-500 transition-colors hover:text-black"
+              >
+                <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-black/30" />
+                Try a family limit request
+              </button>
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-black/8 px-5 py-1.5">
@@ -565,6 +588,24 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
           One review surface, never a transcript. */}
       {sessionQuote && sessionQuote.quote && (
         <div className="cv-enter mx-auto w-full max-w-[760px]">
+          {/* Page identity — rendered ONLY for a quote that carries a real
+              family rule (a purpose or a per-transfer cap). A no-rule
+              transfer keeps its existing behavior: no Family-rule eyebrow,
+              no "Send to {recipient}" H1. Mirrors the compact eyebrow + H1
+              identity used by Pay offline and Protect. */}
+          {hasFamilyRule(sessionQuote.quote.intentReview) && (
+            <header
+              data-testid="family-rule-identity"
+              className="mb-1 flex flex-col gap-1 px-1"
+            >
+              <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                Family rule
+              </p>
+              <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[40px]">
+                Send to {sessionQuote.quote.recipient}
+              </h1>
+            </header>
+          )}
           <RemittanceQuotePreview
             quote={sessionQuote.quote}
             status={sessionQuote.status}
