@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Copy, CopySuccess, DocumentDownload, ExportSquare } from "@/components/icons";
+import { useMemo } from "react";
+import { ExportSquare } from "@/components/icons";
 import type { PaymentReceipt } from "@/lib/commerce/payment";
 import {
   encodeReceiptProofPayload,
@@ -45,24 +45,6 @@ function subheadLabel(receipt: PaymentReceipt): string {
   return "No on-chain settlement";
 }
 
-/** Canonical JSON export shape for a receipt (stable key order). */
-function receiptExportJson(receipt: PaymentReceipt): string {
-  return JSON.stringify(
-    {
-      mode: receipt.mode,
-      demo: receipt.demo,
-      digest: receipt.digest,
-      amountMist: receipt.amountMist,
-      merchantAddress: receipt.merchantAddress,
-      explorerUrl: receipt.explorerUrl,
-      label: receipt.label,
-      exportedAt: new Date().toISOString(),
-    },
-    null,
-    2,
-  );
-}
-
 export function SettlementProofCard({
   receipt,
   description,
@@ -72,37 +54,6 @@ export function SettlementProofCard({
   const amountSui = mistToSui(receipt.amountMist);
   const mode = modeLabel(receipt);
   const subhead = description ?? subheadLabel(receipt);
-  const [copied, setCopied] = useState(false);
-
-  // Clear the copied affordance after a short, restrained delay. The timeout
-  // is cleared on unmount so a late callback never touches unmounted state.
-  useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 1800);
-    return () => clearTimeout(t);
-  }, [copied]);
-
-  const handleCopyProof = async () => {
-    try {
-      await navigator.clipboard.writeText(receiptExportJson(receipt));
-      setCopied(true);
-    } catch {
-      // Clipboard may be unavailable; the export/download affordance remains.
-    }
-  };
-
-  const handleDownloadProof = () => {
-    const json = receiptExportJson(receipt);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = receipt.demo ? "convey-demo-proof.json" : "convey-proof.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   const proofHref = useMemo(() => {
     const proof: ReceiptProofDocument = {
@@ -193,19 +144,15 @@ export function SettlementProofCard({
 
       <p className="mt-3 text-xs leading-relaxed text-neutral-600">{subhead}</p>
 
-      {/* Full-width black Verify receipt primary action — leads the action
-          stack so it is reachable above the fold on mobile. */}
       {proofHref ? (
         <a
           href={proofHref}
           className="cv-proof__btn mt-3 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-black px-4 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
         >
-          Verify receipt
+          Open receipt
         </a>
       ) : null}
 
-      {/* Subordinate compact actions — Copy/Export and the real explorer
-          link (or an honest "no explorer" note for DEMO). */}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {receipt.explorerUrl ? (
           <a
@@ -222,28 +169,6 @@ export function SettlementProofCard({
             No explorer link — not submitted on-chain
           </span>
         )}
-
-        <button
-          type="button"
-          onClick={handleCopyProof}
-          data-testid="copy-proof"
-          aria-label="Copy proof JSON"
-          className="cv-proof__btn inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-black/15 bg-white px-2.5 text-[11px] font-semibold text-black transition-colors hover:border-black/40 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          {copied ? <CopySuccess size="13" variant="Bold" aria-hidden="true" /> : <Copy size="13" variant="Linear" aria-hidden="true" />}
-          {copied ? "Copied" : "Copy proof"}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleDownloadProof}
-          data-testid="export-proof"
-          aria-label="Download proof JSON"
-          className="cv-proof__btn inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-black/15 bg-white px-2.5 text-[11px] font-semibold text-black transition-colors hover:border-black/40 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          <DocumentDownload size="13" variant="Linear" aria-hidden="true" />
-          Export JSON
-        </button>
 
         {onAction ? (
           <button

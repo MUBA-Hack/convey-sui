@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { ProofVerifier } from "@/components/commerce/proof-verifier";
 
 export const metadata: Metadata = {
-  title: "Verify — Convey",
-  description: "Inspect a portable Convey receipt locally with strict, mode-aware validation and an explicit evidence boundary.",
+  title: "Receipts — Convey",
+  description: "Open a Convey receipt, review what happened, and inspect its supporting evidence when needed.",
 };
 
 export default function ProofPage() {

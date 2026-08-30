@@ -22,26 +22,37 @@ afterEach(() => {
   window.history.replaceState({}, "", "/");
 });
 
+// The JSON editor, sample loader, and verify action live under the Advanced
+// details disclosure. Open it before interacting with those controls.
+function openAdvanced() {
+  fireEvent.click(screen.getByRole("button", { name: /advanced details/i }));
+}
+
 describe("ProofVerifier", () => {
   it("loads an honest DEMO sample for a zero-setup verification", () => {
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.click(screen.getByRole("button", { name: /load sample receipt/i }));
     expect((screen.getByLabelText(/receipt json/i) as HTMLTextAreaElement).value).toContain('"mode": "demo"');
-    expect(screen.getByTestId("proof-result")).toHaveTextContent(/demo structure verified/i);
-    expect(screen.getByTestId("proof-result")).toHaveTextContent(/no chain query/i);
+    // Primary result leads with customer language, not engineering labels.
+    expect(screen.getByTestId("proof-result")).toHaveTextContent(/sample receipt/i);
+    // The technical "no chain query" claim is honestly present under Advanced.
+    expect(screen.getByTestId("proof-technical")).toHaveTextContent(/no chain query/i);
   });
 
   it("verifies pasted demo JSON and states the evidence boundary", () => {
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: demoJson } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
-    expect(screen.getByTestId("proof-result")).toHaveTextContent(/demo structure verified/i);
-    expect(screen.getByTestId("proof-result")).toHaveTextContent(/no chain query/i);
+    expect(screen.getByTestId("proof-result")).toHaveTextContent(/sample receipt/i);
+    expect(screen.getByTestId("proof-technical")).toHaveTextContent(/no chain query/i);
     expect(screen.getByTestId("proof-result")).toHaveTextContent(/2\.5\s*SUI/i);
   });
 
-  it("surfaces strict validation failures", () => {
+  it("surfaces strict validation failures as the primary result", () => {
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), {
       target: { value: JSON.stringify({ ...JSON.parse(demoJson), demo: false }) },
     });
@@ -55,7 +66,7 @@ describe("ProofVerifier", () => {
     window.history.replaceState({}, "", `/proof?p=${payload}`);
     render(<ProofVerifier />);
     await waitFor(() => expect(screen.getByTestId("proof-result")).toBeInTheDocument());
-    expect(screen.getByText(/encoded in this url/i)).toBeInTheDocument();
+    expect(screen.getByText(/encoded in this link/i)).toBeInTheDocument();
   });
 
   it("creates a share URL only after validation", async () => {
@@ -64,6 +75,7 @@ describe("ProofVerifier", () => {
       configurable: true,
     });
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: demoJson } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     fireEvent.click(screen.getByRole("button", { name: /copy share link/i }));
@@ -74,6 +86,7 @@ describe("ProofVerifier", () => {
 
   it("imports a JSON file", async () => {
     render(<ProofVerifier />);
+    openAdvanced();
     const file = new File([demoJson], "proof.json", { type: "application/json" });
     fireEvent.change(screen.getByLabelText(/import json/i), { target: { files: [file] } });
     await waitFor(() => expect(screen.getByLabelText(/receipt json/i)).toHaveValue(demoJson));
@@ -81,64 +94,45 @@ describe("ProofVerifier", () => {
 });
 
 // ---------------------------------------------------------------------------
-// ProofVerifier — responsive layout: evidence is the mobile protagonist
+// ProofVerifier — result-first layout: the receipt leads, Advanced follows
 // ---------------------------------------------------------------------------
 
-describe("ProofVerifier — responsive evidence priority", () => {
-  it("places the verified evidence above the editor in DOM order after URL hydration", async () => {
+describe("ProofVerifier — result-first layout", () => {
+  it("places the verified receipt above the Advanced details disclosure after URL hydration", async () => {
     const { encodeReceiptProofPayload } = await import("@/lib/commerce/receipt-proof");
     const payload = encodeReceiptProofPayload(JSON.parse(demoJson));
     window.history.replaceState({}, "", `/proof?p=${payload}`);
     render(<ProofVerifier />);
     await waitFor(() => expect(screen.getByTestId("proof-result")).toBeInTheDocument());
 
-    const editor = screen.getByLabelText(/receipt json/i);
-    const aside = screen.getByLabelText("Proof evidence");
-    // The evidence aside must precede the editor in DOM order so that on a
-    // 390x844 mobile viewport the verified outcome stacks above the JSON
-    // editor without relying on a dynamically swapped CSS `order` class.
+    const resultPanel = screen.getByLabelText("Receipt");
+    const advanced = screen.getByTestId("proof-advanced-trigger");
+    // The receipt panel precedes the Advanced details disclosure in DOM order
+    // so a customer opening a share link sees the receipt first.
     expect(
-      editor.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_PRECEDING,
+      advanced.compareDocumentPosition(resultPanel) & Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
   });
 
-  it("places the verified evidence above the editor after a manual verify, not only URL hydration", () => {
+  it("places the verified receipt above Advanced after a manual verify", () => {
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: demoJson } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
 
-    const editor = screen.getByLabelText(/receipt json/i);
-    const aside = screen.getByLabelText("Proof evidence");
+    const resultPanel = screen.getByLabelText("Receipt");
+    const advanced = screen.getByTestId("proof-advanced-trigger");
     expect(
-      editor.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_PRECEDING,
+      advanced.compareDocumentPosition(resultPanel) & Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
   });
 
-  it("keeps the editor above the empty evidence panel when nothing is verified yet", () => {
+  it("shows a customer empty state and keeps Advanced collapsed when nothing is verified yet", () => {
     render(<ProofVerifier />);
-    const editor = screen.getByLabelText(/receipt json/i);
-    const aside = screen.getByLabelText("Proof evidence");
-    // With no result, the editor is the protagonist and precedes the empty
-    // evidence panel in DOM order on mobile.
-    expect(
-      editor.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
-  it("uses static desktop order classes so desktop keeps editor-left/evidence-right without a dynamic swap", () => {
-    render(<ProofVerifier />);
-    const inputPanel = screen.getByLabelText(/receipt json/i).closest(
-      "[data-proof-panel='input']",
-    );
-    const aside = screen.getByLabelText("Proof evidence");
-    expect(inputPanel).not.toBeNull();
-    // Static (always-present) desktop order classes — not a class that is
-    // toggled on only after hydration — keep the layout deterministic.
-    expect(inputPanel!.className).toContain("lg:order-first");
-    expect(aside.className).toContain("lg:order-last");
-    // The unreliable dynamically-toggled order pair must not be used.
-    expect(aside.className).not.toContain("order-first");
-    expect(aside.className).not.toContain("lg:order-none");
+    expect(screen.getByText(/no receipt open yet/i)).toBeInTheDocument();
+    // The Advanced disclosure trigger is present but its body (editor) is not
+    // rendered until opened.
+    expect(screen.queryByLabelText(/receipt json/i)).not.toBeInTheDocument();
   });
 });
 
@@ -147,8 +141,9 @@ describe("ProofVerifier — responsive evidence priority", () => {
 // ---------------------------------------------------------------------------
 
 describe("ProofVerifier — black verification stage leads on mobile", () => {
-  it("leads the verified DEMO result with a black stage containing amount, digest mark, and LOCAL/DEMO", () => {
+  it("leads the verified DEMO result with a black stage containing amount, digest mark, and demo mode", () => {
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: demoJson } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
 
@@ -165,11 +160,14 @@ describe("ProofVerifier — black verification stage leads on mobile", () => {
     expect(digestEl?.getAttribute("title")).toMatch(/DEMO-abcdef0123456789/);
     expect(digestEl?.getAttribute("data-full")).toMatch(/DEMO-abcdef0123456789/);
     expect(digestEl?.textContent).not.toContain("DEMO-abcdef0123456789");
-    // The single mode mark labels LOCAL/DEMO honestly.
-    expect(stage).toHaveTextContent(/LOCAL\/DEMO/i);
+    // The mode is carried on the stage as a data attribute (not a visible
+    // engineering badge in the primary view).
+    expect(stage.getAttribute("data-proof-mode")).toBe("demo");
+    // No LOCAL/DEMO engineering badge leaks into the primary stage.
+    expect(stage.textContent ?? "").not.toMatch(/LOCAL\/DEMO/i);
   });
 
-  it("labels a verified real receipt stage as LOCAL/TESTNET", async () => {
+  it("labels a verified real receipt stage with the real mode attribute", async () => {
     const realJson = JSON.stringify({
       mode: "real",
       demo: false,
@@ -181,25 +179,42 @@ describe("ProofVerifier — black verification stage leads on mobile", () => {
       exportedAt: "2026-08-30T00:00:00.000Z",
     });
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: realJson } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     const stage = screen.getByTestId("proof-stage");
-    expect(stage).toHaveTextContent(/LOCAL\/TESTNET/i);
+    expect(stage.getAttribute("data-proof-mode")).toBe("real");
+    // No LOCAL/TESTNET engineering badge in the primary stage.
+    expect(stage.textContent ?? "").not.toMatch(/LOCAL\/TESTNET/i);
   });
 
   it("places the long explainer below the black stage in DOM order", () => {
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: demoJson } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     const stage = screen.getByTestId("proof-stage");
     const result = screen.getByTestId("proof-result");
-    // The long claim/explainer text follows the stage inside the result.
+    // The long boundary explainer follows the stage inside the result.
     const claim = Array.from(result.querySelectorAll("p")).find((p) =>
-      /no chain query/i.test(p.textContent ?? ""),
+      /no payment was sent/i.test(p.textContent ?? ""),
     );
     expect(claim).toBeDefined();
     expect(
       claim!.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
+  });
+
+  it("keeps canonical fields and structural checks under Advanced details, not in the primary result", () => {
+    render(<ProofVerifier />);
+    openAdvanced();
+    fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: demoJson } });
+    fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
+    // Primary result holds the customer summary, not the structural checks.
+    const result = screen.getByTestId("proof-result");
+    expect(result.textContent ?? "").not.toMatch(/structural checks/i);
+    // Structural checks and canonical fields live under Advanced.
+    expect(screen.getByTestId("proof-structural-checks")).toBeInTheDocument();
+    expect(screen.getByTestId("proof-technical")).toHaveTextContent(/canonical fields/i);
   });
 });

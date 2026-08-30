@@ -116,14 +116,14 @@ function renderPreview(
   );
 }
 
-describe("RemittanceQuotePreview — carry to another device + ETH hedge", () => {
-  it("an eligible quote exposes Carry to another device and Preview ETH hedge", () => {
+describe("RemittanceQuotePreview — carry and separate treasury planning", () => {
+  it("an eligible quote exposes cross-device carry and separate treasury planning", () => {
     renderPreview(baseQuote(), "none");
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
     expect(screen.getByTestId("preview-eth-hedge")).toBeInTheDocument();
   });
 
-  it("the ETH hedge link is derived from the actual quote", () => {
+  it("the treasury-planning link is derived from the actual quote", () => {
     renderPreview(baseQuote(), "none");
     const link = screen.getByTestId("preview-eth-hedge");
     expect(link.getAttribute("href")).toContain("source=remittance");

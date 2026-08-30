@@ -3,8 +3,8 @@ import { StrategyDesk } from "@/components/strategy/strategy-desk";
 import { parseRemittanceContext } from "@/lib/strategy/remittance-context";
 
 export const metadata: Metadata = {
-  title: "Protect — Convey",
-  description: "Describe a downside-protection goal and see a tailored strategy preview beside live Base market context.",
+  title: "Treasury — Convey",
+  description: "Map a separate ETH or BTC treasury goal to a conceptual payoff shape and live market context.",
 };
 
 export default async function StrategyPage({

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 export const metadata: Metadata = {
   title: "Convey",
   description:
-    "Convey — say it, carry it across, settle on Sui. Minimal black-and-white voice commerce: chat, voice, client-signed checkout, and offline payments.",
+    "Convey turns a spoken or typed family-transfer request into one transparent quote, wallet approval on Sui testnet, and a portable receipt.",
   applicationName: "Convey",
   manifest: "/manifest.webmanifest",
   appleWebApp: {

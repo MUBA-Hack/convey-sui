@@ -21,9 +21,6 @@ const MERCHANT =
   "0x".concat("11".repeat(32)) as `0x${string}`;
 const PAYER =
   "0x".concat("22".repeat(32)) as `0x${string}`;
-const OTHER =
-  "0x".concat("33".repeat(32)) as `0x${string}`;
-
 const NOW = 1_700_000_000_000; // fixed "now" for deterministic tests
 
 function baseInput(overrides: Partial<QrFerryEnvelopeInput> = {}): QrFerryEnvelopeInput {

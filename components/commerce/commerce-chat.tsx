@@ -388,7 +388,7 @@ function PaymentInstrument({
         )}
         {status === "PROOF" && (
           <p className="mt-3 text-[11px] leading-relaxed text-black/55">
-            Settlement proof recorded.
+            Receipt recorded.
           </p>
         )}
       </div>
@@ -714,7 +714,7 @@ export function CommerceChat({
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between md:gap-4 md:p-5">
           <div className="max-w-2xl md:space-y-2">
             <p className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-white/55 md:block">
-              Voice commerce for Sui
+              Pay nearby
             </p>
             <h1 className="text-xl font-medium tracking-[-0.03em] md:text-4xl md:leading-[0.95] md:tracking-[-0.05em]">
               Say it. Approve it. Settle on Sui.
@@ -723,8 +723,7 @@ export function CommerceChat({
               data-testid="hero-description"
               className="hidden max-w-xl text-[15px] leading-relaxed text-white/72 md:block"
             >
-              Minimal black-and-white purchase flow with voice, chat, client-signed checkout,
-              and Offline QR Ferry.
+              Say what you need, review the purchase, approve it, and keep the receipt.
             </p>
           </div>
         </div>
@@ -736,7 +735,7 @@ export function CommerceChat({
           {[
             { label: "Voice", value: "Speech → typed intent" },
             { label: "Checkout", value: "Human confirm only" },
-            { label: "Offline", value: "QR Ferry handoff" },
+            { label: "Handoff", value: "Continue elsewhere" },
           ].map((item) => (
             <div
               key={item.label}
@@ -774,7 +773,7 @@ export function CommerceChat({
                 { key: "language", label: "Language" },
                 { key: "validation", label: "Validation" },
                 { key: "confirmation", label: "Confirmation" },
-                { key: "proof", label: "Settlement proof" },
+                { key: "proof", label: "Receipt" },
               ] as const).map((step, i) => {
                 const active = safetyPhase === step.key;
                 return (
@@ -996,7 +995,7 @@ export function CommerceChat({
             { key: "language", label: "Language" },
             { key: "validation", label: "Validation" },
             { key: "confirmation", label: "Confirm" },
-            { key: "proof", label: "Proof" },
+            { key: "proof", label: "Receipt" },
           ] as const).map((step, i) => {
             const active = safetyPhase === step.key;
             return (

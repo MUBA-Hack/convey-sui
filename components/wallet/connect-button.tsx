@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   useDAppKit,
   useWalletConnection,
+  useWallets,
 } from "@mysten/dapp-kit-react";
 import { isEnokiWallet, isGoogleWallet } from "@mysten/enoki";
 import {
@@ -14,12 +15,18 @@ import {
   LogoutCurve,
   Refresh,
   Wallet,
+  Warning2,
 } from "@/components/icons";
+import {
+  classifySignInError,
+  signInMessage,
+  type SignInErrorKind,
+  type SignInStage,
+} from "@/components/wallet/sign-in-state";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -45,8 +52,10 @@ function truncateAddress(address: string) {
 export function WalletConnectButton() {
   const dAppKit = useDAppKit();
   const connection = useWalletConnection();
+  const wallets = useWallets();
   const [connectRequest, setConnectRequest] = useState(0);
   const [signInOpen, setSignInOpen] = useState(false);
+  const [signInStage, setSignInStage] = useState<SignInStage>("idle");
   const [menuOpen, setMenuOpen] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
     "idle",
@@ -54,6 +63,11 @@ export function WalletConnectButton() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic attempt id: invalidates the settle handler of a stale connect
+  // promise so a late resolve/reject can't surface state on a newer attempt.
+  // With idempotent connectWithGoogle there is never more than one in-flight
+  // attempt, so this guard is defense-in-depth at the error/stale boundary.
+  const signInAttempt = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -86,7 +100,17 @@ export function WalletConnectButton() {
     }
   }
 
-  if (connection.isConnecting || connection.isReconnecting) {
+  // Compact "Connecting…" trigger is reserved for an EXTERNAL connecting
+  // state (a reconnect on mount, or another wallet's connect) — one this
+  // component did NOT initiate. signInStage is the single authoritative
+  // gate: "connecting" means a locally initiated Google sign-in is in
+  // flight, which keeps the sign-in dialog mounted through the real
+  // isConnecting transition and across a close/reopen while the attempt is
+  // still pending. Any other stage lets the external compact trigger show.
+  if (
+    (connection.isConnecting || connection.isReconnecting) &&
+    signInStage !== "connecting"
+  ) {
     return (
       <Button
         variant="outline"
@@ -107,25 +131,61 @@ export function WalletConnectButton() {
   }
 
   if (!connection.account) {
-    // Google-only onboarding behind a compact modal. Identify the wallet by
-    // Enoki's metadata feature, NEVER by display name — any extension can
-    // register a wallet-standard wallet named "Google". The generic dapp-kit
-    // modal remains only as a fallback when Enoki keys are not configured.
-    const googleWallet = dAppKit.stores.$wallets
-      .get()
-      .find((wallet) => isEnokiWallet(wallet) && isGoogleWallet(wallet));
+    // Identify the Enoki/Google wallet by its metadata feature, NEVER by
+    // display name — any extension can register a wallet-standard wallet
+    // named "Google". Its presence is the honest signal that seedless auth is
+    // configured; when it is absent we must not fake a Google button.
+    const googleWallet = wallets.find(
+      (wallet) => isEnokiWallet(wallet) && isGoogleWallet(wallet),
+    );
+
+    const openExtensionModal = () => {
+      setSignInStage("idle");
+      setConnectRequest((request) => request + 1);
+    };
+
     const connectWithGoogle = async () => {
+      // Idempotent: if a Google connect is already in flight (stage is
+      // "connecting"), a second click or a reopen must not start another
+      // OAuth call. There is never more than one concurrent attempt.
+      if (signInStage === "connecting") return;
       if (!googleWallet) {
-        setConnectRequest((request) => request + 1);
+        openExtensionModal();
         return;
       }
-      setSignInOpen(false);
+      const attempt = ++signInAttempt.current;
+      setSignInStage("connecting");
       try {
         await dAppKit.connectWallet({ wallet: googleWallet });
-      } catch {
-        // User closed the popup or the flow failed; leave the button idle.
+        if (signInAttempt.current === attempt) {
+          setSignInStage("idle");
+          setSignInOpen(false);
+        }
+      } catch (error) {
+        if (signInAttempt.current !== attempt) return;
+        setSignInStage(classifySignInError(error));
       }
     };
+
+    const handleDialogChange = (open: boolean) => {
+      setSignInOpen(open);
+      if (!open && signInStage !== "connecting") {
+        // Only reset when no attempt is in flight: a closed idle/error dialog
+        // reopens clean, and invalidating the attempt id prevents a late
+        // settle from a prior error attempt staining the reopened dialog.
+        // While a connect is in flight the attempt stays alive across
+        // close/reopen so the reopened dialog shows Connecting for the same
+        // attempt — no second Google action or call is exposed.
+        signInAttempt.current += 1;
+        setSignInStage("idle");
+      }
+    };
+
+    const errorKind: SignInErrorKind | null =
+      signInStage === "blocked" || signInStage === "cancelled" || signInStage === "failed"
+        ? signInStage
+        : null;
+
     return (
       <>
         <Button
@@ -137,27 +197,93 @@ export function WalletConnectButton() {
           <Wallet size="16" variant="Bold" aria-hidden="true" />
           Sign in
         </Button>
-        <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
+        <Dialog open={signInOpen} onOpenChange={handleDialogChange}>
           <DialogContent className="max-w-xs gap-4 p-6" aria-describedby={undefined}>
             <DialogHeader className="space-y-1.5">
-              <DialogTitle className="text-base">Sign in</DialogTitle>
+              <DialogTitle className="text-base">
+                {googleWallet ? "Sign in" : "Connect a wallet"}
+              </DialogTitle>
             </DialogHeader>
-            <Button
-              variant="outline"
-              className="min-h-[48px] w-full justify-center gap-2.5 font-semibold"
-              onClick={() => void connectWithGoogle()}
-            >
-              {googleWallet?.icon ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={googleWallet.icon}
-                  alt=""
-                  className="h-4.5 w-4.5"
+
+            {signInStage === "connecting" ? (
+              <div
+                className="flex min-h-[48px] items-center justify-center gap-2.5 text-sm text-muted-foreground"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <Refresh
+                  size="16"
+                  variant="Linear"
+                  className="motion-safe:animate-spin"
                   aria-hidden="true"
                 />
-              ) : null}
-              Sign in with Google
-            </Button>
+                Connecting…
+              </div>
+            ) : errorKind ? (
+              <div className="space-y-3">
+                <p className="flex items-start gap-2 text-sm text-foreground" role="alert">
+                  <Warning2
+                    size="16"
+                    variant="Linear"
+                    className="mt-0.5 shrink-0 text-destructive"
+                    aria-hidden="true"
+                  />
+                  <span>{signInMessage(errorKind)}</span>
+                </p>
+                <Button
+                  variant="outline"
+                  className="min-h-[44px] w-full justify-center gap-2 font-semibold"
+                  onClick={() => void connectWithGoogle()}
+                >
+                  <Refresh size="16" variant="Linear" aria-hidden="true" />
+                  Try again
+                </Button>
+                {googleWallet ? (
+                  <button
+                    type="button"
+                    className="w-full text-center text-xs text-muted-foreground underline underline-offset-3 hover:text-foreground"
+                    onClick={openExtensionModal}
+                  >
+                    Use a wallet extension
+                  </button>
+                ) : null}
+              </div>
+            ) : googleWallet ? (
+              <>
+                <Button
+                  variant="outline"
+                  className="min-h-[48px] w-full justify-center gap-2.5 font-semibold"
+                  onClick={() => void connectWithGoogle()}
+                >
+                  {googleWallet.icon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={googleWallet.icon}
+                      alt=""
+                      className="h-4.5 w-4.5"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  Sign in with Google
+                </Button>
+                <button
+                  type="button"
+                  className="w-full text-center text-xs text-muted-foreground underline underline-offset-3 hover:text-foreground"
+                  onClick={openExtensionModal}
+                >
+                  Use a wallet extension
+                </button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                className="min-h-[48px] w-full justify-center gap-2.5 font-semibold"
+                onClick={openExtensionModal}
+              >
+                <Wallet size="16" variant="Bold" aria-hidden="true" />
+                Connect a wallet
+              </Button>
+            )}
           </DialogContent>
         </Dialog>
         {connectRequest > 0 && (

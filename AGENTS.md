@@ -8,8 +8,9 @@ evidence rules for parallel agents.
 
 Convey is a minimal black-and-white money app built around one coherent family
 journey: express an intent, inspect the complete terms, approve in a wallet, and
-keep a portable receipt. Pay, offline handoff, protection, and verification must
-feel like parts of that journey rather than separate demos.
+keep a portable receipt. **Pay** is primary; **Continue elsewhere** and
+**Receipts** are contextual branches. **Treasury** is visibly separate and must
+never imply that an ETH/BTC strategy protects the transfer rate or payout.
 
 Customer-facing screens must read like a finished financial product. Keep SDK
 versions, server topology, mock flags, implementation notes, and competitor
@@ -41,8 +42,12 @@ and production build before a commit.
   addresses, a pinned asset type, and explicit user approval.
 - A demo or prepared transaction is not settlement. A carried transaction ID is
   not independent chain verification. Sui settlement is not fiat payout.
-- Offline QR data is a transport envelope. Its checksum detects changes and its
-  consume-once nonce limits replay; it is not payer authorization or a signature.
+- The offline commerce envelope is a transport envelope. Its checksum detects
+  changes and its device-local consume-once nonce limits replay; it is not payer
+  authorization or a signature.
+- The remittance QR handoff carries an already attested quote. Its wrapper adds
+  no outer checksum, signature, or replay authority; expiry, server attestation,
+  recipient binding, and connected verification remain authoritative.
 - Keep secrets in ignored environment files. Never print, embed, screenshot,
   stage, commit, or pass API keys to browser code or model prompts.
 - Use the existing shadcn/Tailwind system. App-level icons use the existing

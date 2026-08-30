@@ -4,7 +4,7 @@ import { PayWorkspace } from "@/components/commerce/pay-workspace";
 export const metadata: Metadata = {
   title: "Pay — Convey",
   description:
-    "Voice-first cross-border remittance with transparent fees and Sui USDC settlement. Say it, approve it, settle on Sui.",
+    "Voice-first cross-border remittance with transparent reference fees and a guarded Sui testnet USDC transfer. Say it, review it, approve it on testnet.",
 };
 
 /**

@@ -5,7 +5,6 @@ import {
   Copy,
   CopySuccess,
   DocumentDownload,
-  DocumentText,
   ExportSquare,
   ShieldSearch,
 } from "@/components/icons";
@@ -24,9 +23,20 @@ import {
   type VerifiedRemittanceReceipt,
 } from "@/lib/remittance/receipt-proof";
 import { decodeHandoff } from "@/lib/remittance/offline-handoff";
-import { formatMyrGrouped, formatUsdcGrouped } from "@/lib/remittance/money";
+import {
+  formatMyrGrouped,
+  formatMyrFixedGrouped,
+  formatPhpGrouped,
+  formatPhpFixedGrouped,
+  formatUsdcGrouped,
+} from "@/lib/remittance/money";
 import { copyReceiptUrl, exportReceiptJson } from "@/lib/remittance/receipt-share";
-import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
+import {
+  EMPTY_VIEW,
+  ProofAdvancedDetails,
+  type EvidenceView,
+  type QuoteVerifyStatus,
+} from "./proof-advanced-details";
 
 function mistToSui(mist: string): string {
   const value = BigInt(mist);
@@ -44,25 +54,6 @@ function compact(value: string): string {
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
-
-type QuoteVerifyStatus =
-  | "checking"
-  | "verified"
-  | "evidence"
-  | "rejected"
-  | "error";
-
-type EvidenceView =
-  | { kind: "empty" }
-  | { kind: "commerce"; result: ReceiptProofResult }
-  | { kind: "remittance"; result: RemittanceReceiptResult; quoteVerify: QuoteVerifyStatus }
-  | {
-      kind: "remittance-unsettled";
-      recipient: string | null;
-      destinationCity: string | null;
-    };
-
-const EMPTY_VIEW: EvidenceView = { kind: "empty" };
 
 export function ProofVerifier() {
   const [raw, setRaw] = useState("");
@@ -168,6 +159,12 @@ export function ProofVerifier() {
     };
   }, [activeQuote]);
 
+  const handleRawChange = (value: string) => {
+    setRaw(value);
+    setView(EMPTY_VIEW);
+    setUrlLoaded(false);
+  };
+
   const handleVerify = () => {
     setUrlLoaded(false);
     const kind = sniffProofKind(raw);
@@ -253,151 +250,86 @@ export function ProofVerifier() {
     exportReceiptJson(view.result.document, "convey-remittance-proof.json");
   };
 
-  const hasEvidence = view.kind !== "empty";
-
-  // Mobile-first evidence priority: when a result exists the verified outcome
-  // is the protagonist and stacks above the JSON editor on a 390x844 viewport;
-  // with no result the editor leads. Desktop keeps editor-left/evidence-right
-  // via STATIC lg:order classes. The two panels are stable keyed elements
-  // rendered in DOM order based on `hasEvidence`, so React reorders the DOM
-  // nodes by key without remounting them (the textarea keeps focus when
-  // editing clears a prior result) and no dynamically-toggled CSS `order` class
-  // is involved.
-  const inputPanel = (
-    <div
-      key="input"
-      data-proof-panel="input"
-      className="lg:order-first rounded-2xl border border-black/15 bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:p-6"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Receipt input</p>
-          <p className="mt-1 text-sm font-semibold text-black">Portable JSON evidence</p>
-        </div>
-        <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-black/15 bg-white px-3 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-black">
-          <DocumentText size="15" variant="Linear" aria-hidden="true" />
-          Import JSON
-          <input
-            ref={fileRef}
-            aria-label="Import JSON"
-            type="file"
-            accept="application/json,.json"
-            className="sr-only"
-            onChange={(event) => void handleFile(event.target.files?.[0])}
-          />
-        </label>
-      </div>
-
-      <label htmlFor="receipt-json" className="sr-only">Receipt JSON</label>
-      <textarea
-        id="receipt-json"
-        value={raw}
-        onChange={(event) => {
-          setRaw(event.target.value);
-          setView(EMPTY_VIEW);
-          setUrlLoaded(false);
-        }}
-        spellCheck={false}
-        placeholder={'{\n  "digest": "…",\n  "amountMist": "…"\n}'}
-        className="mt-5 min-h-56 w-full resize-y rounded-xl border border-black/15 bg-neutral-50 p-4 font-mono text-xs leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:border-black sm:min-h-80"
-      />
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleVerify}
-          disabled={!raw.trim()}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-black px-5 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          Verify structure
-        </button>
-        <button
-          type="button"
-          onClick={handleDemoSample}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-black/15 bg-white px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          Load sample receipt
-        </button>
-        <span className="text-[11px] leading-5 text-neutral-500">No upload · No wallet · No signature</span>
-      </div>
-    </div>
-  );
-
-  const evidenceAside = (
-    <aside
-      key="evidence"
-      data-proof-panel="evidence"
-      className="lg:order-last min-w-0 rounded-2xl border border-black/15 bg-white p-4 sm:p-6"
-      aria-label="Proof evidence"
-    >
-      {view.kind === "empty" ? (
-        <div className="flex min-h-80 flex-col justify-between">
-          <div>
-            <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Evidence panel</p>
-            <h2 className="mt-3 text-2xl tracking-[-0.035em] text-black">Nothing asserted yet.</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-600">Verification begins only after you provide receipt JSON. This page does not infer settlement from a label or digest.</p>
-          </div>
-          <ol className="mt-8 space-y-3 text-xs text-neutral-600">
-            {["Detect receipt kind", "Check canonical fields", "Bind settlement to quote", "State evidence boundary"].map((step, index) => (
-              <li key={step} className="flex items-center gap-3 border-t border-black/10 pt-3">
-                <span className="font-mono text-neutral-400">0{index + 1}</span>
-                {step}
-              </li>
-            ))}
-          </ol>
-        </div>
-      ) : view.kind === "commerce" ? (
-        <CommerceEvidence
-          result={view.result}
-          urlLoaded={urlLoaded}
-          copied={copied}
-          onShare={handleCommerceShare}
-        />
-      ) : view.kind === "remittance" ? (
-        <RemittanceEvidence
-          result={view.result}
-          quoteVerify={view.quoteVerify}
-          urlLoaded={urlLoaded}
-          copied={copied}
-          onShare={handleRemittanceShare}
-          onExport={handleRemittanceExport}
-        />
-      ) : (
-        <RemittanceUnsettled
-          recipient={view.recipient}
-          destinationCity={view.destinationCity}
-        />
-      )}
-    </aside>
-  );
-
   return (
-    <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-16">
-      <div className="mb-8 max-w-3xl">
+    <section className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-16">
+      <div className="mb-8">
         <span className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1 font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-700">
           <ShieldSearch size="14" variant="Linear" aria-hidden="true" />
-          Convey Verify
+          Receipt
         </span>
-        <h1 className="mt-4 text-4xl font-normal tracking-[-0.05em] text-black sm:text-6xl">
-          Inspect the receipt.<br />Trust the boundary.
+        <h1 className="mt-4 text-4xl font-normal tracking-[-0.05em] text-black sm:text-5xl">
+          Your receipt, in plain terms.
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 sm:text-base">
-          Paste or import a Convey receipt — a commerce receipt or a remittance settlement. Validation runs entirely in this browser and checks structure, canonical values, and settlement-to-quote binding.
+          Open a Convey receipt link to see the amount, recipient, and status of your transfer. The full technical verification stays available under Advanced details.
         </p>
       </div>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)]">
-        {hasEvidence ? [evidenceAside, inputPanel] : [inputPanel, evidenceAside]}
+      {/* Result-first: the receipt is the protagonist. When a share link
+          hydrates a result it leads the page; the JSON editor and structural
+          checks stay subordinate under Advanced details. */}
+      <div data-proof-panel="result" aria-label="Receipt">
+        {view.kind === "empty" ? (
+          <EmptyState />
+        ) : view.kind === "commerce" ? (
+          <CommerceReceipt
+            result={view.result}
+            urlLoaded={urlLoaded}
+            copied={copied}
+            onShare={handleCommerceShare}
+          />
+        ) : view.kind === "remittance" ? (
+          <RemittanceReceipt
+            result={view.result}
+            quoteVerify={view.quoteVerify}
+            urlLoaded={urlLoaded}
+            copied={copied}
+            onShare={handleRemittanceShare}
+            onExport={handleRemittanceExport}
+          />
+        ) : (
+          <RemittanceUnsettled
+            recipient={view.recipient}
+            destinationCity={view.destinationCity}
+          />
+        )}
       </div>
+
+      <ProofAdvancedDetails
+        raw={raw}
+        onRawChange={handleRawChange}
+        onVerify={handleVerify}
+        onLoadSample={handleDemoSample}
+        onImportFile={handleFile}
+        fileRef={fileRef}
+        view={view}
+      />
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Commerce evidence — unchanged behavior, preserved testids.
+// Empty state — customer-facing, no engineering labels.
 // ---------------------------------------------------------------------------
 
-function CommerceEvidence({
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-black/10 bg-white p-6 sm:p-8">
+      <h2 className="text-2xl tracking-[-0.035em] text-black">No receipt open yet.</h2>
+      <p className="mt-3 text-sm leading-6 text-neutral-600">
+        Open a Convey receipt link, or expand Advanced details to paste or import a receipt.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Commerce receipt — customer-first. Honest boundary stays in the result;
+// canonical fields, structural checks, and the technical claim live under
+// Advanced details.
+// ---------------------------------------------------------------------------
+
+function CommerceReceipt({
   result,
   urlLoaded,
   copied,
@@ -409,96 +341,98 @@ function CommerceEvidence({
   onShare: () => void;
 }) {
   if (!result.ok) {
-    return (
-      <div role="alert" aria-live="assertive">
-        <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Verification stopped</p>
-        <h2 className="mt-2 text-2xl tracking-[-0.035em] text-black">Receipt rejected.</h2>
-        <p className="mt-3 text-sm leading-6 text-neutral-600">No proof claim is made because these checks failed:</p>
-        <ul className="mt-5 space-y-2">
-          {result.errors.map((error) => (
-            <li key={error} className="rounded-lg border border-black/15 bg-neutral-50 px-3 py-2.5 font-mono text-xs leading-5 text-black">{error}</li>
-          ))}
-        </ul>
-      </div>
-    );
+    return <RejectionCard title="This receipt couldn't be verified." errors={result.errors} />;
   }
+
+  const isDemo = result.kind === "demo_structure";
+  const receipt = result.receipt;
+  const explorerHref = receipt.explorerUrl;
 
   return (
     <div data-testid="proof-result" aria-live="polite">
       <div
         data-testid="proof-stage"
-        data-proof-mode={result.kind === "demo_structure" ? "demo" : "real"}
+        data-proof-mode={isDemo ? "demo" : "real"}
         className="rounded-2xl bg-black p-5 text-white"
       >
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
-            Verified amount
-          </p>
-          <span className="rounded-full border border-white/25 px-2.5 py-1 font-narrow text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
-            {result.kind === "demo_structure" ? "LOCAL/DEMO" : "LOCAL/TESTNET"}
-          </span>
-        </div>
+        <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+          {isDemo ? "Sample receipt" : "Receipt"}
+        </p>
         <p className="mt-3 text-[44px] font-medium leading-[0.92] tracking-[-0.04em] sm:text-[56px]">
-          {mistToSui(result.receipt.amountMist)}
+          {mistToSui(receipt.amountMist)}
           <span className="ml-2 align-baseline text-[16px] font-semibold uppercase tracking-[0.16em] text-white/60 sm:text-[18px]">
             SUI
           </span>
         </p>
         <div className="mt-4 min-w-0">
           <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-            Digest mark
+            Transaction mark
           </p>
           <p
             data-proof-digest
             className="mt-1 truncate font-mono text-xs text-white"
-            title={result.receipt.digest}
-            data-full={result.receipt.digest}
+            title={receipt.digest}
+            data-full={receipt.digest}
           >
-            {compact(result.receipt.digest)}
+            {compact(receipt.digest)}
           </p>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
+      <div className="mt-5">
         <h2 className="text-2xl tracking-[-0.035em] text-black">
-          {result.kind === "demo_structure" ? "DEMO structure verified" : "Testnet structure verified"}
+          {isDemo ? "Sample receipt" : "Receipt checked"}
         </h2>
+        <p className="mt-3 text-sm leading-6 text-neutral-600">
+          {isDemo
+            ? "This is a sample receipt. No payment was sent and no chain was queried."
+            : "Receipt details were checked. This page did not look up the transaction on Sui."}
+        </p>
+        {urlLoaded ? (
+          <p className="mt-3 text-xs text-neutral-500">
+            This receipt is encoded in this link. Nothing was retrieved from server storage.
+          </p>
+        ) : null}
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-neutral-600">{result.claim}</p>
-      {urlLoaded ? <p className="mt-3 text-xs text-neutral-500">This proof is encoded in this URL. Nothing was retrieved from server storage.</p> : null}
-
-      <dl className="mt-5 grid grid-cols-[5rem_minmax(0,1fr)] gap-x-3 gap-y-3 border-y border-black/10 py-4 text-xs">
+      <dl className="mt-5 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-3 border-y border-black/10 py-4 text-xs">
         <dt className="text-neutral-500">Merchant</dt>
-        <dd className="truncate font-mono text-black" title={result.receipt.merchantAddress}>{compact(result.receipt.merchantAddress)}</dd>
+        <dd className="truncate font-mono text-black" title={receipt.merchantAddress}>
+          {compact(receipt.merchantAddress)}
+        </dd>
         <dt className="text-neutral-500">Exported</dt>
         <dd className="font-mono text-black">{new Date(result.document.exportedAt).toLocaleString()}</dd>
       </dl>
 
-      <ol className="mt-5 space-y-2">
-        {result.evidence.map((item, index) => (
-          <li key={item.label} className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-black/10 px-3 py-2.5 text-xs">
-            <span className="font-mono text-neutral-400">{index + 1}</span>
-            <span className="font-semibold text-black">{item.label}</span>
-            <span className="text-right text-neutral-500">{item.value}</span>
-          </li>
-        ))}
-      </ol>
-
-      <button
-        type="button"
-        onClick={onShare}
-        className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/15 px-3 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-      >
-        {copied ? <CopySuccess size="14" variant="Bold" aria-hidden="true" /> : <Copy size="14" variant="Linear" aria-hidden="true" />}
-        {copied ? "Link copied" : "Copy share link"}
-      </button>
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onShare}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+        >
+          {copied ? <CopySuccess size="14" variant="Bold" aria-hidden="true" /> : <Copy size="14" variant="Linear" aria-hidden="true" />}
+          {copied ? "Link copied" : "Copy share link"}
+        </button>
+        {explorerHref ? (
+          <a
+            href={explorerHref}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+          >
+            View transaction
+            <ExportSquare size="13" variant="Linear" aria-hidden="true" />
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Remittance evidence — consumer-first, no engineering/demo/build language.
+// Remittance receipt — customer-first. Quote/seal status, payout, amounts,
+// and customer actions lead; canonical fields, structural checks, family-rule
+// binding, and the technical claim live under Advanced details.
 // ---------------------------------------------------------------------------
 
 function quoteVerifyLabel(status: QuoteVerifyStatus): string {
@@ -517,35 +451,22 @@ function quoteVerifyLabel(status: QuoteVerifyStatus): string {
   }
 }
 
-/**
- * The signed/verified authorization wording is shown ONLY when the server
- * check actually succeeds (`verified` for an unexpired quote, or `evidence`
- * for an expired-but-genuinely-attested quote). Any other state renders an
- * honest boundary line instead, so a failed or unavailable check never reads
- * as a verified authorization.
- */
 function isServerVerified(status: QuoteVerifyStatus): boolean {
   return status === "verified" || status === "evidence";
 }
 
-function ruleLabel(quote: QuoteEnvelope, quoteVerify: QuoteVerifyStatus): string {
+/** Customer-facing family rule — purpose and limit only, no seal language. */
+function familyRuleCustomer(quote: VerifiedRemittanceReceipt["document"]["quote"]): string {
   const { purpose, maximumFamilyLimitMinor } = quote.intentReview;
-  // "Bound to attested quote" is gated on server verification — the local
-  // structural check only confirms the attestation field is present, not that
-  // the HMAC is valid. Before the server check succeeds, use structural
-  // language that does not imply cryptographic verification.
-  const binding = isServerVerified(quoteVerify)
-    ? "Server seal verified"
-    : "Includes server seal (verification separate)";
   if (purpose && maximumFamilyLimitMinor) {
-    return `Family rule · ${titleCase(purpose)} · Within RM${formatMyrGrouped(maximumFamilyLimitMinor)} maximum · ${binding}`;
+    return `Family rule · ${titleCase(purpose)} · Within RM${formatMyrGrouped(maximumFamilyLimitMinor)} maximum`;
   }
-  if (purpose) return `Family rule · ${titleCase(purpose)} · ${binding}`;
-  if (maximumFamilyLimitMinor) return `Family rule · Within RM${formatMyrGrouped(maximumFamilyLimitMinor)} maximum · ${binding}`;
+  if (purpose) return `Family rule · ${titleCase(purpose)}`;
+  if (maximumFamilyLimitMinor) return `Family rule · Within RM${formatMyrGrouped(maximumFamilyLimitMinor)} maximum`;
   return "No family rule stated";
 }
 
-function RemittanceEvidence({
+function RemittanceReceipt({
   result,
   quoteVerify,
   urlLoaded,
@@ -561,24 +482,18 @@ function RemittanceEvidence({
   onExport: () => void;
 }) {
   if (!result.ok) {
-    return (
-      <div role="alert" aria-live="assertive">
-        <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Verification stopped</p>
-        <h2 className="mt-2 text-2xl tracking-[-0.035em] text-black">Remittance receipt rejected.</h2>
-        <p className="mt-3 text-sm leading-6 text-neutral-600">No proof claim is made because these checks failed:</p>
-        <ul className="mt-5 space-y-2">
-          {result.errors.map((error) => (
-            <li key={error} className="rounded-lg border border-black/15 bg-neutral-50 px-3 py-2.5 font-mono text-xs leading-5 text-black">{error}</li>
-          ))}
-        </ul>
-      </div>
-    );
+    return <RejectionCard title="This remittance receipt couldn't be verified." errors={result.errors} />;
   }
 
   const ok: VerifiedRemittanceReceipt = result;
   const quote = ok.document.quote;
   const settlement = ok.document.settlement;
   const usdcAmount = formatUsdcGrouped(quote.usdcMicro);
+  const youPay = formatMyrGrouped(quote.youPayMinor);
+  const familyReceives = formatPhpGrouped(quote.familyReceivesMinor);
+  const youPayFixed = formatMyrFixedGrouped(quote.youPayMinor);
+  const familyReceivesFixed = formatPhpFixedGrouped(quote.familyReceivesMinor);
+  const fee = formatMyrGrouped(quote.totalFeeMinor);
   const explorerHref = settlement.explorerUrl;
 
   return (
@@ -588,42 +503,31 @@ function RemittanceEvidence({
         data-proof-mode="remittance"
         className="rounded-2xl bg-black p-5 text-white"
       >
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
-            Receipt for {titleCase(quote.recipient)}
-          </p>
-          <span className="rounded-full border border-white/25 px-2.5 py-1 font-narrow text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
-            Sui testnet
-          </span>
-        </div>
+        <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+          Receipt for {titleCase(quote.recipient)}
+        </p>
         <p className="mt-3 text-[44px] font-medium leading-[0.92] tracking-[-0.04em] sm:text-[56px]">
-          {usdcAmount}
+          {youPayFixed}
           <span className="ml-2 align-baseline text-[16px] font-semibold uppercase tracking-[0.16em] text-white/60 sm:text-[18px]">
-            USDC
+            {quote.youPayCurrency}
           </span>
         </p>
-        <p className="mt-3 text-sm text-white/80">{titleCase(quote.destinationCity)}, {quote.destinationCountry}</p>
-        <div className="mt-4 min-w-0">
-          <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-            Carried transaction ID · not checked on Sui
-          </p>
-          <p
-            data-remittance-digest
-            className="mt-1 truncate font-mono text-xs text-white"
-            title={settlement.digest}
-            data-full={settlement.digest}
-          >
-            {compact(settlement.digest)}
-          </p>
-        </div>
+        <p className="mt-3 text-sm text-white/80">
+          {familyReceivesFixed} {quote.familyReceivesCurrency} received by {titleCase(quote.recipient)} in {titleCase(quote.destinationCity)}, {quote.destinationCountry}
+        </p>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
+      <div className="mt-5">
         <h2 className="text-2xl tracking-[-0.035em] text-black">Receipt checked</h2>
+        <p className="mt-3 text-sm leading-6 text-neutral-600">
+          Receipt details and the linked quote were checked. This page did not look up the transfer on Sui — the transaction mark was carried in by the receipt.
+        </p>
+        {urlLoaded ? (
+          <p className="mt-3 text-xs text-neutral-500">
+            This receipt is encoded in this link. Nothing was retrieved from server storage.
+          </p>
+        ) : null}
       </div>
-
-      <p className="mt-4 text-sm leading-6 text-neutral-600">{ok.claim}</p>
-      {urlLoaded ? <p className="mt-3 text-xs text-neutral-500">This proof is encoded in this URL. Nothing was retrieved from server storage.</p> : null}
 
       {/* Signed/verified authorization wording — shown ONLY when the server
           check actually succeeds. A failed or unavailable check renders an
@@ -650,16 +554,31 @@ function RemittanceEvidence({
       )}
 
       <dl className="mt-5 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-3 border-y border-black/10 py-4 text-xs">
-        <dt className="text-neutral-500">Recipient</dt>
-        <dd className="truncate font-mono text-black" title={settlement.recipientAddress}>{compact(settlement.recipientAddress)}</dd>
-        <dt className="text-neutral-500">Beneficiary</dt>
-        <dd className="font-mono text-black">{settlement.beneficiaryRef}</dd>
-        <dt className="text-neutral-500">Quote expiry</dt>
-        <dd className="font-mono text-black">{new Date(settlement.quoteExpiresAt).toLocaleString()}</dd>
+        <dt className="text-neutral-500">You paid</dt>
+        <dd className="text-black">{youPay} {quote.youPayCurrency}</dd>
+        <dt className="text-neutral-500">Family receives</dt>
+        <dd className="text-black">{familyReceives} {quote.familyReceivesCurrency}</dd>
+        <dt className="text-neutral-500">Wallet transfer</dt>
+        <dd className="text-black">{usdcAmount} USDC</dd>
+        <dt className="text-neutral-500">Transaction mark</dt>
+        <dd
+          data-remittance-digest
+          className="truncate font-mono text-black"
+          title={settlement.digest}
+          data-full={settlement.digest}
+        >
+          {compact(settlement.digest)}
+        </dd>
+        <dt className="text-neutral-500">Exchange rate</dt>
+        <dd className="text-black">{quote.exchangeRate.rateText}</dd>
+        <dt className="text-neutral-500">Fee</dt>
+        <dd className="text-black">{fee} {quote.feeCurrency}</dd>
         <dt className="text-neutral-500">Payout</dt>
         <dd className="text-black">{settlement.payoutStatus}</dd>
         <dt className="text-neutral-500">Family rule</dt>
-        <dd className="text-black">{ruleLabel(quote, quoteVerify)}</dd>
+        <dd className="text-black">{familyRuleCustomer(quote)}</dd>
+        <dt className="text-neutral-500">Confirmed</dt>
+        <dd className="font-mono text-black">{new Date(settlement.confirmedAt).toLocaleString()}</dd>
         <dt className="text-neutral-500">Exported</dt>
         <dd className="font-mono text-black">{new Date(ok.document.exportedAt).toLocaleString()}</dd>
       </dl>
@@ -668,7 +587,7 @@ function RemittanceEvidence({
         <button
           type="button"
           onClick={onShare}
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/15 px-3 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
         >
           {copied ? <CopySuccess size="14" variant="Bold" aria-hidden="true" /> : <Copy size="14" variant="Linear" aria-hidden="true" />}
           {copied ? "Link copied" : "Copy share link"}
@@ -676,7 +595,7 @@ function RemittanceEvidence({
         <button
           type="button"
           onClick={onExport}
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/15 px-3 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
         >
           <DocumentDownload size="14" variant="Linear" aria-hidden="true" />
           Export proof
@@ -685,7 +604,7 @@ function RemittanceEvidence({
           href={explorerHref}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/15 px-3 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
         >
           View transaction
           <ExportSquare size="13" variant="Linear" aria-hidden="true" />
@@ -694,6 +613,33 @@ function RemittanceEvidence({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Rejection — the receipt could not be verified. Shown as the result; the
+// raw JSON stays available under Advanced details.
+// ---------------------------------------------------------------------------
+
+function RejectionCard({ title, errors }: { title: string; errors: string[] }) {
+  return (
+    <div role="alert" aria-live="assertive" className="rounded-2xl border border-black/15 bg-white p-6 sm:p-8">
+      <h2 className="text-2xl tracking-[-0.035em] text-black">{title}</h2>
+      <p className="mt-3 text-sm leading-6 text-neutral-600">
+        No proof claim is made because these checks failed:
+      </p>
+      <ul className="mt-5 space-y-2">
+        {errors.map((error) => (
+          <li key={error} className="rounded-lg border border-black/15 bg-neutral-50 px-3 py-2.5 font-mono text-xs leading-5 text-black">
+            {error}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Remittance unsettled — a quote handoff, not a settlement receipt.
+// ---------------------------------------------------------------------------
 
 function RemittanceUnsettled({
   recipient,
@@ -705,9 +651,13 @@ function RemittanceUnsettled({
   const who = recipient ? ` to ${titleCase(recipient)}` : "";
   const where = destinationCity ? ` in ${titleCase(destinationCity)}` : "";
   return (
-    <div role="status" aria-live="polite">
-      <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Quote, not a settlement</p>
-      <h2 className="mt-2 text-2xl tracking-[-0.035em] text-black">This is a quote{who}{where}.</h2>
+    <div role="status" aria-live="polite" className="rounded-2xl border border-black/10 bg-white p-6 sm:p-8">
+      <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+        Quote, not a settlement
+      </p>
+      <h2 className="mt-2 text-2xl tracking-[-0.035em] text-black">
+        This is a quote{who}{where}.
+      </h2>
       <p className="mt-3 text-sm leading-6 text-neutral-600">
         A quote is not a receipt. Share and export are available only after the transfer is confirmed and a settlement receipt is produced.
       </p>

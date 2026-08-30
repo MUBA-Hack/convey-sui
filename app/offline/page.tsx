@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  *
  * Served by the service worker when a navigation request fails and the
  * network is unreachable. The messaging is deliberately precise:
- *   - QR payload review remains local (the Offline QR Ferry envelopes are
+ *   - QR payload review remains local (carried quotes or payment requests are
  *     stored on-device and can be inspected without a connection).
  *   - Settlement needs reconnection (no on-chain transfer, checkout, or
  *     transaction can complete offline — the app never claims otherwise).
@@ -32,9 +32,9 @@ export default function OfflinePage() {
           You are offline
         </h1>
         <p className="mt-6 text-base leading-relaxed text-neutral-700">
-          QR payload review remains local: any Offline QR Ferry envelopes you
-          already generated or imported are stored on this device and can be
-          inspected here without a connection.
+          QR payload review remains local: carried quotes or payment requests
+          already stored on this device can still be inspected without a
+          connection.
         </p>
         <p className="mt-4 text-base leading-relaxed text-neutral-700">
           Settlement needs reconnection. No SUI transfer, checkout, or

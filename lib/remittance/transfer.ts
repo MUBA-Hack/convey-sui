@@ -22,6 +22,12 @@ import {
 
 export type RemittanceTransferMode = "real" | "prepared";
 export type WalletNetwork = "localnet" | "testnet" | "mainnet";
+export type QuoteBlocker =
+  | "none"
+  | "unmapped"
+  | "unapproved"
+  | "wallet"
+  | "wrong-network";
 
 export type RemittanceWalletErrorCode =
   | "rejection"
@@ -35,6 +41,13 @@ export interface RemittanceTransferModeInput {
   account: string | null;
   network: WalletNetwork | string;
   authorizedRecipient: string | null;
+  attestation: Attestation | null;
+}
+
+export interface QuoteReadinessInput {
+  account: string | null;
+  network: WalletNetwork | string;
+  recipientAddress: string | null;
   attestation: Attestation | null;
 }
 
@@ -82,13 +95,28 @@ export function hasValidAttestation(attestation: Attestation | null): boolean {
   return /^0x[0-9a-f]{64}$/.test(attestation.hmac);
 }
 
+function hasCanonicalRecipientAddress(value: string | null): boolean {
+  if (!value) return false;
+  return validateRecipientAddress(value) === value;
+}
+
+export function resolveQuoteBlocker(input: QuoteReadinessInput): QuoteBlocker {
+  if (!hasCanonicalRecipientAddress(input.recipientAddress)) return "unmapped";
+  if (!hasValidAttestation(input.attestation)) return "unapproved";
+  if (!input.account) return "wallet";
+  if (input.network !== "testnet") return "wrong-network";
+  return "none";
+}
+
 export function resolveTransferMode(input: RemittanceTransferModeInput): RemittanceTransferMode {
-  if (!input.account) return "prepared";
-  if (input.network !== "testnet") return "prepared";
-  if (!input.authorizedRecipient) return "prepared";
-  if (!isValidSuiAddress(normalizeSuiAddress(input.authorizedRecipient))) return "prepared";
-  if (!hasValidAttestation(input.attestation)) return "prepared";
-  return "real";
+  return resolveQuoteBlocker({
+    account: input.account,
+    network: input.network,
+    recipientAddress: input.authorizedRecipient,
+    attestation: input.attestation,
+  }) === "none"
+    ? "real"
+    : "prepared";
 }
 
 export function buildUsdcTransfer(input: BuildUsdcTransferInput): Transaction {

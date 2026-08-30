@@ -11,9 +11,9 @@ import Link from "next/link";
  */
 const NAVIGATION = [
   { href: "/", label: "Pay" },
-  { href: "/qr-ferry", label: "Pay offline" },
-  { href: "/strategy", label: "Protect" },
-  { href: "/proof", label: "Verify" },
+  { href: "/qr-ferry", label: "Continue elsewhere" },
+  { href: "/proof", label: "Receipts" },
+  { href: "/strategy", label: "Treasury" },
 ];
 
 function ArrowUp({ size = 14 }: { size?: number }) {

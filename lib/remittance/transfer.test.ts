@@ -12,6 +12,7 @@ import {
   isFailedTransactionResult,
   isTypedWalletRejection,
   isValidDigest,
+  resolveQuoteBlocker,
   resolveTransferMode,
   validateRecipientAddress,
   type RemittanceTransferModeInput,
@@ -267,6 +268,40 @@ describe("resolveTransferMode", () => {
 
   it("returns prepared without attestation", () => {
     expect(resolveTransferMode({ ...base, attestation: null })).toBe("prepared");
+  });
+
+  it("returns prepared for a schema-valid short recipient address", () => {
+    expect(resolveTransferMode({ ...base, authorizedRecipient: "0x1" })).toBe("prepared");
+  });
+});
+
+describe("resolveQuoteBlocker", () => {
+  const base = {
+    account: ACCOUNT,
+    network: "testnet",
+    recipientAddress: ADDR_A,
+    attestation: VALID_ATTESTATION,
+  };
+
+  it("accepts only a canonical recipient address", () => {
+    expect(resolveQuoteBlocker(base)).toBe("none");
+    expect(resolveQuoteBlocker({ ...base, recipientAddress: "0x1" })).toBe("unmapped");
+  });
+
+  it("preserves recipient, attestation, wallet, then network precedence", () => {
+    expect(
+      resolveQuoteBlocker({
+        account: null,
+        network: "mainnet",
+        recipientAddress: null,
+        attestation: null,
+      }),
+    ).toBe("unmapped");
+    expect(
+      resolveQuoteBlocker({ ...base, account: null, network: "mainnet", attestation: null }),
+    ).toBe("unapproved");
+    expect(resolveQuoteBlocker({ ...base, account: null, network: "mainnet" })).toBe("wallet");
+    expect(resolveQuoteBlocker({ ...base, network: "mainnet" })).toBe("wrong-network");
   });
 });
 

@@ -268,10 +268,10 @@ describe("PayWorkspace — default mode and switching", () => {
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /Send abroad/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /Buy nearby/i })).not.toBeInTheDocument();
-    // The tactile primary See quote action is present.
-    expect(screen.getByTestId("see-quote")).toHaveTextContent(
-      /Continue · Send RM500 to Ana/i,
-    );
+    // The tactile primary Get quote action is present — never "Send".
+    const entryCta = screen.getByTestId("see-quote");
+    expect(entryCta).toHaveTextContent(/Get quote · RM500 to Ana/i);
+    expect(entryCta.textContent ?? "").not.toMatch(/\bsend\b/i);
   });
 
   it("Buy nearby is reachable only via a quiet secondary link and renders the existing commerce composer unchanged", () => {
@@ -406,20 +406,15 @@ describe("RemittanceChat — composer, send, quote fields", () => {
     expect(within(preview).getByTestId("quote-you-pay").className).toMatch(/font-sans/);
     expect(within(preview).getByTestId("quote-family-receives").className).not.toMatch(/font-mono/);
     expect(within(preview).getByTestId("quote-fee").className).not.toMatch(/font-mono/);
-    expect(within(preview).getByTestId("quote-converted").className).not.toMatch(/font-mono/);
+    expect(within(preview).queryByTestId("quote-converted")).not.toBeInTheDocument();
     expect(preview.querySelector(".cv-contact-portrait")).not.toBeNull();
     // The wallet USDC transfer is a technical detail: not above the fold.
     expect(within(preview).queryByTestId("quote-usdc")).not.toBeInTheDocument();
 
-    // Visible summary without opening a disclosure: fee, converted amount,
-    // rate, payout method, and expiry are all in the DOM immediately. Fee and
-    // converted amount format exactly RM9.50 / RM490.50 — never the ragged
-    // RM9.5 / RM490.5.
     expect(within(preview).getByTestId("quote-fee")).toHaveTextContent(/RM9\.50/);
-    expect(within(preview).getByTestId("quote-converted")).toHaveTextContent(/RM490\.50/);
     expect(within(preview).getByTestId("quote-rate")).toHaveTextContent(/12.44 PHP/i);
-    expect(within(preview).getByTestId("quote-payout-method")).toBeInTheDocument();
     expect(within(preview).getByTestId("quote-expiry")).toBeInTheDocument();
+    expect(within(preview).queryByTestId("quote-payout-method")).not.toBeInTheDocument();
 
     // Deeper technical fields (rail, USDC, reference) remain in the collapsed
     // "Transfer details" disclosure.
@@ -429,6 +424,8 @@ describe("RemittanceChat — composer, send, quote fields", () => {
     );
     expect(within(preview).getByTestId("quote-usdc")).toHaveTextContent(/109.*USDC/i);
     expect(within(preview).getByTestId("quote-reference")).toBeInTheDocument();
+    expect(within(preview).getByTestId("quote-converted")).toHaveTextContent(/RM490\.50/);
+    expect(within(preview).getByTestId("quote-payout-method")).toBeInTheDocument();
   });
 
   it("renders a clarification message for a missing amount", async () => {
@@ -452,9 +449,9 @@ describe("RemittanceChat — composer, send, quote fields", () => {
     await waitFor(() =>
       expect(screen.getByText(/Send amount is required/i)).toBeInTheDocument(),
     );
-    // No Review testnet transfer gate for a clarification.
+    // No Review transfer gate for a clarification.
     expect(
-      screen.queryByRole("button", { name: /Review testnet transfer/i }),
+      screen.queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -474,7 +471,7 @@ describe("RemittanceChat — composer, send, quote fields", () => {
 describe("RemittanceChat — confirmation gate", () => {
   const VALID_DIGEST = "DnKz7eQwFR1i6Sd2L3pJ8mVoHgYsAaBcXcVbNbMzK9eR";
 
-  it("Review testnet transfer opens the dialog directly at Confirm transfer", async () => {
+  it("Review transfer opens the dialog directly at Confirm transfer", async () => {
     const addr = "0x" + "1234567890abcdef".repeat(4);
     const account = "0x" + "22".repeat(32);
     wallet.account = { address: account };
@@ -487,11 +484,11 @@ describe("RemittanceChat — confirmation gate", () => {
     fireEvent.click(screen.getByTestId("see-quote"));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
     // The single gate opens the checkout dialog straight at the wallet Confirm
     // transfer control — no intermediate "Continue to payment" step.
-    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/A real testnet USDC transfer/i)).toBeInTheDocument();
     await waitFor(() =>
@@ -505,17 +502,22 @@ describe("RemittanceChat — confirmation gate", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("a non-executable quote offers a disclosed payout preview and never opens the transfer dialog", async () => {
+  it("an unmapped quote offers an Add payout details primary and never opens the transfer dialog", async () => {
     vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
-    await waitFor(() =>
-      expect(screen.getByTestId("preview-demo-payout")).toBeInTheDocument(),
-    );
-    // No dead-end payment modal for a prepared quote.
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    // Primary next action is Add Ana's payout details (wired to the edit form) — never
+    // a black payout/review forward CTA in the repair state.
+    const setup = within(preview).getByTestId("edit-transfer");
+    expect(setup).toHaveTextContent(/Add Ana's payout details/i);
+    expect(setup.className).toContain("cv-btn-solid");
+    expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
+    expect(within(preview).queryByTestId("demo-payout-receipt")).not.toBeInTheDocument();
+    // No dead-end payment modal for an unmapped quote.
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Review testnet transfer/i }),
+      screen.queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("remittance-digest")).not.toBeInTheDocument();
     // No receipt actions for an unconfirmed quote.
@@ -541,9 +543,9 @@ describe("RemittanceChat — confirmation gate", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
 
@@ -559,9 +561,9 @@ describe("RemittanceChat — confirmation gate", () => {
     expect(within(dialog).getByTestId("remittance-receipt-actions")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /Share receipt/i })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /Export receipt/i })).toBeInTheDocument();
-    // The originating preview is confirmed: its Review testnet transfer gate is gone.
+    // The originating preview is confirmed: its Review transfer gate is gone.
     expect(
-      screen.queryByRole("button", { name: /Review testnet transfer/i }),
+      screen.queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -581,17 +583,17 @@ describe("RemittanceChat — confirmation gate", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() => expect(within(dialog).getByRole("alert")).toBeInTheDocument());
     // No settlement, no digest.
     expect(within(dialog).queryByTestId("remittance-digest")).not.toBeInTheDocument();
-    // The originating preview still shows its Review testnet transfer gate (not confirmed).
+    // The originating preview still shows its Review transfer gate (not confirmed).
     expect(
-      screen.getByRole("button", { name: /Review testnet transfer/i }),
+      screen.getByRole("button", { name: /Review transfer/i }),
     ).toBeInTheDocument();
   });
 });
@@ -626,21 +628,24 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     );
   });
 
-  it("See quote submits the golden prompt in one click (no second Send)", async () => {
+  it("Get quote submits the golden prompt in one click (one POST, no wallet action, never Send)", async () => {
     vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
     render(<RemittanceChat />);
     const seeQuote = screen.getByTestId("see-quote");
-    // The primary home CTA reads like an action, not "Use example".
-    expect(seeQuote).toHaveTextContent(/Continue · Send RM500 to Ana/i);
+    // The primary home CTA reads "Get quote", never "Send".
+    expect(seeQuote).toHaveTextContent(/Get quote · RM500 to Ana/i);
+    expect(seeQuote.textContent ?? "").not.toMatch(/\bsend\b/i);
     fireEvent.click(seeQuote);
-    // One click submits — fetch is called immediately, the composer is not the
-    // only path.
+    // One click submits exactly one POST to the quote endpoint — no wallet
+    // sign/execute is touched on a Get quote action.
     await waitFor(() =>
       expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
         "/api/remittance/quote",
         expect.objectContaining({ method: "POST" }),
       ),
     );
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+    expect(wallet.signAndExecuteTransaction).not.toHaveBeenCalled();
   });
 
   it("the Malay example opens a user-controlled prefilled request", () => {
@@ -690,7 +695,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(input).toHaveAttribute("placeholder", "Send RM500 to Ana in Manila");
   });
 
-  it("Review testnet transfer and Edit transfer use at least 44px hit targets", async () => {
+  it("Review transfer and Edit transfer use at least 44px hit targets", async () => {
     const addr = "0x" + "1234567890abcdef".repeat(4);
     const account = "0x" + "22".repeat(32);
     wallet.account = { address: account };
@@ -701,9 +706,9 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
-    const review = screen.getByRole("button", { name: /Review testnet transfer/i });
+    const review = screen.getByRole("button", { name: /Review transfer/i });
     const edit = screen.getByTestId("edit-transfer");
     expect(review.className).toContain("h-11");
     expect(edit.className).toContain("h-11");
@@ -797,7 +802,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(text).not.toMatch(/build progress/i);
   });
 
-  it("uses honest quote copy — You send / could receive, no promised-outcome language", async () => {
+  it("uses honest quote copy — You send / estimated receive, no promised-outcome language", async () => {
     vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
@@ -809,10 +814,9 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(text).not.toMatch(/within minutes/i);
     // Required honest framing is present: primary hierarchy + truth note.
     expect(text).toMatch(/You send/i);
-    expect(text).toMatch(/could receive/i);
+    expect(text).toMatch(/estimated receive/i);
     expect(text).toMatch(/no MYR charge until you approve/i);
-    // Payout method is shown honestly as a reference label.
-    expect(text).toMatch(/Payout method/i);
+    expect(text).not.toMatch(/Payout method/i);
   });
 
   it("does not show Sign in when other blockers exist (unmapped recipient, no wallet)", async () => {
@@ -821,16 +825,16 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
-    await waitFor(() =>
-      expect(screen.getByTestId("preview-demo-payout")).toBeInTheDocument(),
-    );
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    // Unmapped recipient: the primary is Add Ana's payout details, not a Sign-in dead end.
+    expect(within(preview).getByTestId("edit-transfer")).toHaveTextContent(/Add Ana's payout details/i);
     // No Connect wallet / Sign in dead end when the corridor or recipient is
     // the blocker.
-    expect(screen.queryByTestId("wallet-connect")).not.toBeInTheDocument();
-    // Edit transfer is offered so the customer can try different details.
-    expect(screen.getByTestId("edit-transfer")).toBeInTheDocument();
+    expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
+    // No black payout/review forward CTA in the repair state.
+    expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
     // No operator-configuration instructions are shown to the customer.
-    const text = screen.getByTestId("remittance-quote-preview").textContent ?? "";
+    const text = preview.textContent ?? "";
     expect(text).not.toMatch(/configure a recipient/i);
     expect(text).not.toMatch(/attestation/i);
     expect(text).not.toMatch(/\benv\b/i);
@@ -857,7 +861,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(screen.getByTestId("edit-transfer")).toBeInTheDocument();
     // No Review gate until a wallet is connected.
     expect(
-      screen.queryByRole("button", { name: /Review testnet transfer/i }),
+      screen.queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -878,7 +882,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     );
     // No Review gate for an expired quote.
     expect(
-      within(preview).queryByRole("button", { name: /Review testnet transfer/i }),
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
 
     // Refresh quote submits a fresh command for the same entered values.
@@ -896,14 +900,21 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     );
   });
 
-  it("uses a wide desktop workspace while keeping the finance panel bounded", () => {
+  it("uses a centered desktop instrument with no left marketing rail", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
-    expect(section.className).toContain("max-w-[1180px]");
-    expect(screen.getByTestId("remittance-promise").className).toContain("hidden");
-    expect(screen.getByTestId("remittance-promise").className).toContain("lg:block");
+    expect(section.className).toContain("max-w-[1320px]");
+    // The large left marketing rail is gone; the hero is the centered dominant object.
+    expect(screen.queryByTestId("remittance-promise")).not.toBeInTheDocument();
+    // Compact product heading sits immediately above the instrument.
+    const heading = screen.getByTestId("remittance-entry-heading");
+    expect(heading).toHaveTextContent(/Send money home/i);
     const hero = screen.getByTestId("remittance-hero");
     expect(hero.className).toContain("rounded-2xl");
+    // The hero's wrapper centers the instrument at ~1040px on desktop.
+    const wrapper = hero.parentElement;
+    expect(wrapper?.className).toContain("lg:max-w-[1040px]");
+    expect(wrapper?.className).toContain("mx-auto");
   });
 });
 
@@ -939,11 +950,11 @@ describe("RemittanceChat — one mutable quote session", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
     // One quote card, one Review gate, one Edit transfer — no stale duplicate.
     expect(screen.getAllByTestId("remittance-quote-preview")).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: /Review testnet transfer/i })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Review transfer/i })).toHaveLength(1);
     expect(screen.getAllByTestId("edit-transfer")).toHaveLength(1);
     expect(screen.getByTestId("quote-you-pay")).toHaveTextContent(/RM500\.00/i);
 
@@ -960,7 +971,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     // Still exactly one quote card / Review gate / Edit transfer — the first
     // card's actions disappeared, they did not linger.
     expect(screen.getAllByTestId("remittance-quote-preview")).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: /Review testnet transfer/i })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Review transfer/i })).toHaveLength(1);
     expect(screen.getAllByTestId("edit-transfer")).toHaveLength(1);
   });
 
@@ -970,7 +981,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
 
     // A retry that the server answers with a clarification must not resurrect
@@ -1001,7 +1012,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     // status line remains.
     expect(screen.queryByTestId("remittance-quote-preview")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Review testnet transfer/i }),
+      screen.queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("edit-transfer")).not.toBeInTheDocument();
     expect(screen.queryByTestId("refresh-quote")).not.toBeInTheDocument();
@@ -1017,9 +1028,9 @@ describe("RemittanceChat — one mutable quote session", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() =>
@@ -1048,7 +1059,7 @@ describe("RemittanceChat — exact blocker copy", () => {
   const ADDR = "0x" + "1234567890abcdef".repeat(4);
   const ACCOUNT = "0x" + "22".repeat(32);
 
-  it("unmapped recipient offers an honest demo preview and a constructive Change recipient CTA", async () => {
+  it("unmapped recipient offers an Add payout details primary wired to edit, no forward payout CTA, honest payout label", async () => {
     // Golden default — recipientAddress null, no wallet.
     wallet.account = null;
     wallet.network = "testnet";
@@ -1056,15 +1067,38 @@ describe("RemittanceChat — exact blocker copy", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     const preview = await screen.findByTestId("remittance-quote-preview");
-    expect(within(preview).getByTestId("preview-demo-payout")).toHaveTextContent(
-      /Preview payout to Ana/i,
-    );
-    const editor = within(preview).getByTestId("edit-transfer");
-    expect(editor).toHaveTextContent(/Change recipient/i);
-    expect(editor).not.toHaveTextContent(/Edit transfer/i);
-    expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
+    const setup = within(preview).getByTestId("edit-transfer");
+    expect(setup).toHaveTextContent(/Add Ana's payout details/i);
+    expect(setup.className).toContain("cv-btn-solid");
+    // No black payout/review forward CTA in the repair state.
+    expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
+    expect(within(preview).queryByTestId("demo-payout-receipt")).not.toBeInTheDocument();
     expect(
-      within(preview).queryByRole("button", { name: /Review testnet transfer/i }),
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
+    ).not.toBeInTheDocument();
+    expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
+    // Add Ana's payout details is wired to the existing edit form (onEdit).
+    fireEvent.click(setup);
+    await waitFor(() =>
+      expect(within(preview).getByTestId("edit-transfer-form")).toBeInTheDocument(),
+    );
+    fireEvent.click(within(preview).getByRole("button", { name: /Transfer details/i }));
+    expect(within(preview).getByTestId("quote-payout-method")).toHaveTextContent(/Not available yet/i);
+    expect(within(preview).getByTestId("quote-payout-method").textContent ?? "").not.toMatch(/^Bank payout$/);
+  });
+
+  it("treats a schema-valid short recipient address as unmapped", async () => {
+    wallet.account = { address: ACCOUNT };
+    wallet.network = "testnet";
+    vi.mocked(globalThis.fetch).mockReturnValue(
+      jsonResponse({ ...QUOTE, recipientAddress: "0x1", attestation: VALID_ATTESTATION }),
+    );
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    expect(within(preview).getByTestId("edit-transfer")).toHaveTextContent(/Add Ana's payout details/i);
+    expect(
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -1084,7 +1118,7 @@ describe("RemittanceChat — exact blocker copy", () => {
     expect(within(preview).getByTestId("edit-transfer")).toBeInTheDocument();
     expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
     expect(
-      within(preview).queryByRole("button", { name: /Review testnet transfer/i }),
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -1102,7 +1136,7 @@ describe("RemittanceChat — exact blocker copy", () => {
     ).toBeInTheDocument();
     expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
     expect(
-      within(preview).queryByRole("button", { name: /Review testnet transfer/i }),
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -1118,7 +1152,7 @@ describe("RemittanceChat — exact blocker copy", () => {
     expect(within(preview).getByTestId("wallet-connect")).toBeInTheDocument();
     expect(within(preview).getByTestId("edit-transfer")).toBeInTheDocument();
     expect(
-      within(preview).queryByRole("button", { name: /Review testnet transfer/i }),
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
   });
 });
@@ -1210,9 +1244,9 @@ describe("RemittanceChat — family-rule panel and verified rule copy", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() =>
@@ -1240,9 +1274,9 @@ describe("RemittanceChat — family-rule panel and verified rule copy", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Review testnet transfer/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Review testnet transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() =>
@@ -1252,5 +1286,201 @@ describe("RemittanceChat — family-rule panel and verified rule copy", () => {
       within(dialog).queryByTestId("remittance-rule-verified"),
     ).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/Rule verified/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RemittanceChat — blocker matrix: one primary next action per blocker
+// ---------------------------------------------------------------------------
+
+describe("RemittanceChat — blocker matrix: one primary next action per blocker", () => {
+  const ADDR = "0x" + "1234567890abcdef".repeat(4);
+  const ACCOUNT = "0x" + "22".repeat(32);
+
+  function solidButtons(container: HTMLElement): HTMLElement[] {
+    return within(container)
+      .getAllByRole("button")
+      .filter((b) => b.className.includes("cv-btn-solid"));
+  }
+
+  it("unmapped → Add payout details is the sole solid primary; no payout/review forward CTA", async () => {
+    wallet.account = null;
+    wallet.network = "testnet";
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    const solids = solidButtons(preview);
+    expect(solids).toHaveLength(1);
+    expect(solids[0]).toHaveTextContent(/Add Ana's payout details/i);
+    expect(solids[0]).toHaveAttribute("data-testid", "edit-transfer");
+    expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
+  });
+
+  it("unapproved → Refresh quote is the sole solid primary; no Review forward CTA", async () => {
+    wallet.account = { address: ACCOUNT };
+    wallet.network = "testnet";
+    vi.mocked(globalThis.fetch).mockReturnValue(
+      jsonResponse({ ...QUOTE, recipientAddress: ADDR, attestation: null }),
+    );
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    const solids = solidButtons(preview);
+    expect(solids).toHaveLength(1);
+    expect(solids[0]).toHaveAttribute("data-testid", "refresh-quote");
+    expect(
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("wallet sole blocker → Connect wallet is the primary; no Review forward CTA", async () => {
+    wallet.account = null;
+    wallet.network = "testnet";
+    vi.mocked(globalThis.fetch).mockReturnValue(
+      jsonResponse({ ...QUOTE, recipientAddress: ADDR, attestation: VALID_ATTESTATION }),
+    );
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    expect(within(preview).getByTestId("wallet-connect")).toBeInTheDocument();
+    // No competing black forward CTA — Review transfer is not offered.
+    expect(
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("wrong network → Switch network copy is the focal; no Review/Connect forward CTA", async () => {
+    wallet.account = { address: ACCOUNT };
+    wallet.network = "mainnet";
+    vi.mocked(globalThis.fetch).mockReturnValue(
+      jsonResponse({ ...QUOTE, recipientAddress: ADDR, attestation: VALID_ATTESTATION }),
+    );
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    expect(
+      within(preview).getByText(/Switch your wallet to Sui testnet to continue/i),
+    ).toBeInTheDocument();
+    // No competing forward CTAs for the wrong-network blocker.
+    expect(
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
+    ).not.toBeInTheDocument();
+    expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
+    expect(solidButtons(preview).length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RemittanceChat — desktop workspace, two groups, and mobile order
+// ---------------------------------------------------------------------------
+
+describe("RemittanceChat — desktop workspace, two groups, and mobile order", () => {
+  it("entry layout centers the instrument on desktop with min-height, no two-column rail", () => {
+    render(<RemittanceChat />);
+    const section = screen.getByTestId("remittance-chat");
+    // No two-column grid rail — the entry container is a centered flex.
+    expect(section.querySelector(".grid")).toBeNull();
+    const flex = section.querySelector(".flex.w-full.flex-1");
+    expect(flex).not.toBeNull();
+    expect(flex?.className).toContain("items-center");
+    expect(flex?.className).toMatch(/lg:min-h-/);
+    // The instrument wrapper centers at ~1040px on desktop.
+    const wrapper = flex?.querySelector(".mx-auto") as HTMLElement | null;
+    expect(wrapper?.className).toContain("lg:max-w-[1040px]");
+  });
+
+  it("entry CTA reads Get quote and never Send", () => {
+    render(<RemittanceChat />);
+    const cta = screen.getByTestId("see-quote");
+    expect(cta).toHaveTextContent(/Get quote/i);
+    expect(cta.textContent ?? "").not.toMatch(/\bsend\b/i);
+  });
+
+  it("quote workspace widens to ~1040px on desktop and recomposes into two balanced groups", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    // Outer workspace widens to ~1040px on desktop (bounded below lg).
+    const workspace = preview.parentElement;
+    expect(workspace?.className).toContain("max-w-[760px]");
+    expect(workspace?.className).toContain("lg:max-w-[1040px]");
+    // Two desktop groups inside a two-column grid.
+    const grid = within(preview).getByTestId("quote-workspace-grid");
+    expect(grid.className).toContain("lg:grid-cols-2");
+    const left = within(preview).getByTestId("quote-left-group");
+    const right = within(preview).getByTestId("quote-right-group");
+    // Left group carries recipient + amounts + summary.
+    expect(within(left).getByTestId("quote-recipient")).toBeInTheDocument();
+    expect(within(left).getByTestId("quote-you-pay")).toBeInTheDocument();
+    expect(within(left).getByTestId("quote-fee")).toBeInTheDocument();
+    // Right group carries the guardian, truth line, primary action, details.
+    expect(within(right).getByTestId("family-guardian-card")).toBeInTheDocument();
+    expect(within(right).getByTestId("quote-truth")).toBeInTheDocument();
+    expect(within(right).getByTestId("edit-transfer")).toBeInTheDocument();
+    expect(within(right).getByTestId("transfer-details-trigger")).toBeInTheDocument();
+    // Left group never carries the action or guardian.
+    expect(within(left).queryByTestId("family-guardian-card")).toBeNull();
+    expect(within(left).queryByTestId("edit-transfer")).toBeNull();
+  });
+
+  it("mobile order below lg: recipient → amount → summary → checks → truth → action → details", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    const preview = await screen.findByTestId("remittance-quote-preview");
+    // QUOTE has no family rule, so family-rule-panel is absent; the order is
+    // recipient → amount → summary → checks → truth → action → details.
+    const order = [
+      "quote-recipient",
+      "quote-you-pay",
+      "quote-fee",
+      "family-guardian-card",
+      "quote-truth",
+      "edit-transfer",
+      "transfer-details-trigger",
+    ];
+    const els = order.map((id) => within(preview).getByTestId(id));
+    for (let i = 0; i < els.length - 1; i++) {
+      const rel = els[i]!.compareDocumentPosition(els[i + 1]!);
+      // The next element must follow the current one in document order.
+      expect(rel & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
+  it("lifecycle gating: a submitted quote keeps the two groups, locks the right group, and never shows the guardian", async () => {
+    const addr = "0x" + "1234567890abcdef".repeat(4);
+    const account = "0x" + "22".repeat(32);
+    const VALID_DIGEST = "DnKz7eQwFR1i6Sd2L3pJ8mVoHgYsAaBcXcVbNbMzK9eR";
+    wallet.account = { address: account };
+    wallet.network = "testnet";
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    const q = { ...QUOTE, recipientAddress: addr, attestation: VALID_ATTESTATION };
+    vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Review transfer/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() =>
+      expect(within(dialog).getByTestId("remittance-settlement")).toBeInTheDocument(),
+    );
+    // After confirmation the preview is locked: two groups still present, the
+    // guardian is gone, and no Review/Set up recipient action is offered.
+    const preview = screen.getByTestId("remittance-quote-preview");
+    expect(within(preview).getByTestId("quote-left-group")).toBeInTheDocument();
+    expect(within(preview).getByTestId("quote-right-group")).toBeInTheDocument();
+    expect(within(preview).queryByTestId("family-guardian-card")).toBeNull();
+    expect(
+      within(preview).queryByRole("button", { name: /Review transfer/i }),
+    ).not.toBeInTheDocument();
+    expect(within(preview).queryByTestId("edit-transfer")).not.toBeInTheDocument();
   });
 });

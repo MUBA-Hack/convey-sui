@@ -110,54 +110,77 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// The JSON editor and verify action live under the Advanced details disclosure.
+function openAdvanced() {
+  fireEvent.click(screen.getByRole("button", { name: /advanced details/i }));
+}
+
 describe("ProofVerifier — remittance receipt rendering", () => {
   it("renders a consumer-first result with Ana, Manila, USDC amount, status, rule, and payout", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "authorization" }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
 
     const result = await screen.findByTestId("remittance-result");
-    // Consumer-first protagonist fields — no engineering/demo/build language.
-    expect(result).toHaveTextContent(/Ana/);
-    expect(result).toHaveTextContent(/Manila/);
+    // Hero leads with Ana + RM500 paid + PHP6,104 received — the family money
+    // object, not the wallet USDC transfer.
+    const stage = screen.getByTestId("remittance-stage");
+    expect(stage).toHaveTextContent(/Ana/);
+    expect(stage).toHaveTextContent(/500/);
+    expect(stage).toHaveTextContent(/6,104/);
+    expect(stage.textContent ?? "").not.toMatch(/USDC/i);
+    // USDC/digest/chain evidence remains available but subordinate.
     expect(result).toHaveTextContent(/109/);
     expect(result).toHaveTextContent(/USDC/);
+    expect(result).toHaveTextContent(/Manila/);
     // Truthful structural/receipt language — never "Settlement confirmed".
     expect(result).toHaveTextContent(/Receipt checked/i);
     expect(result.textContent ?? "").not.toMatch(/Settlement confirmed/i);
     expect(result).toHaveTextContent(/Awaiting payout partner/i);
-    // The Family rule row is present with structural language.
+    // The customer-facing Family rule row is present (purpose + limit, no
+    // seal language in the primary view).
     expect(result).toHaveTextContent(/Family rule/i);
+    expect(result).toHaveTextContent(/Rent/);
     // Signed/verified authorization wording appears only after the server
     // check succeeds (mocked to return authorization here).
     await waitFor(() =>
       expect(screen.getByTestId("remittance-authorization-verified")).toBeInTheDocument(),
     );
     expect(result).toHaveTextContent(/Quote re-verified/i);
-    // After the server check succeeds, the Family rule row upgrades to
-    // "Server seal verified" — the gated cryptographic claim.
+    // Honest customer boundary: this page did not look up the transfer on Sui.
+    expect(result).toHaveTextContent(/did not look up the transfer on sui/i);
+    // The technical "did not check the Sui ledger" claim lives under Advanced.
+    expect(screen.getByTestId("remittance-technical")).toHaveTextContent(/did not check the sui ledger/i);
+    // After the server check succeeds, the Family rule row in Advanced
+    // upgrades to "Server seal verified" — the gated cryptographic claim.
     await waitFor(() =>
-      expect(result).toHaveTextContent(/Server seal verified/i),
+      expect(screen.getByTestId("remittance-technical")).toHaveTextContent(/Server seal verified/i),
     );
-    // Honest boundary: this page did not check the Sui ledger.
-    expect(result).toHaveTextContent(/did not check the sui ledger/i);
     // No demo/build language leaks into the remittance result.
     expect(result.textContent ?? "").not.toMatch(/DEMO|LOCAL\/DEMO|build/i);
   });
 
-  it("leads with a black stage containing the USDC amount and digest mark", () => {
+  it("leads with a black stage containing the RM paid and PHP received; digest mark is subordinate", () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "authorization" }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
 
     const stage = screen.getByTestId("remittance-stage");
     expect(stage.className).toContain("bg-black");
     expect(stage.className).toContain("text-white");
-    expect(stage).toHaveTextContent(/109/);
-    expect(stage).toHaveTextContent(/USDC/);
-    const digestEl = stage.querySelector("[data-remittance-digest]");
+    // Hero leads with RM paid + PHP received, not USDC.
+    expect(stage).toHaveTextContent(/500/);
+    expect(stage).toHaveTextContent(/6,104/);
+    expect(stage.textContent ?? "").not.toMatch(/USDC/i);
+    // Digest mark is subordinate — not in the hero stage.
+    expect(stage.querySelector("[data-remittance-digest]")).toBeNull();
+    // Digest remains available in the full result detail rows.
+    const result = screen.getByTestId("remittance-result");
+    const digestEl = result.querySelector("[data-remittance-digest]");
     expect(digestEl).not.toBeNull();
     expect(digestEl?.getAttribute("title")).toBe(DIGEST);
     expect(digestEl?.getAttribute("data-full")).toBe(DIGEST);
@@ -168,6 +191,7 @@ describe("ProofVerifier — server quote verification", () => {
   it("shows quote authorization as re-verified when the server returns authorization", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "authorization" }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     await waitFor(() =>
@@ -182,6 +206,7 @@ describe("ProofVerifier — server quote verification", () => {
   it("shows quote authorization as not re-verified when the server rejects", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "rejected", reason: "unverified" }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     await waitFor(() =>
@@ -191,16 +216,17 @@ describe("ProofVerifier — server quote verification", () => {
     // the verified-authorization element.
     expect(screen.getByTestId("remittance-authorization-boundary")).toBeInTheDocument();
     expect(screen.queryByTestId("remittance-authorization-verified")).not.toBeInTheDocument();
-    // The Family rule row uses structural language only — never "Server seal
-    // verified" (that claim is gated on server verification).
-    const result = screen.getByTestId("remittance-result");
-    expect(result).toHaveTextContent(/Includes server seal/i);
-    expect(result.textContent ?? "").not.toMatch(/Server seal verified/i);
+    // The Family rule row in Advanced uses structural language only — never
+    // "Server seal verified" (that claim is gated on server verification).
+    const technical = screen.getByTestId("remittance-technical");
+    expect(technical).toHaveTextContent(/Includes server seal/i);
+    expect(technical.textContent ?? "").not.toMatch(/Server seal verified/i);
   });
 
   it("shows an unavailable check when the server call throws", async () => {
     fetchMock.mockRejectedValue(new Error("network down"));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     await waitFor(() =>
@@ -213,6 +239,7 @@ describe("ProofVerifier — server quote verification", () => {
   it("shows historical evidence wording for an expired-but-genuine quote", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "evidence", expired: true }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     // Historical evidence gets its own testid, distinct from executable re-verification.
@@ -230,6 +257,7 @@ describe("ProofVerifier — export availability only after confirmation", () => 
   it("exposes share and export controls for a confirmed remittance settlement", () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "authorization" }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     expect(screen.getByRole("button", { name: /copy share link/i })).toBeInTheDocument();
@@ -243,6 +271,7 @@ describe("ProofVerifier — export availability only after confirmation", () => 
       quote: quote(),
     });
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: handoff } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     expect(screen.getByText(/quote, not a settlement/i)).toBeInTheDocument();
@@ -262,6 +291,7 @@ describe("ProofVerifier — export availability only after confirmation", () => 
       exportedAt: "2026-08-30T00:00:00.000Z",
     });
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: commerce } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     // Commerce keeps its own share link; the remittance export is absent.
@@ -276,6 +306,7 @@ describe("ProofVerifier — export availability only after confirmation", () => 
     });
     fetchMock.mockResolvedValue(jsonResponse({ kind: "authorization" }));
     render(<ProofVerifier />);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText(/receipt json/i), { target: { value: receiptJson() } });
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
     fireEvent.click(screen.getByRole("button", { name: /copy share link/i }));
@@ -296,6 +327,6 @@ describe("ProofVerifier — export availability only after confirmation", () => 
     render(<ProofVerifier />);
     await waitFor(() => expect(screen.getByTestId("remittance-result")).toBeInTheDocument());
     expect(screen.getByTestId("remittance-result")).toHaveTextContent(/Receipt checked/i);
-    expect(screen.getByText(/encoded in this url/i)).toBeInTheDocument();
+    expect(screen.getByText(/encoded in this link/i)).toBeInTheDocument();
   });
 });

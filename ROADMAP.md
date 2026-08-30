@@ -4,8 +4,9 @@ Convey is one Ana-centered remittance journey: a spoken or typed MYR-to-PHP
 request becomes a signed reference quote carrying a Family Rule, then a guarded
 Sui testnet-USDC wallet transfer of USDC the wallet already holds. The exact
 signed quote can be carried by QR to a connected device, camera-scanned,
-server-verified, and explicitly approved. An optional ETH treasury preview is
-related planning context only.
+server-verified, and explicitly approved. A separate Treasury workspace can map
+an explicitly declared ETH or BTC exposure without implying that it protects
+the transfer.
 
 This roadmap is ordered around one coherent customer journey, not around sponsor
 logos. Each phase has a customer outcome and a proof threshold. A feature is not
@@ -34,6 +35,11 @@ FX, fiat funding, or bank disbursement in this path.
 - **Family Rule purpose/max binding is implemented.** Purpose and per-transfer
   maximum are included in the quote HMAC, verified before execution, bound at
   the transfer boundary, and shown as **Rule verified** in the terminal receipt.
+- **Family Guardian Transfer checks are implemented.** The quote review derives
+  recipient, corridor, freshness, family-limit, purpose, and wallet-approval
+  findings locally. Missing facts remain **Not stated** and failed checks stop
+  the primary action; the panel never claims recipient identity or transfer
+  safety.
 - **Signed-quote cross-device QR carry, camera scan, and connected verify/review
   are implemented.** A discriminated handoff wrapper carries the existing strict
   QuoteEnvelope; the camera scanner uses `@zxing/browser` and feeds both
@@ -44,10 +50,13 @@ FX, fiat funding, or bank disbursement in this path.
   cross-device replay authority.
 - **Buy nearby** (River Cafe native-SUI commerce) remains a separate secondary
   capability, never relabeled as the Ana remittance.
-- **Protect remains read-only/educational.** The linked remittance context is
-  implemented (an optional ETH treasury preview reachable from a quote), but
-  there is no FX hedge, no MYR→PHP protection, and no trade execution.
-- **Verify** accepts local, asset-aware native-SUI commerce and confirmed Sui
+- **Treasury remains conceptual/read-only.** The payoff workspace covers
+  protective-put, covered-call, and collar shapes for explicit ETH/BTC goals,
+  with market context kept separate from the unpriced shape. Family Watch can
+  summarize a declared remittance obligation beside an explicitly selected
+  treasury strategy, but there is no FX hedge, MYR→PHP protection, contract
+  selection, or trade execution.
+- **Receipts** accepts local, asset-aware native-SUI commerce and confirmed Sui
   testnet-USDC remittance receipts. Remittance receipts bind settlement
   evidence to the signed quote, expose share/export only after confirmation,
   and re-check quote attestation server-side including a historical evidence
@@ -69,8 +78,8 @@ offline envelope with cross-device replay authority is future work.
 
 ## Product principles
 
-- Use customer jobs as the interface: **Pay**, **Pay offline**, **Protect**, and
-  **Verify**.
+- Use one primary customer job—**Pay**—with **Continue elsewhere** and
+  **Receipts** as contextual branches. Keep **Treasury** visibly separate.
 - Abstract wallet complexity without hiding user authority or transaction risk.
 - Separate the states **draft**, **reviewed**, **authorized**, **submitted**,
   **settled**, and **failed**.
@@ -83,7 +92,7 @@ offline envelope with cross-device replay authority is future work.
 - Prefer one trustworthy end-to-end corridor over many unsupported country or
   payout claims.
 
-## Now — the Ana remittance journey
+## Now — send reliably
 
 ### 1. Conversational remittance with a Family Rule
 
@@ -119,7 +128,7 @@ Implementation boundary:
 - Reference MYR/PHP amounts are not funds collected or disbursed. A testnet USDC
   receipt must retain **Awaiting payout partner** until a real payout integration
   provides separate evidence.
-- Verify now accepts an asset-aware remittance receipt schema after confirmed
+- Receipts now accepts an asset-aware remittance receipt schema after confirmed
   settlement; it checks local structure and quote binding, while server quote
   re-verification remains separate from ledger or payout verification.
 
@@ -184,7 +193,7 @@ Customer flow:
 
 1. Get a signed quote on Pay.
 2. Choose **Carry quote** to render a QR of the signed quote envelope.
-3. On a connected device, open **Pay offline** and tap **Scan QR**.
+3. On a connected device, open **Continue elsewhere** and tap **Scan QR**.
 4. The connected device discriminates kind, decodes the handoff, verifies
    attestation/recipient/corridor/amount/expiry, and shows a **Quote carried —
    Not paid yet** review card.
@@ -192,14 +201,15 @@ Customer flow:
 
 Exit evidence:
 
-- Offline quote creation followed by online verification and approval.
+- Signed quote creation while connected, followed by network-free carry and
+  connected verification and approval on the destination device.
 - Rejection tests for tampered quotes, wrong recipient, wrong network, expired
   quotes, and clock skew.
 - A clear no-funds-move boundary during the carry.
 
 ### 4. Resilient offline commerce handoff
 
-The Pay offline commerce envelope transports a native-SUI purchase intent across
+The offline commerce envelope transports a native-SUI purchase intent across
 an air gap. It is an offline transport mechanism, not offline blockchain
 settlement.
 
@@ -217,11 +227,11 @@ Every commerce intent binds:
 - order identifier and nonce;
 - issued-at time and expiry.
 
-The target connected-device flow verifies the signed envelope, shows an exact
-human review, submits once, consumes the authoritative nonce, and records the
-final digest. These signed-redemption and cross-device reconciliation
-requirements remain exit gates, not claims about the current checksum-only
-transport.
+The current connected-device flow validates the checksum and expiry, shows an
+exact human review, and consumes the nonce in device-local storage before the
+guarded checkout can continue. A payer-signed redemption envelope, shared
+authoritative nonce registry, and cross-device reconciliation remain future
+exit gates, not properties of the current transport.
 
 Exit evidence:
 
@@ -258,7 +268,7 @@ Exit evidence:
 - No OAuth token, salt, sponsor key, or wallet secret reaches browser logs or
   repository history.
 
-## Next — protected money movement
+## Next — protect recipients
 
 ### 6. Protected Transfer
 
@@ -318,9 +328,9 @@ Exit evidence:
 - Spending envelopes reject out-of-policy requests before wallet approval.
 - Split requests produce exact totals and preserve each participant decision.
 
-## Then — useful treasury protection
+## Then — manage treasury deliberately
 
-### 8. Protect with Thetanuts Finance
+### 8. Treasury protection with Thetanuts Finance
 
 Use the official **Thetanuts Finance** SDK for a separate Base-mainnet workflow
 that protects a future ETH purchase or treasury exposure. This is not a Sui
@@ -329,7 +339,7 @@ settlement feature and does not protect the MYR→PHP rate.
 **Status: read-only mapping and market-data adapter implemented; remittance
 context linked.** Model-based constraint extraction, actionable order review,
 allowance, signer, and real trade evidence remain outstanding. The linked
-remittance context is an educational ETH position preview only — it does not
+remittance context is a conceptual ETH treasury preview only — it does not
 protect the MYR→PHP rate, guarantee Ana's payout, or execute a trade.
 
 Customer flow:
@@ -415,7 +425,7 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, Pay offline commerce handoff, portable receipt proof | Protected Transfer (Move escrow), Convey Earn, real USDC digest evidence, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof | Protected Transfer (Move escrow), Convey Earn, real USDC digest evidence, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
 | Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; commerce intent candidate path | Live Gonka request evidence for remittance | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
 | Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
@@ -454,7 +464,7 @@ complete:
 - GonkaRouter production key, selected model, data policy, and latency target.
 - Protected Transfer policies, reviewer authority, evidence retention, and
   dispute process.
-- Pay offline commerce value limit, maximum age, nonce authority,
+- Offline commerce value limit, maximum age, nonce authority,
   merchant-loss allocation, and clock-skew tolerance.
 - Thetanuts signer, allowance policy, supported option market, and small
   Base-mainnet trade budget.

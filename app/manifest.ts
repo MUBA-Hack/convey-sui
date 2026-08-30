@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Convey",
     short_name: "Convey",
     description:
-      "Convey — say it, carry it across, settle on Sui. Minimal black-and-white voice commerce: chat, voice, client-signed checkout, and Offline QR Ferry.",
+      "Convey helps families send money home with a transparent quote, wallet approval on Sui testnet, cross-device continuation, and a portable receipt.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

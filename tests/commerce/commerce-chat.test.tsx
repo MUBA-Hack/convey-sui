@@ -948,7 +948,7 @@ describe("CommerceChat — reactive safety lifecycle", () => {
     expect(rail).toHaveTextContent(/language/i);
     expect(rail).toHaveTextContent(/validation/i);
     expect(rail).toHaveTextContent(/confirmation/i);
-    expect(rail).toHaveTextContent(/settlement proof/i);
+    expect(rail).toHaveTextContent(/receipt/i);
   });
 
   it("starts on the language phase when the thread is empty", () => {

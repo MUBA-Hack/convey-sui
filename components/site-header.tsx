@@ -6,14 +6,19 @@ import { useState } from "react";
 import { WalletConnectButton } from "@/components/wallet/connect-button";
 import { cn } from "@/lib/utils";
 
-// Commerce is the only surface. Home ("/") is the commerce chat per the
-// locked product rules; Pay offline, Protect, and Verify land under their
-// own routes. The wallet connection is the sole account control.
 const COMMERCE_ITEMS = [
-  { href: "/", label: "Pay" },
-  { href: "/qr-ferry", label: "Pay offline" },
-  { href: "/strategy", label: "Protect" },
-  { href: "/proof", label: "Verify" },
+  { href: "/", label: "Pay", description: "Send money home" },
+  {
+    href: "/qr-ferry",
+    label: "Continue elsewhere",
+    description: "Carry a quote to another device",
+  },
+  { href: "/proof", label: "Receipts", description: "Review a transfer" },
+  {
+    href: "/strategy",
+    label: "Treasury",
+    description: "Explore separate market protection",
+  },
 ];
 
 /**
@@ -60,14 +65,6 @@ export function BrandMark({ size = 28 }: { size?: number }) {
 export function SiteHeader() {
   const pathname = usePathname();
 
-  // The Pay homepage is a focused amount-first surface: the full
-  // Pay/Pay offline/Protect/Verify desktop chip rail is hidden there so the
-  // first frame reads as one product, not a lab sitemap. Brand, Sign in, and
-  // a compact menu keep every other product area one tap away. Routes are
-  // not removed — they remain in the mobile/compact sheet and on every other
-  // route's desktop rail.
-  const isPayHome = pathname === "/";
-
   // The sheet is keyed to the route it was opened on, so navigating away
   // closes it without an effect fighting React's render pass.
   const [openedOnPath, setOpenedOnPath] = useState<string | null>(null);
@@ -103,43 +100,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        {/* Full desktop chip rail — hidden on the Pay homepage so the amount
-            card dominates the first frame. On every other route, Pay stays
-            primary and Pay offline/Protect/Verify are quieter secondary
-            destinations. Routes, names, and active state are unchanged. */}
-        {!isPayHome && (
-          <div className="hidden items-center gap-[2px] lg:flex">
-            {COMMERCE_ITEMS.map((item) => {
-              const active = isActive(item.href);
-              const isPay = item.href === "/";
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  data-active={active ? "true" : undefined}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "cv-nav-chip",
-                    !active && !isPay && "cv-nav-chip--quiet",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-            <WalletConnectButton />
-          </div>
-        )}
-
-        {/* Compact rail — brand + Sign in + an accessible menu for the other
-            product areas. On the Pay homepage this is the only desktop rail;
-            on every route it is the mobile rail. */}
-        <div
-          className={cn(
-            "flex items-center gap-[2px]",
-            isPayHome ? "flex" : "lg:hidden",
-          )}
-        >
+        <div className="flex items-center gap-[2px]">
           <WalletConnectButton />
           <button
             type="button"
@@ -174,24 +135,28 @@ export function SiteHeader() {
 
       {menuOpen && (
         <nav
-          className={cn(
-            "flex flex-col gap-[2px] px-5 pb-5 bg-[var(--cv-paper)]/97",
-            // On the Pay homepage the sheet is the desktop menu too; otherwise
-            // it stays the mobile-only sheet.
-            isPayHome ? "" : "lg:hidden",
-          )}
+          aria-label="Convey journeys"
+          className="flex flex-col gap-[2px] bg-[var(--cv-paper)]/97 px-5 pb-5 md:ml-auto md:max-w-[420px] md:px-8"
         >
-          {COMMERCE_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              data-active={isActive(item.href) ? "true" : undefined}
-              className="cv-nav-chip !h-11 !justify-start"
-              onClick={toggleMenu}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {COMMERCE_ITEMS.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                data-active={active ? "true" : undefined}
+                aria-current={active ? "page" : undefined}
+                aria-label={item.label}
+                className="cv-nav-chip !h-auto min-h-14 !justify-between gap-4 py-2.5 text-left"
+                onClick={toggleMenu}
+              >
+                <span>{item.label}</span>
+                <span className="font-sans text-[11px] font-normal normal-case tracking-normal text-neutral-500">
+                  {item.description}
+                </span>
+              </Link>
+            );
+          })}
         </nav>
       )}
     </header>

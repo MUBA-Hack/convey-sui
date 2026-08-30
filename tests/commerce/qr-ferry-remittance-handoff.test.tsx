@@ -275,7 +275,7 @@ describe("Pay Offline — remittance quote import", () => {
     await waitFor(() => {
       expect(screen.getByTestId("dialog-content")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("dialog-title")).toHaveTextContent(/Review testnet transfer/i);
+    expect(screen.getByTestId("dialog-title")).toHaveTextContent(/Review transfer/i);
 
     // Confirm in the dialog triggers verify, then signs.
     fireEvent.click(screen.getByRole("button", { name: /Confirm/i }));
@@ -399,6 +399,6 @@ describe("Pay Offline — remittance quote import", () => {
     expect(screen.getByTestId("scan-card")).toBeInTheDocument();
     expect(screen.getByTestId("scan-qr-button")).toBeInTheDocument();
     // The page identity returns to the empty destination.
-    expect(screen.getByRole("heading", { name: /Pay offline/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Continue elsewhere/i })).toBeInTheDocument();
   });
 });

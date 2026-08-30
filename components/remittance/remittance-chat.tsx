@@ -8,7 +8,7 @@ import {
   RemittanceClarificationSchema,
   type QuoteEnvelope,
 } from "@/lib/remittance/quote-schema";
-import { hasValidAttestation } from "@/lib/remittance/transfer";
+import { resolveQuoteBlocker } from "@/lib/remittance/transfer";
 import { Send2 } from "@/components/icons";
 import { useVoiceInput } from "@/components/commerce/use-voice-input";
 import {
@@ -24,35 +24,6 @@ import {
 } from "./remittance-quote-preview";
 import { RemittanceCheckoutDialog } from "./remittance-checkout-dialog";
 import type { RemittanceSettlement, RemittanceTerminalState } from "./remittance-payment-action";
-
-/**
- * Send-abroad remittance surface — one framed money sheet, then one settlement
- * sheet. Never a chat transcript.
- *
- * The first viewport is a substantial centered money sheet: an editable RM
- * amount, a designed recipient chip (hard monogram · name · city/country ·
- * receive estimate), one tactile black "See quote" primary, a clear voice
- * action on the sheet, and a quiet "Type a request" disclosure for natural
- * language. Malay stays discoverable through one quiet secondary link.
- *
- * "See quote" submits a built command in one click. A submitted command posts
- * to the typed `/api/remittance/quote` endpoint. A `quote` response replaces
- * the money sheet with one settlement sheet (recipient identity repeated,
- * exact two-decimal money, fee/converted/rate/live-expiry/honest payout
- * availability, quiet USDC rail, one truth line, and the above-fold primary
- * action). A `clarification` response renders a quiet status line under the
- * money sheet; a fetch failure renders an error banner with retry.
- *
- * The settlement sheet carries the confirm gate that opens the checkout
- * dialog — but ONLY when the transfer is executable (recipient mapping +
- * attestation + wallet + testnet). Otherwise it renders an inline
- * "Preview only" / "Connect wallet" state and never opens a dead-end payment
- * modal. Voice populates the composer ONLY — it never submits.
- *
- * The surface never claims fiat payout completed. On a real testnet
- * settlement it shows the digest, SuiScan link, exact USDC amount, recipient,
- * quote expiry, and an explicit "Awaiting payout partner" payout status.
- */
 
 /**
  * A quote carries a real family rule when the intent review states either a
@@ -171,24 +142,6 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
     return () => stopVoice();
   }, [stopVoice]);
 
-  /** Resolve the exact missing prerequisite that blocks a real testnet transfer. */
-  const resolveBlocker = useCallback(
-    (quote: QuoteEnvelope): QuoteBlocker => {
-      if (!quote.recipientAddress) return "unmapped";
-      if (!hasValidAttestation(quote.attestation)) return "unapproved";
-      if (!account) return "wallet";
-      if (network !== "testnet") return "wrong-network";
-      return "none";
-    },
-    [account, network],
-  );
-
-  /** Resolve whether a quote is executable (real testnet transfer possible). */
-  const isExecutable = useCallback(
-    (quote: QuoteEnvelope): boolean => resolveBlocker(quote) === "none",
-    [resolveBlocker],
-  );
-
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -287,7 +240,16 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
   const openCheckout = (quote: QuoteEnvelope, sessionId: string) => {
     // Never open the modal for a non-executable quote — no dead-end payment
     // modal. The settlement sheet renders an inline state instead.
-    if (!isExecutable(quote)) return;
+    if (
+      resolveQuoteBlocker({
+        account: account?.address ?? null,
+        network,
+        recipientAddress: quote.recipientAddress,
+        attestation: quote.attestation,
+      }) !== "none"
+    ) {
+      return;
+    }
     // Block a second confirmation once the session is terminal-for-retry.
     if (
       session.kind === "quote" &&
@@ -345,72 +307,42 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
   const sessionQuote = session.kind === "quote" ? session : null;
   const sessionClarification = session.kind === "clarification" ? session : null;
   const showMoneySheet = session.kind !== "quote";
-  const blocker = sessionQuote ? resolveBlocker(sessionQuote.quote) : "none";
+  const blocker: QuoteBlocker = sessionQuote
+    ? resolveQuoteBlocker({
+        account: account?.address ?? null,
+        network,
+        recipientAddress: sessionQuote.quote.recipientAddress,
+        attestation: sessionQuote.quote.attestation,
+      })
+    : "none";
 
   return (
     <section
       data-testid="remittance-chat"
       data-palette="monochrome"
       aria-label="Send abroad"
-      className="cv-shell mx-auto flex w-full max-w-[1180px] flex-col px-4 pt-5 md:pt-8"
+      className="cv-shell mx-auto flex w-full max-w-[1320px] flex-col px-4 pt-5 md:px-6 md:pt-8"
       style={{ minHeight: "calc(100svh - 60px)" }}
     >
       {showMoneySheet && (
-        <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(560px,1.28fr)] lg:items-start lg:gap-14">
-          <div className="lg:sticky lg:top-24">
-            <header className="flex flex-col gap-3 px-1">
-              <div>
-                <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                  International transfer
-                </p>
-                <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[44px] lg:text-[58px]">
-                  Send money home.
-                </h1>
-              </div>
-              <p className="max-w-[360px] text-sm leading-relaxed text-neutral-600 lg:text-base">
-                Speak it or set the amount. Review the full cost before money moves.
-              </p>
-            </header>
-
-            <aside
-              data-testid="remittance-promise"
-              aria-label="How Convey works"
-              className="mt-10 hidden border-t border-black/12 pt-5 lg:block"
+        <div className="flex w-full flex-1 items-center lg:min-h-[calc(100svh-108px)]">
+          <div className="mx-auto w-full max-w-[800px] lg:max-w-[1040px]">
+            <header
+              data-testid="remittance-entry-heading"
+              className="mb-4 flex flex-col gap-2 px-1 lg:mb-5"
             >
-              <div className="flex items-center gap-3 font-narrow text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                <span>Malaysia</span>
-                <span aria-hidden className="h-px flex-1 bg-black/20" />
-                <span>Philippines</span>
-              </div>
-              <p className="mt-5 max-w-[320px] text-2xl font-semibold leading-tight tracking-[-0.035em] text-black">
-                One clear total. One approval.
+              <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                International transfer
               </p>
-              <ol className="mt-6 space-y-4" aria-label="Transfer steps">
-                {[
-                  ["01", "Say who and how much"],
-                  ["02", "See the rate, fee and family rule"],
-                  ["03", "Approve once in your wallet"],
-                ].map(([step, label]) => (
-                  <li key={step} className="flex items-center gap-4 text-sm text-neutral-700">
-                    <span className="font-mono text-[10px] text-neutral-400">{step}</span>
-                    <span>{label}</span>
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-7 flex flex-wrap gap-2 border-t border-black/8 pt-5 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                <span className="rounded-full border border-black/12 px-3 py-2">Voice ready</span>
-                <span className="rounded-full border border-black/12 px-3 py-2">Offline handoff</span>
-                <span className="rounded-full border border-black/12 px-3 py-2">Family rules</span>
-              </div>
-            </aside>
-          </div>
-
-          <div className="mx-auto w-full max-w-[760px] lg:mx-0">
+              <h1 className="text-[28px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[34px] lg:text-[40px]">
+                Send money home.
+              </h1>
+            </header>
           <div
             data-testid="remittance-hero"
-            className="cv-money-sheet cv-enter overflow-hidden rounded-2xl"
+            className="cv-money-sheet cv-enter overflow-hidden rounded-2xl lg:flex lg:min-h-[620px] lg:flex-col"
           >
-            <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 lg:px-7 lg:pt-7 lg:pb-5">
               <span aria-hidden className="cv-contact-portrait shrink-0">
                 <span className="cv-contact-portrait__head" />
                 <span className="cv-contact-portrait__body" />
@@ -428,7 +360,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               </div>
             </div>
 
-            <div className="cv-money-tile mx-5 rounded-[20px] bg-black p-4 text-white">
+            <div className="cv-money-tile mx-5 rounded-[20px] bg-black p-4 text-white lg:mx-7 lg:p-6">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">You send</p>
                 <div className="flex gap-1.5" aria-label="Quick amounts">
@@ -494,12 +426,12 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
 
             <p
               data-testid="hero-truth"
-              className="px-5 pt-3 pb-1 text-[11px] leading-relaxed text-neutral-500"
+              className="px-5 pt-3 pb-1 text-[11px] leading-relaxed text-neutral-500 lg:px-7 lg:pt-4"
             >
               Rate preview · wallet settlement only
             </p>
 
-            <div className="px-5 pb-3">
+            <div className="px-5 pb-3 lg:px-7 lg:pt-2">
               <button
                 type="button"
                 data-testid="see-quote"
@@ -507,7 +439,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                 onClick={handleSeeQuote}
                 className="cv-btn-solid inline-flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-xs font-semibold uppercase tracking-[0.14em]"
               >
-                Continue · Send {amount.trim() ? `RM${amount.trim()} ` : ""}to Ana
+                Get quote · {amount.trim() ? `RM${amount.trim()} ` : ""}to Ana
               </button>
               <button
                 type="button"
@@ -521,7 +453,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-black/8 px-5 py-1.5">
+            <div className="flex items-center justify-between gap-3 border-t border-black/8 px-5 py-1.5 lg:mt-auto lg:px-7 lg:py-3">
               <button
                 type="button"
                 data-testid="type-request-toggle"
@@ -621,12 +553,13 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       {/* Settlement sheet — replaces the money sheet once a quote arrives.
           One review surface, never a transcript. */}
       {sessionQuote && sessionQuote.quote && (
-        <div className="cv-enter mx-auto w-full max-w-[760px]">
+        <div className="cv-enter flex w-full flex-1 items-center lg:min-h-[calc(100svh-108px)]">
+          <div className="mx-auto w-full max-w-[760px] lg:max-w-[1040px]">
           {/* Page identity — rendered ONLY for a quote that carries a real
               family rule (a purpose or a per-transfer cap). A no-rule
               transfer keeps its existing behavior: no Family-rule eyebrow,
               no "Send to {recipient}" H1. Mirrors the compact eyebrow + H1
-              identity used by Pay offline and Protect. */}
+              identity used by Continue elsewhere and Treasury. */}
           {hasFamilyRule(sessionQuote.quote.intentReview) && (
             <header
               data-testid="family-rule-identity"
@@ -702,6 +635,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               </dl>
             </div>
           )}
+          </div>
         </div>
       )}
 

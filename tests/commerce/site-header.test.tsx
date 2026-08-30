@@ -11,7 +11,7 @@ import "@testing-library/jest-dom/vitest";
  * DOM tests pinning the commerce site header navigation.
  *
  * The header is the commerce shell's primary nav: the Convey brand mark,
- * Pay, Pay offline, Protect, Verify, and the wallet control. These tests pin
+ * Pay, Continue elsewhere, Receipts, Treasury, and the wallet control. These tests pin
  * that the commerce routes render and are marked active for the current
  * path, that the brand mark is present, that the wallet control renders,
  * and that no dead legacy hrefs (/app, /fact-check, /claims, /agents,
@@ -66,46 +66,45 @@ afterEach(() => {
 });
 
 describe("SiteHeader — commerce navigation", () => {
-  it("renders the Pay, Pay offline, Protect, and Verify commerce links on a non-Pay route", () => {
+  it("keeps every secondary journey in one compact menu on every route", () => {
     pathname.current = "/qr-ferry";
     render(<SiteHeader />);
 
+    expect(screen.queryByRole("link", { name: /Continue elsewhere/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
+
     const pay = screen.getByRole("link", { name: "Pay" });
-    const relay = screen.getByRole("link", { name: "Pay offline" });
-    const protect = screen.getByRole("link", { name: "Protect" });
-    const verify = screen.getByRole("link", { name: "Verify" });
+    const relay = screen.getByRole("link", { name: /Continue elsewhere/ });
+    const receipts = screen.getByRole("link", { name: /Receipts/ });
+    const treasury = screen.getByRole("link", { name: /Treasury/ });
 
     expect(pay).toHaveAttribute("href", "/");
     expect(relay).toHaveAttribute("href", "/qr-ferry");
-    expect(protect).toHaveAttribute("href", "/strategy");
-    expect(verify).toHaveAttribute("href", "/proof");
+    expect(receipts).toHaveAttribute("href", "/proof");
+    expect(treasury).toHaveAttribute("href", "/strategy");
   });
 
-  it("hides the full Pay/Pay offline/Protect/Verify desktop rail on the Pay homepage but keeps the routes in the compact menu", () => {
-    // Pay homepage: the desktop chip rail is hidden so the amount card
-    // dominates the first frame. Brand, Sign in, and a compact menu keep
-    // every other product area one tap away — no route is removed.
+  it("keeps the Pay homepage focused while the menu describes secondary journeys", () => {
     pathname.current = "/";
     render(<SiteHeader />);
 
-    // The full rail is not rendered directly on the homepage.
-    expect(screen.queryByRole("link", { name: "Pay offline" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Protect" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Verify" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Continue elsewhere/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Receipts/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Treasury/ })).not.toBeInTheDocument();
 
-    // The accessible compact menu reveals them.
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
     expect(screen.getByRole("link", { name: "Pay" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Pay offline" })).toHaveAttribute("href", "/qr-ferry");
-    expect(screen.getByRole("link", { name: "Protect" })).toHaveAttribute("href", "/strategy");
-    expect(screen.getByRole("link", { name: "Verify" })).toHaveAttribute("href", "/proof");
+    expect(screen.getByRole("link", { name: /Continue elsewhere/ })).toHaveAttribute("href", "/qr-ferry");
+    expect(screen.getByRole("link", { name: /Receipts/ })).toHaveAttribute("href", "/proof");
+    expect(screen.getByRole("link", { name: /Treasury/ })).toHaveAttribute("href", "/strategy");
   });
 
   it("marks the active commerce route with aria-current=page", () => {
     pathname.current = "/qr-ferry";
     render(<SiteHeader />);
 
-    const relay = screen.getByRole("link", { name: "Pay offline" });
+    fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
+    const relay = screen.getByRole("link", { name: /Continue elsewhere/ });
     expect(relay).toHaveAttribute("aria-current", "page");
     expect(relay).toHaveAttribute("data-active", "true");
 
@@ -171,7 +170,6 @@ describe("SiteHeader — consistent sticky light header on every route", () => {
 describe("SiteHeader — wallet control", () => {
   it("renders the wallet connect control", () => {
     render(<SiteHeader />);
-    // The wallet control renders in both the desktop and compact rails.
     const walletControls = screen.getAllByTestId("wallet-connect");
     expect(walletControls.length).toBeGreaterThanOrEqual(1);
     expect(walletControls[0]).toHaveTextContent("Sign in");
@@ -220,7 +218,8 @@ describe("SiteHeader — strict monochrome", () => {
   it("the active nav chip uses the monochrome chip, not the blue accent variant", () => {
     pathname.current = "/qr-ferry";
     render(<SiteHeader />);
-    const active = screen.getByRole("link", { name: "Pay offline" });
+    fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
+    const active = screen.getByRole("link", { name: /Continue elsewhere/ });
     expect(active.getAttribute("data-active")).toBe("true");
     const cls = active.getAttribute("class") ?? "";
     expect(cls).toContain("cv-nav-chip");

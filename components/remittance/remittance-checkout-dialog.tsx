@@ -121,7 +121,7 @@ export function RemittanceCheckoutDialog({
         className="max-w-[calc(100%-1.5rem)] sm:max-w-[420px]"
       >
         <DialogHeader>
-          <DialogTitle>Review testnet transfer</DialogTitle>
+          <DialogTitle>Review transfer</DialogTitle>
           <DialogDescription>
             A real testnet USDC transfer is built and signed only when you confirm
             below.

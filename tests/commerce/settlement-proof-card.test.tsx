@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { PaymentReceipt } from "@/lib/commerce/payment";
 import { decodeReceiptProofPayload } from "@/lib/commerce/receipt-proof";
@@ -10,7 +10,7 @@ import { SettlementProofCard } from "@/components/commerce/settlement-proof-card
  * Focused tests for the shared settlement proof card:
  *  - honest demo/real/network labels (monochrome, no green)
  *  - responsive/truncated identifiers with full accessible values
- *  - copy proof and download/export JSON affordances
+ *  - customer receipt action without raw JSON affordances
  *  - explorer link for real digest, none for demo
  *  - no mobile overflow (min-width: 0 on the card and grid)
  */
@@ -34,27 +34,6 @@ const REAL_RECEIPT: PaymentReceipt = {
   merchantAddress: "0x".concat("22".repeat(32)),
   label: "Real testnet transfer",
 };
-
-beforeEach(() => {
-  // Mock clipboard for copy-proof tests.
-  const writeText = vi.fn(() => Promise.resolve());
-  Object.defineProperty(globalThis.navigator, "clipboard", {
-    value: { writeText },
-    configurable: true,
-    writable: true,
-  });
-  // Mock URL.createObjectURL for export-proof tests.
-  Object.defineProperty(globalThis.URL, "createObjectURL", {
-    value: vi.fn(() => "blob:mock"),
-    configurable: true,
-    writable: true,
-  });
-  Object.defineProperty(globalThis.URL, "revokeObjectURL", {
-    value: vi.fn(),
-    configurable: true,
-    writable: true,
-  });
-});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -128,44 +107,6 @@ describe("SettlementProofCard — explorer link", () => {
   });
 });
 
-describe("SettlementProofCard — copy and export proof", () => {
-  it("copies the proof JSON to the clipboard", () => {
-    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
-    fireEvent.click(screen.getByTestId("copy-proof"));
-    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
-    const copied = vi.mocked(globalThis.navigator.clipboard.writeText).mock.calls[0]![0];
-    // The copied JSON contains the receipt's key fields.
-    const parsed = JSON.parse(copied);
-    expect(parsed.mode).toBe("demo");
-    expect(parsed.demo).toBe(true);
-    expect(parsed.digest).toBe(DEMO_RECEIPT.digest);
-    expect(parsed.amountMist).toBe(DEMO_RECEIPT.amountMist);
-    expect(parsed.merchantAddress).toBe(DEMO_RECEIPT.merchantAddress);
-    expect(parsed.label).toBe(DEMO_RECEIPT.label);
-    expect(parsed.explorerUrl).toBeNull();
-    expect(typeof parsed.exportedAt).toBe("string");
-  });
-
-  it("shows a copied confirmation after copying", async () => {
-    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
-    fireEvent.click(screen.getByTestId("copy-proof"));
-    await waitFor(() => expect(screen.getByText(/copied/i)).toBeInTheDocument());
-  });
-
-  it("downloads the proof as a JSON file", () => {
-    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
-    fireEvent.click(screen.getByTestId("export-proof"));
-    expect(globalThis.URL.createObjectURL).toHaveBeenCalledTimes(1);
-  });
-
-  it("uses a demo-specific filename for demo receipts", () => {
-    render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
-    fireEvent.click(screen.getByTestId("export-proof"));
-    // The download anchor was created and clicked; verify via the blob URL.
-    expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
-  });
-});
-
 describe("SettlementProofCard — amount-led monument layout", () => {
   it("renders the amount as a mobile-first monument-scale protagonist (>=56px)", () => {
     render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
@@ -184,21 +125,11 @@ describe("SettlementProofCard — amount-led monument layout", () => {
     expect(card.querySelectorAll(".cv-proof__mode").length).toBe(1);
   });
 
-  it("renders the Verify receipt action as a full-width black primary above Copy/Export", () => {
+  it("renders Open receipt as a full-width black primary", () => {
     render(<SettlementProofCard receipt={REAL_RECEIPT} />);
-    const verify = screen.getByRole("link", { name: /verify receipt/i });
-    // Full-width black primary.
-    expect(verify.className).toContain("bg-black");
-    expect(verify.className).toContain("w-full");
-    const copy = screen.getByTestId("copy-proof");
-    const exportBtn = screen.getByTestId("export-proof");
-    // Verify precedes Copy and Export in DOM order so it leads the action stack.
-    expect(
-      copy.compareDocumentPosition(verify) & Node.DOCUMENT_POSITION_PRECEDING,
-    ).toBeTruthy();
-    expect(
-      exportBtn.compareDocumentPosition(verify) & Node.DOCUMENT_POSITION_PRECEDING,
-    ).toBeTruthy();
+    const receiptLink = screen.getByRole("link", { name: /open receipt/i });
+    expect(receiptLink.className).toContain("bg-black");
+    expect(receiptLink.className).toContain("w-full");
   });
 
   it("renders the digest as a single truncated monospace stripe with the full value accessible", () => {
@@ -235,7 +166,7 @@ describe("SettlementProofCard — portable verifier handoff", () => {
     vi.setSystemTime(new Date("2026-08-30T12:34:56.000Z"));
     render(<SettlementProofCard receipt={DEMO_RECEIPT} />);
 
-    const href = screen.getByRole("link", { name: "Verify receipt" }).getAttribute("href")!;
+    const href = screen.getByRole("link", { name: "Open receipt" }).getAttribute("href")!;
     expect(href).toMatch(/^\/proof\?p=[A-Za-z0-9_-]+$/);
 
     const payload = new URLSearchParams(href.split("?")[1]).get("p");
@@ -246,11 +177,11 @@ describe("SettlementProofCard — portable verifier handoff", () => {
     });
   });
 
-  it("keeps copy and export actions beside the verifier action", () => {
+  it("keeps raw JSON actions off the customer receipt card", () => {
     render(<SettlementProofCard receipt={REAL_RECEIPT} />);
 
-    expect(screen.getByTestId("copy-proof")).toBeInTheDocument();
-    expect(screen.getByTestId("export-proof")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Verify receipt" })).toBeInTheDocument();
+    expect(screen.queryByTestId("copy-proof")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("export-proof")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open receipt" })).toBeInTheDocument();
   });
 });

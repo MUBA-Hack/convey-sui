@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StrategyIntent } from "@/lib/strategy/intent";
+import { parseStrategyGoal } from "@/lib/strategy/intent";
 import type { ThetanutsSnapshot } from "@/lib/strategy/thetanuts-readonly";
 import type { RemittanceContext } from "@/lib/strategy/remittance-context";
+import { deriveFamilyWatchBrief } from "@/lib/strategy/family-watch";
+import { FamilyWatch } from "@/components/strategy/family-watch";
+import {
+  STRATEGY_NOTIONAL_LIMITS,
+  STRATEGY_PRESETS,
+  StrategyRequestPane,
+} from "@/components/strategy/strategy-request-pane";
+import { StrategyPayoffWorkspace } from "@/components/strategy/strategy-payoff-workspace";
+import { StrategyMarketContext } from "@/components/strategy/strategy-market-context";
 
 interface StrategyResponse {
   intent: StrategyIntent;
@@ -12,33 +22,12 @@ interface StrategyResponse {
   disclosure: string;
 }
 
-const PRESETS = [
-  "Protect ETH downside for 30 days",
-  "Earn premium on BTC",
-  "Protect ETH and offset cost with premium",
-] as const;
-
-const DEFAULT_NOTIONAL = 2400;
-const MIN_NOTIONAL = 1;
-const MAX_NOTIONAL = 1_000_000;
-
 /** Clamp a user-entered protected notional to a sensible positive display value. */
 function clampNotional(value: number): number {
-  if (!Number.isFinite(value) || value < MIN_NOTIONAL) return MIN_NOTIONAL;
-  return Math.min(Math.floor(value), MAX_NOTIONAL);
-}
-
-/** Lightweight display parse for the identity/context row. Presentation only. */
-function deriveContext(goal: string): { asset: string; horizon: string } {
-  const lower = goal.toLowerCase();
-  const asset = /\beth\b|ethereum/.test(lower)
-    ? "ETH"
-    : /\bbtc\b|bitcoin/.test(lower)
-      ? "BTC"
-      : "—";
-  const horizonMatch = lower.match(/\b(\d{1,3})\s*(?:day|days|d)\b/);
-  const horizon = horizonMatch ? `${horizonMatch[1]}-day horizon` : "Open horizon";
-  return { asset, horizon };
+  if (!Number.isFinite(value) || value < STRATEGY_NOTIONAL_LIMITS.min) {
+    return STRATEGY_NOTIONAL_LIMITS.min;
+  }
+  return Math.min(Math.floor(value), STRATEGY_NOTIONAL_LIMITS.max);
 }
 
 export interface StrategyDeskProps {
@@ -46,18 +35,57 @@ export interface StrategyDeskProps {
 }
 
 export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
-  const [goal, setGoal] = useState<string>(PRESETS[0]);
+  const [goal, setGoal] = useState<string>(STRATEGY_PRESETS[0]);
   const [notional, setNotional] = useState<number>(
-    remittanceContext?.amountMyr ?? DEFAULT_NOTIONAL,
+    remittanceContext?.amountMyr ?? STRATEGY_NOTIONAL_LIMITS.defaultValue,
   );
   const [result, setResult] = useState<StrategyResponse | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Request-generation guard: every draft/preset change and every new submit
+  // bumps this counter. A pending fetch captures its generation and must not
+  // write result/error/pending once the generation has moved on, so a late
+  // response for an abandoned draft can never overwrite the current draft state.
+  const requestGeneration = useRef(0);
+
+  // The single AbortController for any in-flight strategy fetch. Aborted on
+  // draft/preset edit, new submit, and unmount so an abandoned request can
+  // neither resolve onto stale state nor surface an unhandled rejection.
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   const inRemittanceContext = remittanceContext != null;
+
+  /**
+   * The single goal-update path. Any change to the draft (typing or choosing a
+   * preset) invalidates the submitted result and any prior error, so a stale
+   * ETH preview can never sit beside a new BTC draft. It also invalidates any
+   * in-flight request: the AbortController cancels the network call, the
+   * generation bump makes the pending fetch's result/error/finally no-ops, and
+   * loading ends because the pending request no longer represents this draft.
+   */
+  function updateGoal(next: string) {
+    setGoal(next);
+    setResult(null);
+    setError(null);
+    abortControllerRef.current?.abort();
+    requestGeneration.current += 1;
+    setPending(false);
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const generation = (requestGeneration.current += 1);
+    setResult(null);
     setPending(true);
     setError(null);
     try {
@@ -65,280 +93,100 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ goal }),
+        signal: controller.signal,
       });
+      if (requestGeneration.current !== generation) return;
       if (!response.ok) throw new Error("Request failed");
-      setResult(await response.json() as StrategyResponse);
-    } catch {
-      setError("The strategy mapper is unavailable. No market data or strategy was invented.");
+      const data = (await response.json()) as StrategyResponse;
+      if (requestGeneration.current !== generation) return;
+      setResult(data);
+    } catch (error) {
+      if (requestGeneration.current !== generation) return;
+      // An abort is expected when the draft changes or a new submit supersedes
+      // this one; it must never become a user-facing error.
+      if (controller.signal.aborted || (error as { name?: string } | null)?.name === "AbortError") return;
+      setError(
+        "Live market context is unavailable. Your goal remains a conceptual shape and has not been priced.",
+      );
     } finally {
-      setPending(false);
+      if (requestGeneration.current === generation) setPending(false);
     }
   }
 
-  const ctx = deriveContext(goal);
-  const horizonValue =
-    result?.intent.kind === "strategy" && result.intent.horizonDays
-      ? `${result.intent.horizonDays} days`
-      : ctx.horizon.replace(/ horizon/, "");
+  // Draft intent is derived immediately from the current goal via the existing
+  // parser — no extra state. A resolved preview wins over the draft; a resolved
+  // clarification suppresses the draft shape so the user is asked to refine.
+  const draftIntent = parseStrategyGoal(goal);
+  const draftStrategy = draftIntent.kind === "strategy" ? draftIntent : null;
+  const resolvedStrategy = result?.intent.kind === "strategy" ? result.intent : null;
+  const resolvedClarification =
+    result?.intent.kind === "clarification" ? result.intent : null;
+  const payoffIntent = resolvedStrategy ?? (resolvedClarification ? null : draftStrategy);
+
+  // Family Watch unifies the declared family obligation with the latest
+  // read-only market read already held by this desk. The resolved strategy
+  // intent is carried in so Family Watch never implies an ETH-backed obligation
+  // from remittance context alone.
+  const familyWatchBrief = deriveFamilyWatchBrief({
+    remittance: remittanceContext ?? null,
+    market: result?.market ?? null,
+    strategy: result?.intent ?? null,
+  });
+
+  const refinementMessage = payoffIntent || pending
+    ? null
+    : resolvedClarification?.message ??
+      (draftIntent.kind === "clarification"
+        ? draftIntent.message
+        : "Describe a plain-language ETH or BTC risk goal to see a payoff shape.");
 
   return (
-    <section className="cv-shell mx-auto w-full max-w-[760px] px-4 pt-5 md:pt-8">
+    <section className="cv-shell mx-auto w-full max-w-[1180px] px-4 pt-5 md:pt-8">
       {/* Compact eyebrow/title */}
       <header className="mb-5 flex flex-col gap-1 px-1">
         <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-          {inRemittanceContext ? "Optional treasury preview" : "Downside protection"}
+          {inRemittanceContext ? "Separate treasury planning" : "Treasury protection"}
         </p>
         <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[40px]">
-          {inRemittanceContext ? "If these funds are held in ETH" : "Protect"}
+          {inRemittanceContext ? "Explore ETH treasury protection" : "Treasury"}
         </h1>
       </header>
 
-      <div className="cv-money-sheet cv-preview-in overflow-hidden rounded-2xl">
-        {/* Identity/context row — ETH / 30-day horizon */}
-        <div className="flex items-center gap-3 px-5 pt-5 pb-4">
-          <span
-            aria-hidden
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black text-sm font-semibold text-white"
-          >
-            {ctx.asset === "—" ? "?" : ctx.asset.slice(0, 3)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold tracking-[-0.01em] text-black">
-              {ctx.asset}
-            </p>
-            <p className="mt-0.5 truncate text-[12px] text-neutral-500">
-              {ctx.horizon}
-            </p>
-          </div>
-        </div>
-
-        {/* Black figure block — protected notional leads, ETH downside companion, horizon secondary */}
-        <div className="cv-money-tile mx-5 rounded-[18px] bg-black p-4 text-white">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
-            ETH downside
-          </p>
-          <div className="mt-1 font-sans text-[32px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-white">
-            RM{notional.toLocaleString()}
-          </div>
-          <p className="mt-2 text-[12px] text-white/55">
-            {horizonValue} · planning context
-          </p>
-        </div>
-
-        {/* Labeled rows — risk goal, strategy status, review-before-trade */}
-        <dl className="space-y-1.5 px-5 pt-3 pb-3 text-sm">
-          {inRemittanceContext && remittanceContext && (
-            <div
-              data-testid="remittance-context-row"
-              className="flex items-center justify-between gap-3"
-            >
-              <dt className="text-neutral-500">Related transfer</dt>
-              <dd className="text-right text-neutral-700">
-                {remittanceContext.recipient}, {remittanceContext.city} · RM
-                {remittanceContext.amountMyr.toLocaleString()}.00
-              </dd>
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-neutral-500">Risk goal</dt>
-            <dd className="text-right text-neutral-700">
-              {result?.intent.kind === "strategy"
-                ? result.intent.strategy.name
-                : "Downside protection"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-neutral-500">Strategy status</dt>
-            <dd className="text-right text-neutral-700">
-              {result ? "Preview ready" : "Awaiting preview"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-neutral-500">Before trade</dt>
-            <dd className="text-right text-neutral-700">User review required</dd>
-          </div>
-        </dl>
-
-        {/* Goal input + primary action */}
-        <form onSubmit={submit} className="border-t border-black/8 px-5 pt-4 pb-4">
-          {/* Protected notional — client-side planning context, not a custody/execution claim */}
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <label
-              htmlFor="strategy-notional"
-              className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600"
-            >
-              Protected notional
-            </label>
-            <div className="flex items-center rounded-lg border border-black/10 bg-white px-2">
-              <span className="text-sm font-semibold text-neutral-500">RM</span>
-              <input
-                id="strategy-notional"
-                type="number"
-                inputMode="numeric"
-                min={MIN_NOTIONAL}
-                max={MAX_NOTIONAL}
-                step={100}
-                value={notional}
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  setNotional(next > 0 ? clampNotional(next) : MIN_NOTIONAL);
-                }}
-                className="w-28 bg-transparent px-1 py-1.5 text-sm font-semibold tabular-nums text-black outline-none"
-              />
-            </div>
-          </div>
-          <label htmlFor="strategy-goal" className="sr-only">
-            Strategy goal
-          </label>
-          <textarea
-            id="strategy-goal"
-            value={goal}
-            onChange={(event) => setGoal(event.target.value)}
-            maxLength={500}
-            rows={3}
-            placeholder="Protect my ETH downside for 30 days"
-            className="w-full resize-none rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm font-medium outline-none placeholder:text-black/35"
-          />
-          <button
-            type="submit"
-            disabled={pending || goal.trim().length === 0}
-            className="cv-btn-solid mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em] disabled:cursor-not-allowed disabled:bg-neutral-300"
-          >
-            {pending
-              ? "Reading market…"
-              : inRemittanceContext
-                ? "Preview ETH hedge"
-                : "Preview strategy"}
-          </button>
-
-          {/* Presets — compact edit disclosure, not a marketing chip cloud */}
-          <details className="mt-3">
-            <summary className="cursor-pointer select-none text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600">
-              Edit goal presets
-            </summary>
-            <div className="mt-2 flex flex-col gap-1.5">
-              {PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setGoal(preset)}
-                  className="min-h-11 w-full rounded-lg border border-black/8 bg-white px-3 py-2 text-left text-xs font-medium text-neutral-700 transition-colors hover:border-black/14 hover:bg-neutral-50"
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          </details>
-        </form>
-
-        {inRemittanceContext && (
-          <p
-            data-testid="remittance-context-disclosure"
-            className="border-t border-black/8 px-5 py-3 text-[11px] leading-5 text-neutral-500"
-          >
-            This educational preview is for an ETH position on Base. It does
-            not protect the MYR→PHP rate, guarantee Ana&rsquo;s payout, or
-            execute a trade.
-          </p>
-        )}
-
-        {/* Result — connected second state within the same card */}
-        {error && (
-          <div
-            role="alert"
-            className="border-t border-black/8 px-5 py-4 text-sm leading-6 text-neutral-700"
-          >
-            {error}
-          </div>
-        )}
-
-        {result?.intent.kind === "clarification" && (
-          <div className="border-t border-black/8 px-5 py-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500">
-              Clarification required
-            </p>
-            <p className="mt-2 text-base font-semibold tracking-[-0.01em] text-black">
-              {result.intent.message}
-            </p>
-          </div>
-        )}
-
-        {result?.intent.kind === "strategy" && (
-          <div className="border-t border-black/8 px-5 py-4">
-            <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500">
-              <span>{result.intent.asset}</span>
-              <span>·</span>
-              <span>
-                {result.intent.horizonDays
-                  ? `${result.intent.horizonDays} days`
-                  : "Horizon open"}
-              </span>
-            </div>
-            <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-black">
-              {result.intent.strategy.name}
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-700">
-              {result.intent.strategy.thesis}
-            </p>
-            <p className="mt-3 border-l-2 border-black pl-4 text-sm leading-6 text-neutral-600">
-              {result.intent.strategy.tradeoff}
-            </p>
-
-            {result.market?.status === "live" ? (
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-black p-4 text-white">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
-                    {result.intent.asset} spot
-                  </p>
-                  <p className="mt-2 text-xl font-semibold tabular-nums">
-                    ${result.market.prices[result.intent.asset]?.toLocaleString() ?? "—"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-black/10 bg-white p-4">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-black/40">
-                    OptionBook
-                  </p>
-                  <p className="mt-2 text-xl font-semibold tabular-nums">
-                    {result.market.orderCount} live orders
-                  </p>
-                </div>
-                <p className="col-span-2 text-[11px] leading-5 text-neutral-500">
-                  Live · Base mainnet
-                </p>
-              </div>
-            ) : result.market ? (
-              <div className="mt-4 rounded-xl border border-black/10 bg-white p-4">
-                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500">
-                  Market unavailable
-                </p>
-                <p className="mt-2 text-sm leading-6 text-neutral-600">
-                  {result.market.reason}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {/* Educational preview footer + data source disclosure */}
-        <div className="border-t border-black/8 px-5 py-3">
-          <p className="text-[11px] font-semibold text-black">Educational preview</p>
-          <p className="mt-1 text-[11px] leading-5 text-neutral-500">
-            Educational preview; you review before any trade. Not financial
-            advice.
-          </p>
-          {result?.market?.status === "live" && (
-            <details className="mt-2">
-              <summary className="cursor-pointer select-none text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500">
-                Data source
-              </summary>
-              <p className="mt-2 text-[11px] leading-5 text-neutral-500">
-                Live read via the Thetanuts Finance SDK{" "}
-                {result.market.sdkVersion} on Base mainnet.
-              </p>
-            </details>
-          )}
-        </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.86fr_1.14fr]">
+        <StrategyRequestPane
+          goal={goal}
+          inRemittanceContext={inRemittanceContext}
+          notional={notional}
+          payoffIntent={payoffIntent}
+          pending={pending}
+          remittanceContext={remittanceContext ?? null}
+          onGoalChange={updateGoal}
+          onNotionalChange={(next) => setNotional(clampNotional(next))}
+          onSubmit={submit}
+        />
+        <StrategyPayoffWorkspace
+          error={error}
+          intent={payoffIntent}
+          pending={pending}
+          refinementMessage={refinementMessage}
+        />
       </div>
+
+      {resolvedStrategy && (
+        <StrategyMarketContext
+          market={result?.market ?? null}
+          strategy={resolvedStrategy}
+        />
+      )}
+
+      {/* Family Watch — full-width below, only when this desk was opened from a
+          remittance deep-link. Standalone Protect has no declared family
+          obligation, so it never shows an empty dead-end Family Watch card. */}
+      {inRemittanceContext && (
+        <div className="mt-5">
+          <FamilyWatch brief={familyWatchBrief} />
+        </div>
+      )}
     </section>
   );
 }

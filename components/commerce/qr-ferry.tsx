@@ -448,7 +448,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     ? { eyebrow: "Quote carried", title: "Continue to Ana" }
     : imported
       ? { eyebrow: "Payment carried", title: "Review and pay" }
-      : { eyebrow: "Offline payment", title: "Pay offline" };
+      : { eyebrow: "Connected-device handoff", title: "Continue elsewhere" };
 
   return (
     <section className="cv-shell mx-auto w-full max-w-[760px] px-4 pt-5 md:pt-8">

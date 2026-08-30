@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useCurrentAccount, useCurrentNetwork } from "@mysten/dapp-kit-react";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
-import { hasValidAttestation } from "@/lib/remittance/transfer";
+import { resolveQuoteBlocker } from "@/lib/remittance/transfer";
 import {
   RemittanceQuotePreview,
-  type QuoteBlocker,
   type QuotePreviewStatus,
 } from "./remittance-quote-preview";
 import { RemittanceCheckoutDialog } from "./remittance-checkout-dialog";
@@ -26,17 +25,6 @@ const TERMINAL_STATUSES: ReadonlySet<QuotePreviewStatus> = new Set([
   "confirmed",
 ]);
 
-function resolveBlocker(
-  quote: QuoteEnvelope,
-  hasAccount: boolean,
-  network: string,
-): QuoteBlocker {
-  if (!quote.recipientAddress) return "unmapped";
-  if (!hasValidAttestation(quote.attestation)) return "unapproved";
-  if (!hasAccount) return "wallet";
-  return network === "testnet" ? "none" : "wrong-network";
-}
-
 export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
   const account = useCurrentAccount();
   const network = useCurrentNetwork();
@@ -45,7 +33,12 @@ export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [settlement, setSettlement] = useState<RemittanceSettlement | null>(null);
 
-  const blocker = resolveBlocker(quote, Boolean(account), network);
+  const blocker = resolveQuoteBlocker({
+    account: account?.address ?? null,
+    network,
+    recipientAddress: quote.recipientAddress,
+    attestation: quote.attestation,
+  });
   const isExecutable = blocker === "none";
 
   const openCheckout = () => {

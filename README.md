@@ -8,29 +8,18 @@
 
 <p align="center"><strong>Say it. Carry it across. Settle on Sui.</strong></p>
 
-Convey is one Ana-centered remittance journey. A spoken or typed request —
-`Send RM500 to Ana in Manila for rent, maximum RM600` — becomes a transparent
-MYR-to-PHP reference quote carrying a signed **Family Rule** (purpose and
-per-transfer maximum), then a guarded Sui testnet-USDC wallet transfer of USDC
-the wallet already holds. The exact signed quote can be carried by QR to a
-connected device, camera-scanned, server-verified, and explicitly approved
-before any USDC moves. An optional **ETH treasury preview** on Protect is
-related planning context only — it does not protect the MYR→PHP rate, guarantee
-Ana's payout, or execute a trade.
+Convey turns one plain-language request into one understandable family transfer.
+Say `Send RM500 to Ana in Manila for rent, maximum RM600`; Convey resolves the
+recipient and corridor, shows the complete reference cost, checks the request
+against the family rule, and asks the customer's wallet for one explicit
+approval. The exact quote can continue on another device, and a confirmed
+transfer keeps a portable receipt instead of losing the decision trail.
 
-The wallet transfer is **Sui testnet USDC already held by the wallet**. There is
-no MYR charge, live FX, bank payout, or payout completion in this build. Rates,
-fees, arrival estimates, and payout methods are reference information; on-chain
-confirmation never changes the separate **Awaiting payout partner** status into
-a completed fiat payout.
-
-> **Current status:** unaudited hackathon build. No public deployment is claimed.
-> Payment execution is restricted to Sui testnet. Native-SUI purchases are capped
-> at 100 SUI; remittance has separate MYR quote and USDC execution limits. No
-> live FX, fiat funding, bank payout, or captured USDC settlement is claimed.
-> The included environment template contains no value for `GONKA_ROUTER_API_KEY`,
-> so this checkout has no captured live Gonka request evidence yet. Demo receipts
-> are simulations, not chain transactions. Do not use real funds.
+The product is designed for people who should not need to understand seed
+phrases, token decimals, transaction builders, or AI routing to support family
+abroad. Google/Enoki onboarding and extension wallets converge on the same
+customer-controlled approval. AI interprets the request; deterministic policy
+decides whether it is safe to prepare; only the wallet can authorize value.
 
 <p align="center">
   <img src="docs/screenshots/convey-desktop.png" alt="Convey desktop interface" width="820" />
@@ -40,77 +29,61 @@ a completed fiat payout.
   <img src="docs/screenshots/convey-mobile.png" alt="Convey mobile interface" width="300" />
 </p>
 
-## Demo path — one Ana journey
+## One family-transfer journey
 
-The demo is a single coherent journey, not a list of separate screens. Each
-step keeps three facts visibly separate: the **quote is verified**, the
-**carried transaction ID is not checked on Sui**, and the **fiat payout is
-still pending**.
+1. **Sign in simply.** Use Google through Enoki or an installed Sui wallet. The
+   customer still controls every approval.
+2. **Say who, how much, and why.** Voice and text share the same typed intent
+   boundary. GonkaRouter can interpret mixed-language input; deterministic
+   parsing remains the honest fallback.
+3. **Review the complete quote.** See the source amount, reference fee and
+   rate, expected recipient amount, payout method, expiry, and Family Rule.
+4. **Pass Transfer checks.** Family Guardian checks the pinned recipient,
+   corridor, quote freshness, stated purpose and limit, and whether wallet
+   approval is possible. These are pre-approval checks, not a safety guarantee.
+5. **Approve here or continue elsewhere.** The connected wallet approves the
+   exact bounded Sui transaction. Alternatively, carry the exact signed quote
+   by QR to another connected device and run the same checks there. Carrying a
+   quote never moves funds.
+6. **Keep the receipt.** A confirmed transfer can be reopened, shared, or
+   exported. Receipt structure, quote binding, Sui settlement, and fiat payout
+   remain separate states so one cannot silently stand in for another.
 
-1. **Request.** Open **Pay** (`/`) and enter
-   `Send RM500 to Ana in Manila for rent, maximum RM600`. Speak it or type it;
-   the same text reaches the intent endpoint.
-2. **Quote.** Inspect the MYR amount, itemized reference fees, PHP estimate,
-   exact USDC amount, destination, quote expiry (10 minutes by default), and
-   the **Family Rule** row (purpose and within-limit status). The quote carries
-   a server-held HMAC seal. None of this is a live FX or payout promise.
-3. **Wallet or carry.** Without a mapped recipient, attestation, and connected
-   testnet wallet, the flow stays **Prepared — not submitted**. With the
-   required testnet setup, approve the exact USDC transfer in the wallet. To
-   move the quote to another device instead, choose **Carry to another device**
-   from the ticket to render a QR of the signed quote envelope, then on a
-   connected device open **Pay offline** (`/qr-ferry`), tap **Scan QR**, and
-   let the camera feed the payload into the same strict import discrimination.
-   The carried quote opens a **Quote carried — Not paid yet** review card that
-   re-runs connected verification (attestation, recipient, corridor, amount,
-   expiry) before your wallet opens. No funds move during the carry.
-4. **Confirmed receipt.** After a confirmed testnet transfer, inspect the
-   receipt's **Rule verified** row separately from the **Awaiting payout
-   partner** status. The receipt binds the carried transaction digest, explorer
-   URL, recipient, USDC amount, beneficiary reference, quote expiry, payout
-   status, and Family Rule fields back to the signed quote. The digest is
-   carried in by the receipt; it is not independently queried from Sui here.
-5. **Share / Export.** From a confirmed remittance settlement receipt, use
-   **Copy share link** (encodes the receipt in a `/proof?r=…` URL) or
-   **Export proof** (downloads the receipt JSON). Share and export appear only
-   after confirmation — an unconfirmed quote is explicitly not a receipt.
-6. **Reopened Verify.** Open **Verify** (`/proof`) and paste a native-SUI
-   commerce receipt or a confirmed remittance settlement receipt (or open a
-   shared link). Verify reports strict local structural findings and
-   settlement-to-quote binding, re-checks the remittance quote attestation
-   server-side (including historical evidence mode for an expired-but-genuine
-   quote), and states explicitly that no Sui ledger query was made. The
-   remittance evidence panel labels the digest **Carried transaction ID · not
-   checked on Sui** and keeps **Awaiting payout partner** separate from
-   on-chain confirmation.
-7. **Optional ETH context.** From the quote ticket, open **Protect**
-   (`/strategy`) via the linked ETH-treasury preview. It shows an educational
-   ETH position preview on Base/Thetanuts market data, clearly labelled as not
-   protecting the MYR→PHP rate, not guaranteeing Ana's payout, and not executing
-   a trade.
+**Treasury is separate.** The optional `/strategy` workspace maps an explicitly
+declared ETH or BTC treasury goal to a conceptual payoff shape and read-only
+market context. It does not hedge the MYR→PHP rate, protect Ana's payout, choose
+a contract, or submit a trade.
 
-## Why Convey
+## What works now — and what still needs a partner
 
-Conversational checkout is useful only if language cannot silently become wallet
-authority. Convey separates understanding, policy, approval, signing, and proof:
+| Works in this repository | Still required for a complete production transfer |
+| --- | --- |
+| Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
+| Integer-only reference quote, expiring server attestation, Family Rule binding, and Family Guardian pre-approval checks | Production pricing and independent recipient/payout-provider verification |
+| Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
+| Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
+| Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
+| Result-oriented portable receipts with local structure and quote-binding checks | Independent Sui ledger verification and separate fiat-payout evidence |
+| Conceptual ETH/BTC payoff workspace and read-only market context | Contract selection, allowance, signer, pricing, and a real Thetanuts fill |
 
-1. A voice transcript or typed message is submitted as text.
-2. GonkaRouter can interpret the mixed-language remittance request when
-   configured; strict candidate schema and deterministic rebind/policy remain
-   authoritative; an honest local fallback is used otherwise.
-3. Deterministic code checks monetary bounds, recipients, the Family Rule
-   (purpose and per-transfer maximum), and corridor support.
-4. A failed or rejected Gonka candidate falls back to deterministic parsing and
-   labels that fallback honestly. A remittance quote must pass a separate server
-   attestation-verification step before it can authorize transaction building.
-5. The customer reviews the proposed action before final payment confirmation.
-6. Client code builds the bounded transaction; only the connected wallet signs
-   and submits it. The server holds no Sui wallet signer.
-7. A remittance receipt requires a confirmed testnet transfer. Without execution
-   prerequisites, the state is **Prepared — not submitted**, with no fake digest.
+This is an unaudited testnet build. Reference MYR/PHP figures do not collect or
+disburse fiat, a carried digest is not yet an independent Sui ledger lookup, and
+no screen should be used as proof that Ana received a bank payout. Do not use
+real funds.
 
-Raw language therefore never produces transaction bytes, an authoritative
-recipient address, a signature, or a settlement digest.
+## Why the boundary matters
+
+Conversational finance is useful only if language cannot become authority.
+Convey separates understanding, policy, review, approval, signing, settlement,
+and payout:
+
+1. AI proposes typed intent; it never receives a key or signing capability.
+2. Deterministic code resolves recipient, corridor, asset, amount, expiry, and
+   Family Rule before transaction preparation.
+3. The customer sees the complete proposal before the wallet opens.
+4. Only the connected wallet can sign and submit the bounded transaction.
+5. A receipt records observed state without upgrading a quote, digest, or
+   on-chain confirmation into unsupported fiat payout.
 
 ## What is implemented
 
@@ -242,7 +215,7 @@ River Cafe native-SUI commerce remains its own flow.
   the customer surface says **Not submitted** or **Preview — no on-chain
   settlement**. This is not the remittance path and never proves payment.
 
-### Pay offline — offline commerce handoff
+### Continue elsewhere — cross-device handoff
 
 The `/qr-ferry` flow transports a native-SUI commerce purchase intent across an
 air gap. It does not authorize payment.
@@ -266,7 +239,7 @@ registry. Production use needs an on-chain nonce registry or trusted sponsor
 index. The commerce QR envelope remains checksum/device-local replay and is
 distinct from the signed-quote remittance handoff wrapper.
 
-### Verify — Portable receipt proof
+### Receipts — portable transfer evidence
 
 `/proof` accepts pasted JSON, an imported file, or a self-contained URL-safe
 payload produced by a native-SUI commerce settlement card or a confirmed Sui
@@ -298,7 +271,7 @@ any validation runs, then checks each kind with its own strict rules.
 
 #### Evidence ladder
 
-Verify presents evidence in a strict, ordered ladder. Each rung is labelled
+Receipts presents evidence in a strict, ordered ladder. Each rung is labelled
 honestly; a lower rung is never worded as a higher one.
 
 | Rung | What is actually checked | Where | Honest label |
@@ -311,7 +284,7 @@ honestly; a lower rung is never worded as a higher one.
 
 #### Exact boundaries
 
-- **Local checks are schema and cross-field only.** Verify never calls the Sui
+- **Local checks are schema and cross-field only.** Receipts never calls the Sui
   RPC, never reads transaction status, and never resolves a digest against the
   ledger. A well-formed real receipt is not the same as proof that its
   transaction exists or succeeded on-chain.
@@ -325,14 +298,14 @@ honestly; a lower rung is never worded as a higher one.
   returns an executable authorization for an expired quote.
 - **A carried transaction ID is not chain verification.** The digest on a
   remittance receipt was captured at finality and is carried in by the receipt;
-  Verify does not re-confirm it against Sui.
+  Receipts does not re-confirm it against Sui.
 - **On-chain confirmation is not payout.** A confirmed testnet USDC transfer
   keeps **Awaiting payout partner** until a real payout integration provides
-  separate evidence. Verify never claims bank payout completion.
+  separate evidence. Receipts never claims bank payout completion.
 
-### Protect — Read-only ETH treasury preview
+### Treasury — conceptual payoff planning
 
-`/strategy` maps a plain-language ETH or BTC risk goal to an educational
+`/strategy` maps a plain-language ETH or BTC risk goal to a conceptual
 protective put, covered call, or collar, then requests market/order data through
 `@thetanuts-finance/thetanuts-client@0.3.0` on Base mainnet.
 
@@ -347,6 +320,11 @@ protective put, covered call, or collar, then requests market/order data through
   an explicit disclosure state that the preview is for an ETH position on Base,
   does not protect the MYR→PHP rate, does not guarantee Ana's payout, and does
   not execute a trade.
+- **Family Watch** appears only when the workspace has declared remittance
+  context. That context alone never implies ETH backing. A protective-put
+  suggestion requires an explicit resolved ETH downside or collar goal plus
+  qualifying live put evidence; otherwise the card reports only the available
+  obligation and market context.
 
 The Strategy Desk is intentionally read-only. It does **not** request a quote,
 approve tokens, connect a Base signer, select a contract, or submit a trade. It
@@ -369,9 +347,9 @@ is therefore not a trade-complete options integration.
 | Route | Purpose | Network / authority |
 | --- | --- | --- |
 | `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
-| `/qr-ferry` — **Pay offline** | Carry a signed remittance quote by QR, or transport an offline commerce intent | Envelope work is local; settlement still requires connection and wallet approval |
-| `/strategy` — **Protect** | Educational ETH treasury preview and market evidence | Server-side read-only Base SDK calls; no trade execution |
-| `/proof` — **Verify** | Paste, import, or open a native-SUI commerce receipt or a confirmed remittance settlement receipt | Local schema + cross-field binding; server quote re-check (incl. historical evidence mode); no Sui ledger query; no payout proof |
+| `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
+| `/strategy` — **Treasury** | Map an explicit ETH/BTC treasury goal to a conceptual payoff shape and read-only market context | Server-side read-only Base SDK calls; no pricing, contract selection, or trade execution |
+| `/proof` — **Receipts** | Open or import a native-SUI commerce receipt or confirmed remittance settlement receipt | Customer result first; local schema + cross-field binding and server quote re-check under advanced details; no Sui ledger query or payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
@@ -403,32 +381,32 @@ flowchart TB
     Request --> Interpret --> Rebind --> Quote --> Review --> Wallet --> Receipt
   end
 
-  subgraph Carry["Pay offline"]
+  subgraph Carry["Continue elsewhere"]
     Qr["Carry signed quote by QR"]
     Scan["Camera scan on connected device"]
-    Verify["Connected verify before approval"]
-    Qr --> Scan --> Verify
+    QuoteCheck["Connected verify before approval"]
+    Qr --> Scan --> QuoteCheck
   end
 
-  subgraph Protect["Protect"]
-    Eth["Optional ETH treasury preview"]
+  subgraph Protect["Treasury"]
+    Eth["Explicit ETH or BTC treasury goal"]
   end
 
-  subgraph Verify["Verify"]
-    Proof["Commerce receipt inspection"]
-    Remit["Remittance receipt + quote re-check"]
+  subgraph ReceiptsArea["Receipts"]
+    ReceiptReview["Receipt inspection"]
+    ReceiptEvidence["Quote and settlement evidence"]
+    ReceiptReview --> ReceiptEvidence
   end
 
   Customer --> Pay
   Quote --> Qr
-  Verify --> Wallet
-  Review --> Eth
-  Customer --> Proof
-  Receipt --> Remit
+  QuoteCheck --> Wallet
+  Customer --> Eth
+  Receipt --> ReceiptReview
 ```
 
-Only Pay and a verified Pay offline handoff can reach wallet approval. Protect
-and Verify are read-only; neither obtains wallet authority. Verify inspects both
+Only Pay and a verified cross-device handoff can reach wallet approval. Treasury
+and Receipts are read-only; neither obtains wallet authority. Receipts inspects both
 commerce receipts and confirmed remittance receipts, re-checks the remittance
 quote attestation server-side, and never queries the Sui ledger.
 
@@ -462,16 +440,16 @@ deterministic parsing with honest local provenance.
 sequenceDiagram
   autonumber
   actor Customer
-  participant Offline as Offline device
+  participant Source as Source device
   participant Qr as Signed quote QR
   participant Connected as Connected device
   participant Verify as Quote verify API
   participant Wallet as Customer wallet
   participant Sui as Sui testnet
 
-  Customer->>Offline: Get signed quote on Pay
-  Offline->>Qr: Carry quote envelope by QR
-  Customer->>Connected: Open Pay offline and Scan QR
+  Customer->>Source: Get signed quote on Pay while connected
+  Source->>Qr: Carry stored quote without a network
+  Customer->>Connected: Open Continue elsewhere and Scan QR
   Connected->>Connected: Discriminate kind and decode handoff
   Connected->>Verify: Verify attestation recipient amount rule expiry
   Verify-->>Connected: Verified or rejected
@@ -497,8 +475,8 @@ endpoint remain authoritative.
 flowchart TB
   subgraph Browser["Browser / PWA"]
     UI["Product surfaces"]
-    Pay["Pay and verified Pay offline handoff"]
-    ReadOnly["Protect and Verify"]
+    Pay["Pay and verified cross-device handoff"]
+    ReadOnly["Treasury and Receipts"]
     Confirm["Customer confirmation gates"]
     SuiWallet["Sui wallet"]
     Camera["Camera scanner"]
@@ -698,12 +676,12 @@ Additional boundaries:
    wallet. Inspect the receipt's **Rule verified** row and the separate
    **Awaiting payout partner** status.
 5. To carry the quote, choose **Carry quote** from the ticket, then on a
-   connected device open **Pay offline**, tap **Scan QR**, and let the camera
+   connected device open **Continue elsewhere**, tap **Scan QR**, and let the camera
    feed the payload into the same strict import discrimination. The carried
    quote opens a review card that re-runs connected verification before your
    wallet opens.
 
-### Buy nearby, Pay offline, and Verify
+### Buy nearby, cross-device handoff, and Receipts
 
 1. **Choose Buy nearby.** Language can propose a purchase, but cannot sign one.
 2. **Use the product.** Say or type
@@ -713,12 +691,13 @@ Additional boundaries:
 3. **Show controlled settlement.** Confirm inline, review again, then
    confirm payment. In zero-setup mode, point to the `DEMO-…` receipt, explicit
    no-chain label, and absent explorer link.
-4. **Verify the proof.** Open **Verify** (`/proof`); show strict local
+4. **Review the receipt.** Open **Receipts** (`/proof`); show the customer result
+   first, then strict local
    evidence and the statement that no chain query was made.
-5. **Cross the air gap.** Open **Pay offline** (`/qr-ferry`), generate and
+5. **Cross the air gap.** Open **Continue elsewhere** (`/qr-ferry`), generate and
    import the commerce envelope, then show duplicate nonce or checksum-tamper
    rejection. The camera scanner starts only on an explicit **Scan QR** tap.
-6. **Show extensibility without overclaiming.** Open **Protect**
+6. **Show extensibility without overclaiming.** Open **Treasury**
    (`/strategy`); show educational mapping and SDK source/chain evidence or its
    honest unavailable state. State clearly that it is read-only and submits no
    Base trade.
@@ -754,9 +733,9 @@ complete track submission.
 ```text
 app/
   page.tsx                     Pay workspace: Send abroad / Buy nearby
-  qr-ferry/page.tsx            Pay offline: signed-quote carry and commerce handoff
+  qr-ferry/page.tsx            Continue elsewhere: signed-quote carry and commerce handoff
   proof/page.tsx               portable local receipt verifier
-  strategy/page.tsx            educational ETH treasury preview desk
+  strategy/page.tsx            conceptual ETH/BTC treasury payoff workspace
   offline/page.tsx             PWA navigation fallback
   api/commerce/intent/route.ts Gonka commerce route + deterministic fallback
   api/remittance/quote/route.ts reference quote + optional Gonka interpretation + attestation
