@@ -3,9 +3,11 @@ import {
   QuoteEnvelopeSchema,
   CanonicalAuthorizationSchema,
   VerifyRejectedSchema,
+  EvidenceVerifiedSchema,
   isExpired,
   type QuoteEnvelope,
   type VerifyRejected,
+  type EvidenceVerified,
 } from "@/lib/remittance/quote-schema";
 import {
   resolveRemittanceConfig,
@@ -32,9 +34,20 @@ import {
  * mismatched attestation, an expired quote, or an unmapped recipient returns a
  * 200 with `kind: "rejected"` and a safe reason. No secret, signature, or
  * HMAC implementation detail is exposed in the response.
+ *
+ * Historical evidence mode (`?evidence=1`): skips the expiry rejection. When
+ * the attestation, recipient mapping, corridor, and config binding all verify
+ * but the quote is expired, returns `kind: "evidence"` with an explicit note
+ * that the quote cannot authorize a transfer. This lets a receipt inspector
+ * truthfully present "signed/verified authorization" wording for historical
+ * evidence without ever turning an expired quote into an executable
+ * authorization. An unexpired quote that verifies still returns
+ * `kind: "authorization"`.
  */
 
 export async function POST(req: Request) {
+  const evidenceMode = new URL(req.url, "http://localhost").searchParams.get("evidence") === "1";
+
   let body: unknown;
   try {
     body = await req.json();
@@ -65,8 +78,14 @@ export async function POST(req: Request) {
     );
   }
 
-  // Enforce expiry before anything else.
-  if (isExpired(envelope.expiresAt, Date.now())) {
+  const expired = isExpired(envelope.expiresAt, Date.now());
+
+  // Enforce expiry before anything else — UNLESS historical evidence mode is
+  // explicitly requested. Evidence mode still verifies the attestation and
+  // binding below; it only relaxes the expiry gate so an expired-but-genuine
+  // quote can be confirmed as historical evidence. It NEVER returns an
+  // executable authorization for an expired quote.
+  if (expired && !evidenceMode) {
     return NextResponse.json(
       { kind: "rejected", reason: "expired" } satisfies VerifyRejected,
       { status: 200 },
@@ -126,6 +145,28 @@ export async function POST(req: Request) {
     );
   }
 
+  // Historical evidence mode: an expired-but-genuine quote returns evidence,
+  // never an executable authorization. An unexpired quote that verifies still
+  // returns the canonical authorization so the normal Pay flow is unaffected.
+  if (expired && evidenceMode) {
+    const evidence: EvidenceVerified = {
+      kind: "evidence",
+      expired: true,
+      recipientAddress: envelope.recipientAddress,
+      beneficiaryRef: envelope.beneficiaryRef,
+      expiresAt: envelope.expiresAt,
+      note: "Quote verified as a historical record. The quote has expired and can no longer be used for payment.",
+    };
+    const evidenceResult = EvidenceVerifiedSchema.safeParse(evidence);
+    if (!evidenceResult.success) {
+      return NextResponse.json(
+        { kind: "rejected", reason: "invalid_envelope" } satisfies VerifyRejected,
+        { status: 200 },
+      );
+    }
+    return NextResponse.json(evidenceResult.data, { status: 200 });
+  }
+
   // Reduce to the minimal canonical authorization.
   const auth = toAuthorization(envelope, USDC_COIN_TYPE_TESTNET);
 
@@ -141,5 +182,5 @@ export async function POST(req: Request) {
   return NextResponse.json(authResult.data, { status: 200 });
 }
 
-export type { VerifyRejected };
-export { VerifyRejectedSchema };
+export type { VerifyRejected, EvidenceVerified };
+export { VerifyRejectedSchema, EvidenceVerifiedSchema };

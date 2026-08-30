@@ -203,6 +203,33 @@ export const VerifyRejectedSchema = z.strictObject({
 
 export type VerifyRejected = z.infer<typeof VerifyRejectedSchema>;
 
+/**
+ * Historical evidence verification result. Returned by
+ * `/api/remittance/quote/verify?evidence=1` when a quote's attestation,
+ * recipient mapping, corridor, and config binding all verify, but the quote
+ * is expired. This NEVER authorizes execution — it only confirms the quote
+ * was genuinely attested by the server, so a receipt inspector can present
+ * "signed/verified authorization" wording truthfully for historical
+ * evidence. The `expired` field is always true when this is returned; an
+ * unexpired quote that verifies returns `kind: "authorization"` instead.
+ */
+export const EvidenceVerifiedSchema = z.strictObject({
+  kind: z.literal("evidence"),
+  expired: z.literal(true),
+  /** The canonical recipient address the attestation was bound to. */
+  recipientAddress: z.string().regex(/^0x[0-9a-fA-F]{1,64}$/).max(66),
+  /** The beneficiary reference bound into the attestation. */
+  beneficiaryRef: z.string().regex(/^R-[A-Z0-9]{8}$/),
+  /** The quote expiry timestamp that has passed. */
+  expiresAt: z.number().int().finite().safe(),
+  /** Honest boundary: this does not authorize execution. */
+  note: z.literal(
+    "Quote verified as a historical record. The quote has expired and can no longer be used for payment.",
+  ),
+});
+
+export type EvidenceVerified = z.infer<typeof EvidenceVerifiedSchema>;
+
 export function isExpired(expiresAt: number, now: number): boolean {
   if (!Number.isSafeInteger(expiresAt) || !Number.isSafeInteger(now)) return true;
   return now >= expiresAt;

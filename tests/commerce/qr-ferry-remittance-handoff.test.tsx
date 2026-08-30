@@ -219,7 +219,7 @@ describe("Pay Offline — remittance quote import", () => {
     expect(screen.getAllByText("Quote carried").length).toBeGreaterThan(0);
     expect(screen.getByText("Not paid yet")).toBeInTheDocument();
     expect(
-      screen.getByText(/Connected verification checks the attestation, recipient, corridor, amount, and expiry before your wallet opens/i),
+      screen.getByText(/Before your wallet opens, we check the recipient, amount, expiry, and server seal on this quote/i),
     ).toBeInTheDocument();
     // The carried quote is the whole page: scanner, manual controls, and the
     // creator are hidden; no raw handoff JSON remains visible.
@@ -318,6 +318,52 @@ describe("Pay Offline — remittance quote import", () => {
       expect(screen.getAllByTestId("remittance-settlement").length).toBeGreaterThan(0);
     });
     expect(screen.getAllByText(/Awaiting payout partner/i).length).toBeGreaterThan(0);
+    // Confirmed-only receipt actions appear exactly once after settlement is
+    // confirmed. The in-dialog payment action suppresses its copy; the handoff
+    // settlement card is the single source.
+    expect(screen.getAllByTestId("remittance-receipt-actions")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Share receipt/i })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Export receipt/i })).toHaveLength(1);
+  });
+
+  it("does not expose receipt actions for a carried quote before settlement", () => {
+    const quote = baseQuote();
+    const json = encodeHandoff(wrapQuote(quote));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => jsonResponse(matchingAuth(quote))),
+    );
+    render(<QrFerry />);
+    openManual();
+    fireEvent.change(screen.getByPlaceholderText(/Paste payment code/i), {
+      target: { value: json },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
+    // The handoff card is shown but no settlement has occurred yet.
+    expect(screen.getByTestId("remittance-handoff-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("remittance-receipt-actions")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Share receipt/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Export receipt/i })).not.toBeInTheDocument();
+  });
+
+  it("hides edit/refresh affordances for a carried quote — only scan another is offered", () => {
+    const quote = baseQuote();
+    const json = encodeHandoff(wrapQuote(quote));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => jsonResponse(matchingAuth(quote))),
+    );
+    render(<QrFerry />);
+    openManual();
+    fireEvent.change(screen.getByPlaceholderText(/Paste payment code/i), {
+      target: { value: json },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
+    // The carried quote is not editable — no edit or refresh controls.
+    expect(screen.queryByTestId("edit-transfer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("refresh-quote")).not.toBeInTheDocument();
+    // The honest "Scan another" action is present outside the card.
+    expect(screen.getByTestId("scan-another")).toBeInTheDocument();
   });
 
   it("a commerce QR Ferry payload still imports through the existing path (no remittance card)", () => {

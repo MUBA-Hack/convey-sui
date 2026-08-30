@@ -24,6 +24,7 @@ import {
 } from "@/lib/remittance/transfer";
 import { formatUsdcGrouped } from "@/lib/remittance/money";
 import { formatMyr } from "@/lib/remittance/quote";
+import { RemittanceReceiptActions } from "./remittance-receipt-actions";
 import {
   CanonicalAuthorizationSchema,
   isExpired,
@@ -54,6 +55,13 @@ export interface RemittancePaymentActionProps {
    * / settlement). Default false keeps the standalone behavior intact.
    */
   summaryMode?: boolean;
+  /**
+   * When true, the confirmed-settlement card omits the Share/Export receipt
+   * actions. Used by the offline handoff flow, where the parent handoff card
+   * renders its own receipt actions for the same settlement — preventing
+   * duplicate Share/Export controls when both surfaces are mounted.
+   */
+  suppressReceiptActions?: boolean;
   onCancel?: () => void;
   onSettled?: (result: RemittanceSettlement) => void;
   onPendingChange?: (pending: boolean) => void;
@@ -73,6 +81,12 @@ export interface RemittanceSettlement {
   purpose: string | null;
   /** Verified family-rule max cap in minor MYR, or null. */
   maximumFamilyLimitMinor: string | null;
+  /**
+   * Epoch ms at which the on-chain settlement was confirmed (finality success
+   * observed). Bound once at confirmation so repeated share/export of the
+   * receipt produces identical evidence, not a new timestamp per share.
+   */
+  confirmedAt: number;
 }
 
 export type RemittanceTerminalState =
@@ -107,6 +121,7 @@ type Status =
 export function RemittancePaymentAction({
   quote,
   summaryMode = false,
+  suppressReceiptActions = false,
   onCancel,
   onSettled,
   onPendingChange,
@@ -297,6 +312,9 @@ export function RemittancePaymentAction({
           payoutStatus: "Awaiting payout partner",
           purpose: auth.purpose,
           maximumFamilyLimitMinor: auth.maximumFamilyLimitMinor,
+          // Bound once at confirmation so repeated share/export produces
+          // identical evidence, not a new timestamp per share.
+          confirmedAt: Date.now(),
         };
         setSettlement(real);
         setStatus("confirmed");
@@ -494,6 +512,16 @@ export function RemittancePaymentAction({
               )}
             </dl>
           </div>
+          {/* Confirmed-only receipt actions — share/export a tamper-evident
+              receipt ONLY after a real testnet settlement is confirmed. The
+              receipt is built from the verified quote and the captured
+              settlement evidence, then validated against the strict receipt
+              schema. No signature or authorization is implied. Suppressed
+              when a parent (e.g. the offline handoff card) renders its own
+              receipt actions for the same settlement. */}
+          {!suppressReceiptActions && (
+            <RemittanceReceiptActions quote={quote} settlement={settlement} />
+          )}
         </div>
       )}
 

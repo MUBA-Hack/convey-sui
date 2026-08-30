@@ -107,7 +107,7 @@ export const DEFAULT_CONFIG = {
   feeBps: 150, // 1.5%
   maxSendMyr: 100_000n, // 1 000 MYR
   minSendMyr: 100n, // 1 MYR
-  quoteTtlMs: 120_000, // 2 minutes
+  quoteTtlMs: 600_000, // 10 minutes
   usdcCoinType: USDC_COIN_TYPE_TESTNET,
   usdcDecimals: USDC_DECIMALS,
   estimatedArrival: "Within minutes after on-chain confirmation",

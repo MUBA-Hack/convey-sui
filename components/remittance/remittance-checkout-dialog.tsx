@@ -48,6 +48,13 @@ export interface RemittanceCheckoutDialogProps {
   onPaymentCancel?: () => void;
   /** Propagate a terminal-for-retry state to the parent so it cannot reopen. */
   onTerminal?: (state: RemittanceTerminalState) => void;
+  /**
+   * When true, the in-dialog payment action omits its Share/Export receipt
+   * actions. Used by the offline handoff flow, where the parent handoff card
+   * renders its own receipt actions for the same settlement — preventing
+   * duplicate Share/Export controls when both surfaces are mounted.
+   */
+  suppressReceiptActions?: boolean;
 }
 
 export function RemittanceCheckoutDialog({
@@ -57,6 +64,7 @@ export function RemittanceCheckoutDialog({
   onSettled,
   onPaymentCancel,
   onTerminal,
+  suppressReceiptActions = false,
 }: RemittanceCheckoutDialogProps) {
   const [paymentPending, setPaymentPending] = useState(false);
   // Whether the payment action is in a terminal-for-retry state. While true,
@@ -193,6 +201,7 @@ export function RemittanceCheckoutDialog({
           <RemittancePaymentAction
             quote={quote}
             summaryMode
+            suppressReceiptActions={suppressReceiptActions}
             onCancel={() => {
               onPaymentCancel?.();
               onOpenChange(false);

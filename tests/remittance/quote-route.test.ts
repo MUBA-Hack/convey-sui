@@ -417,8 +417,8 @@ describe("POST /api/remittance/quote — unsafe env ints", () => {
     const res = await POST(postReq(GOLDEN_EN));
     const body = await res.json();
     expect(body.kind).toBe("quote");
-    // Default TTL is 120000.
-    expect(body.expiresAt - body.issuedAt).toBe(120_000);
+    // Default TTL is 600000 (10 minutes).
+    expect(body.expiresAt - body.issuedAt).toBe(600_000);
   });
 
   it("falls back to defaults when fee bps is above 10000", async () => {
@@ -624,5 +624,86 @@ describe("POST /api/remittance/quote/verify — fail closed", () => {
     expect(json).not.toContain(SECRET);
     expect(json.toLowerCase()).not.toContain("hmac");
     expect(json.toLowerCase()).not.toContain("signature");
+  });
+
+  it("evidence mode accepts an expired-but-genuine quote and never authorizes execution", async () => {
+    vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", JSON.stringify({ ana: ADDR_ANA }));
+    vi.stubEnv("REMITTANCE_QUOTE_SIGNING_KEY_HEX", SECRET);
+    vi.stubEnv("REMITTANCE_QUOTE_TTL_MS", "10000");
+    const quote = await getQuote(GOLDEN_EN);
+    // Fast-forward time past expiry.
+    const realNow = Date.now;
+    const future = (quote.expiresAt as number) + 1000;
+    Date.now = vi.fn(() => future) as unknown as () => number;
+    try {
+      const { POST: verifyPost } = await import("@/app/api/remittance/quote/verify/route");
+      const evidenceReq = new Request(
+        "http://localhost/api/remittance/quote/verify?evidence=1",
+        {
+          method: "POST",
+          body: JSON.stringify(quote),
+          headers: { "content-type": "application/json" },
+        },
+      );
+      const res = await verifyPost(evidenceReq);
+      const body = await res.json();
+      // Evidence mode returns kind: "evidence" — never "authorization".
+      expect(body.kind).toBe("evidence");
+      expect(body.expired).toBe(true);
+      expect(body.recipientAddress).toBe(ADDR_ANA);
+      expect(body.beneficiaryRef).toMatch(/^R-[A-Z0-9]{8}$/);
+      // The note must explicitly state the quote cannot authorize a transfer.
+      expect(body.note).toMatch(/can no longer be used for payment/i);
+      // No execution fields leak into the evidence response.
+      expect(body.usdcMicro).toBeUndefined();
+      expect(body.coinType).toBeUndefined();
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it("evidence mode still rejects an unattested quote (no false evidence)", async () => {
+    vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", JSON.stringify({ ana: ADDR_ANA }));
+    // No signing key — attestation cannot verify.
+    const quote = await getQuote(GOLDEN_EN);
+    const realNow = Date.now;
+    const future = (quote.expiresAt as number) + 1000;
+    Date.now = vi.fn(() => future) as unknown as () => number;
+    try {
+      const { POST: verifyPost } = await import("@/app/api/remittance/quote/verify/route");
+      const evidenceReq = new Request(
+        "http://localhost/api/remittance/quote/verify?evidence=1",
+        {
+          method: "POST",
+          body: JSON.stringify(quote),
+          headers: { "content-type": "application/json" },
+        },
+      );
+      const res = await verifyPost(evidenceReq);
+      const body = await res.json();
+      expect(body.kind).toBe("rejected");
+      expect(body.reason).toBe("unverified");
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it("evidence mode returns authorization for an unexpired quote (normal Pay flow unaffected)", async () => {
+    vi.stubEnv("REMITTANCE_RECIPIENTS_JSON", JSON.stringify({ ana: ADDR_ANA }));
+    vi.stubEnv("REMITTANCE_QUOTE_SIGNING_KEY_HEX", SECRET);
+    const quote = await getQuote(GOLDEN_EN);
+    const { POST: verifyPost } = await import("@/app/api/remittance/quote/verify/route");
+    const evidenceReq = new Request(
+      "http://localhost/api/remittance/quote/verify?evidence=1",
+      {
+        method: "POST",
+        body: JSON.stringify(quote),
+        headers: { "content-type": "application/json" },
+      },
+    );
+    const res = await verifyPost(evidenceReq);
+    const body = await res.json();
+    // Unexpired quote still returns authorization even with evidence=1.
+    expect(body.kind).toBe("authorization");
   });
 });

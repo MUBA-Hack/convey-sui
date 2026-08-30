@@ -518,6 +518,10 @@ describe("RemittanceChat — confirmation gate", () => {
       screen.queryByRole("button", { name: /Review testnet transfer/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("remittance-digest")).not.toBeInTheDocument();
+    // No receipt actions for an unconfirmed quote.
+    expect(screen.queryByTestId("remittance-receipt-actions")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Share receipt/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Export receipt/i })).not.toBeInTheDocument();
   });
 
   it("on a real digest, the inline preview is confirmed and shows the settlement", async () => {
@@ -551,6 +555,10 @@ describe("RemittanceChat — confirmation gate", () => {
       VALID_DIGEST,
     );
     expect(within(dialog).getByRole("link", { name: /SuiScan/i })).toBeInTheDocument();
+    // Confirmed-only receipt actions appear after settlement is confirmed.
+    expect(within(dialog).getByTestId("remittance-receipt-actions")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /Share receipt/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /Export receipt/i })).toBeInTheDocument();
     // The originating preview is confirmed: its Review testnet transfer gate is gone.
     expect(
       screen.queryByRole("button", { name: /Review testnet transfer/i }),

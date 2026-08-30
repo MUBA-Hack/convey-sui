@@ -106,6 +106,10 @@ describe("buildQuote — RM500 golden path (default reference pricing)", () => {
     }
   });
 
+  it("default quoteTtlMs is 10 minutes (600_000 ms)", () => {
+    expect(DEFAULT_CONFIG.quoteTtlMs).toBe(600_000);
+  });
+
   it("provenance is labelled reference, never live, with the rate integers", () => {
     if (q.kind === "quote") {
       expect(q.provenance.pricing).toBe("reference");

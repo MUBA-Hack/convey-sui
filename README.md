@@ -62,9 +62,12 @@ a completed fiat payout.
    ETH position preview on Base/Thetanuts market data, clearly labelled as not
    protecting the MYR→PHP rate, not guaranteeing Ana's payout, and not executing
    a trade.
-6. **Verify a commerce receipt.** Open **Verify** (`/proof`) and paste a
-   native-SUI commerce receipt payload. Verify reports strict local structural
-   findings and the explicit statement that no chain query was made.
+6. **Verify a receipt.** Open **Verify** (`/proof`) and paste a native-SUI
+   commerce receipt or a confirmed remittance settlement receipt. Verify
+   reports strict local structural findings, settlement-to-quote binding, and
+   the explicit statement that no chain query was made. Remittance quote
+   attestation is re-checked separately by the server; an expired quote can be
+   shown only as historical evidence, never as payment authorization.
 
 ## Why Convey
 
@@ -122,7 +125,11 @@ reference quote and a guarded testnet-USDC transfer.
 
 The quote is **not a live exchange offer**. There is no MYR collection,
 fiat-to-USDC conversion, KYC/payout provider, or PHP disbursement in this path.
-Its USDC receipt is not yet accepted by the commerce-only Verify surface.
+After a confirmed testnet transfer, the remittance flow creates an asset-aware,
+versioned receipt containing the quote and settlement evidence. The receipt
+keeps **Awaiting payout partner** separate from on-chain confirmation and can
+be exported or shared for structural inspection. It does not query the Sui
+ledger or prove bank payout.
 
 ### GonkaRouter remittance interpretation
 
@@ -242,8 +249,10 @@ distinct from the signed-quote remittance handoff wrapper.
 ### Verify — Portable receipt proof
 
 `/proof` accepts pasted JSON or a self-contained URL-safe payload produced by a
-native-SUI commerce settlement card. It does not yet accept USDC remittance
-receipts or attestations.
+native-SUI commerce settlement card or a confirmed Sui testnet-USDC remittance
+settlement. Remittance receipts are checked locally for strict structure and
+settlement-to-quote binding, then their quote attestation can be re-checked by
+the server. The page does not query the Sui ledger.
 
 - Strict schema and exact-key validation.
 - Canonical positive MIST amount and Sui merchant address checks.
@@ -251,6 +260,11 @@ receipts or attestations.
 - Demo proof cannot carry an explorer URL.
 - Real-form proof must carry a base58-formatted digest and the matching Sui
   testnet explorer URL.
+- Remittance proof binds the digest, explorer URL, recipient, USDC amount,
+  beneficiary reference, quote expiry, payout status, and Family Rule fields
+  back to the signed quote.
+- Share and export controls appear only for a confirmed remittance settlement;
+  an unconfirmed quote is explicitly not a receipt.
 - Local-only evidence: the verifier clearly says it did not query the chain.
 - Copy, download, share-link, and a clearly non-chain sample receipt.
 
@@ -298,7 +312,7 @@ is therefore not a trade-complete options integration.
 | `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Pay offline** | Carry a signed remittance quote by QR, or transport an offline commerce intent | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Protect** | Educational ETH treasury preview and market evidence | Server-side read-only Base SDK calls; no trade execution |
-| `/proof` — **Verify** | Paste or open native-SUI commerce receipt proof | Local structural verification; no chain query or USDC receipt support |
+| `/proof` — **Verify** | Paste or open native-SUI commerce or remittance receipt proof | Local structural/binding verification; optional server quote re-check; no chain query |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
@@ -558,13 +572,14 @@ Run the commands above against the exact revision being released. Final QA
 results are recorded with release evidence; this README deliberately does not
 present a changing test count as proof that the current worktree passed.
 
-The current full suite is **876 tests across 42 files**, covering deterministic
+The current full suite is **914 tests across 44 files**, covering deterministic
 parsing, Gonka schemas and adapter behavior for both commerce and remittance,
 the remittance candidate resolver, retry/repair boundaries, route provenance and
 fallback, candidate catalog resolution, Family Rule binding and `over_cap`
 rejection, checkout lifecycle, transaction shape and failures, voice cleanup,
 the signed-quote handoff wrapper and kind discrimination, the camera scanner,
-QR integrity/replay/expiry/storage behavior, portable proof validation, strategy
+QR integrity/replay/expiry/storage behavior, commerce and remittance portable
+proof validation, receipt export/share gating, strategy
 mapping and read-only SDK states, the remittance-context ETH preview, PWA cache
 policy, navigation, accessibility, and the responsive experience.
 
@@ -716,8 +731,8 @@ tests/
 - Capture a real pinned-USDC testnet transfer and validate its full evidence.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
-- Extend portable proof to USDC receipts with explicit asset and recipient
-  semantics; do not reinterpret USDC micro-units as SUI MIST.
+- Query the Sui ledger for an independent transaction-existence check; the
+  current portable proof intentionally remains structural and quote-bound.
 - Add a Base signer only behind a separate options confirmation flow, then
   execute a minimal mainnet trade and publish transaction evidence.
 - Replace device-local QR replay storage with a cross-device authoritative nonce

@@ -86,7 +86,13 @@ export interface RemittanceQuotePreviewProps {
   onConfirm: () => void;
   onCancel: () => void;
   onReopen: () => void;
-  onSubmitQuote: (command: string) => void;
+  /**
+   * Submits an edited or refreshed quote command to the server. When omitted
+   * (e.g. for a carried quote that was imported across an air gap and cannot
+   * be rebuilt locally), edit/refresh affordances are hidden — the customer
+   * uses the parent's "Scan another" action to get a fresh quote instead.
+   */
+  onSubmitQuote?: (command: string) => void;
   confirmLabel?: string;
 }
 
@@ -122,6 +128,7 @@ export function RemittanceQuotePreview({
   confirmLabel,
 }: RemittanceQuotePreviewProps) {
   const vm = buildQuoteViewModel(quote);
+  const editable = Boolean(onSubmitQuote);
 
   const [editMode, setEditMode] = useState(false);
   const [demoPreview, setDemoPreview] = useState(false);
@@ -270,10 +277,11 @@ export function RemittanceQuotePreview({
           onConfirm={onConfirm}
           onEdit={() => setEditMode(true)}
           onDismiss={onCancel}
-          onRefresh={() => onSubmitQuote(buildRefreshCommand(quote))}
+          onRefresh={() => onSubmitQuote?.(buildRefreshCommand(quote))}
           onDemo={() => setDemoPreview(true)}
           handoffEligible={handoffEligible}
           onCarry={() => setCarryOpen(true)}
+          editable={editable}
         />
       )}
 
@@ -297,13 +305,13 @@ export function RemittanceQuotePreview({
         </div>
       )}
 
-      {status === "pending" && editMode && (
+      {status === "pending" && editMode && editable && (
         <RemittanceEditTransferForm
           quote={quote}
           onCancel={() => setEditMode(false)}
           onSubmit={(command) => {
             setEditMode(false);
-            onSubmitQuote(command);
+            onSubmitQuote?.(command);
           }}
         />
       )}
@@ -459,6 +467,8 @@ interface PendingActionProps {
   onDemo: () => void;
   handoffEligible: boolean;
   onCarry: () => void;
+  /** When false, edit/refresh affordances are hidden (carried quotes). */
+  editable: boolean;
 }
 
 /** Compact inline blocker copy — one honest line per missing prerequisite. */
@@ -516,6 +526,7 @@ function PendingAction({
   onDemo,
   handoffEligible,
   onCarry,
+  editable,
 }: PendingActionProps) {
   if (expired) {
     return (
@@ -526,18 +537,22 @@ function PendingAction({
         >
           <p className="text-sm font-medium text-black">Quote expired</p>
           <p className="mt-1 text-xs leading-relaxed text-neutral-600">
-            Get a fresh quote for the same details to continue.
+            {editable
+              ? "Get a fresh quote for the same details to continue."
+              : "Scan a fresh quote to continue."}
           </p>
-          <button
-            type="button"
-            data-testid="refresh-quote"
-            data-hit-target="true"
-            className="cv-btn-solid mt-3 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-            onClick={onRefresh}
-          >
-            <Refresh size={15} variant="Linear" />
-            Refresh quote
-          </button>
+          {editable && (
+            <button
+              type="button"
+              data-testid="refresh-quote"
+              data-hit-target="true"
+              className="cv-btn-solid mt-3 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+              onClick={onRefresh}
+            >
+              <Refresh size={15} variant="Linear" />
+              Refresh quote
+            </button>
+          )}
         </div>
       </div>
     );
@@ -556,16 +571,18 @@ function PendingAction({
           {confirmLabel ?? "Review testnet transfer"}
         </button>
         <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            data-testid="edit-transfer"
-            data-hit-target="true"
-            className="cv-btn-ghost inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-            onClick={onEdit}
-          >
-            <Edit2 size={15} variant="Linear" />
-            Edit details
-          </button>
+          {editable && (
+            <button
+              type="button"
+              data-testid="edit-transfer"
+              data-hit-target="true"
+              className="cv-btn-ghost inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+              onClick={onEdit}
+            >
+              <Edit2 size={15} variant="Linear" />
+              Edit details
+            </button>
+          )}
           <button
             type="button"
             data-hit-target="true"
@@ -601,16 +618,18 @@ function PendingAction({
         >
           Preview payout to {recipientName}
         </button>
-        <button
-          type="button"
-          data-testid="edit-transfer"
-          data-hit-target="true"
-          className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 text-xs font-semibold text-neutral-600"
-          onClick={onEdit}
-        >
-          <Edit2 size={15} variant="Linear" />
-          {editorLabel}
-        </button>
+        {editable && (
+          <button
+            type="button"
+            data-testid="edit-transfer"
+            data-hit-target="true"
+            className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 text-xs font-semibold text-neutral-600"
+            onClick={onEdit}
+          >
+            <Edit2 size={15} variant="Linear" />
+            {editorLabel}
+          </button>
+        )}
       </div>
     );
   }
@@ -632,7 +651,7 @@ function PendingAction({
       </div>
 
 
-      {blocker === "unapproved" && (
+      {editable && blocker === "unapproved" && (
         <button
           type="button"
           data-testid="refresh-quote"
@@ -644,16 +663,18 @@ function PendingAction({
           Refresh quote
         </button>
       )}
-      <button
-        type="button"
-        data-testid="edit-transfer"
-        data-hit-target="true"
-        className="cv-btn-ghost mt-2 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-        onClick={onEdit}
-      >
-        <Edit2 size={15} variant="Linear" />
-        {editorLabel}
-      </button>
+      {editable && (
+        <button
+          type="button"
+          data-testid="edit-transfer"
+          data-hit-target="true"
+          className="cv-btn-ghost mt-2 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+          onClick={onEdit}
+        >
+          <Edit2 size={15} variant="Linear" />
+          {editorLabel}
+        </button>
+      )}
       <button
         type="button"
         data-hit-target="true"

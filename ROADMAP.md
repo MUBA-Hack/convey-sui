@@ -44,8 +44,11 @@ testnet:
 - **Protect remains read-only/educational.** The linked remittance context is
   implemented (an optional ETH treasury preview reachable from a quote), but
   there is no FX hedge, no MYR→PHP protection, and no trade execution.
-- **Verify** remains a local, native-SUI commerce-receipt verifier; USDC
-  remittance receipts are not yet supported there.
+- **Verify** accepts local, asset-aware native-SUI commerce and confirmed Sui
+  testnet-USDC remittance receipts. Remittance receipts bind settlement
+  evidence to the signed quote, expose share/export only after confirmation,
+  and can re-check quote attestation server-side. The surface does not query
+  the Sui ledger or imply bank payout completion.
 
 Fiat on/off-ramp, payout, zkLogin, Move escrow, recipient intelligence, receipt
 splits, real Thetanuts trade, and Sui Earn remain future work, not shipped
@@ -99,15 +102,13 @@ Implementation boundary:
   `lib/remittance/constants.ts`. Keep asset, network, and decimal checks
   independent of model or quote-response fields. Mainnet asset/corridor approval
   is a separate decision.
-- Use **Bridge, a Stripe company**, as the Sui-compatible fiat/stablecoin
-  integration candidate. Stripe's general crypto onramp does not currently
-  document Sui support.
 - Keep payout-provider and regulated-corridor claims behind real provider access.
 - Reference MYR/PHP amounts are not funds collected or disbursed. A testnet USDC
   receipt must retain **Awaiting payout partner** until a real payout integration
   provides separate evidence.
-- Extend Verify with an asset-aware remittance receipt schema before claiming
-  portable USDC proof support.
+- Verify now accepts an asset-aware remittance receipt schema after confirmed
+  settlement; it checks local structure and quote binding, while server quote
+  re-verification remains separate from ledger or payout verification.
 
 Exit evidence:
 

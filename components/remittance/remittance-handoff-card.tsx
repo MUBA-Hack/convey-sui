@@ -10,6 +10,7 @@ import {
   type QuotePreviewStatus,
 } from "./remittance-quote-preview";
 import { RemittanceCheckoutDialog } from "./remittance-checkout-dialog";
+import { RemittanceReceiptActions } from "./remittance-receipt-actions";
 import type {
   RemittanceSettlement,
   RemittanceTerminalState,
@@ -77,8 +78,8 @@ export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
       </p>
       <p className="mt-1 text-sm font-semibold text-black">Not paid yet</p>
       <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-        Connected verification checks the attestation, recipient, corridor,
-        amount, and expiry before your wallet opens.
+        Before your wallet opens, we check the recipient, amount, expiry,
+        and server seal on this quote.
       </p>
 
       <RemittanceQuotePreview
@@ -89,7 +90,6 @@ export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
         onConfirm={openCheckout}
         onCancel={() => setStatus("cancelled")}
         onReopen={() => setStatus("pending")}
-        onSubmitQuote={() => undefined}
       />
 
       {settlement && (
@@ -119,6 +119,9 @@ export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
               <dd className="font-semibold">Awaiting payout partner</dd>
             </div>
           </dl>
+          {/* Confirmed-only receipt actions — share/export a tamper-evident
+              receipt ONLY after a real testnet settlement is confirmed. */}
+          <RemittanceReceiptActions quote={quote} settlement={settlement} />
         </div>
       )}
 
@@ -128,6 +131,10 @@ export function RemittanceHandoffCard({ quote }: RemittanceHandoffCardProps) {
         onOpenChange={setDialogOpen}
         onSettled={handleSettled}
         onTerminal={handleTerminal}
+        // The handoff card renders its own receipt actions on its settlement
+        // card; suppress the in-dialog copy to avoid duplicate Share/Export
+        // controls while both surfaces are mounted.
+        suppressReceiptActions
       />
     </div>
   );
