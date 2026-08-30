@@ -41,10 +41,15 @@ and production build before a commit.
 - The client-signed nearby-commerce payment seam is
   `lib/commerce/payment.ts` plus `components/commerce/payment-action.tsx`.
   Treat edits there as security-sensitive and review the pair together.
-- Models may propose structured intent but never receive secrets or transaction
-  authority. Validate model output and fail closed before payment preparation.
-- A real transfer requires a connected wallet, the expected network, canonical
-  addresses, a pinned asset type, and explicit user approval.
+- Models may propose structured intent but never receive URLs, keys, secrets, or
+  transaction authority. Validate model output and fail closed before payment
+  preparation.
+- A real nearby-commerce testnet transfer requires a connected wallet, the
+  testnet network, and a configured merchant address that canonically matches
+  the preview merchant. Anything else remains an explicitly labelled preview.
+- A real remittance testnet transfer additionally requires a mapped recipient,
+  valid quote attestation, pinned asset and corridor, a fresh quote, a connected
+  testnet wallet, and explicit user approval.
 - A demo or prepared transaction is not settlement. A carried transaction ID
   alone is not independent chain verification. Sui settlement is not fiat payout.
 - The remittance settlement verifier is server-only, fixed to Sui testnet, and
@@ -156,6 +161,9 @@ GLM workers must check this list before returning work:
   uncommitted work. Inspect status and diff first.
 - **Training-data APIs:** writing old Next.js or Sui APIs without reading installed
   documentation.
+- **Generated-file churn:** deleting or rewriting the Next.js agent-rules block
+  in `CLAUDE.md`; `next dev` restores it, so preserve the generated block and
+  investigate its generator before treating it as accidental text.
 - **Surface-only fixes:** changing labels while leaving duplicated state machines,
   dead callbacks, or conflicting actions underneath.
 - **Truth-boundary drift:** describing a checksum as authorization, an HMAC as a
@@ -202,7 +210,8 @@ Do not send a GLM worker a goal-only prompt. Every assignment must include:
 1. **Ownership:** exact files or subsystem it may edit, plus protected shared
    files it must not touch.
 2. **Observed state:** current `git status --short`, relevant existing behavior,
-   installed library version, and any concurrent work already in the tree.
+   installed library version, generated framework instructions, and any
+   concurrent work already in the tree.
 3. **Contract:** required behavior, forbidden behavior, truth boundaries, input
    bounds, and explicit non-goals.
 4. **Acceptance table:** success, failure, stale, malformed, and retry behavior
