@@ -4,6 +4,12 @@ Convey is a remittance and protected-payments product that turns plain speech in
 
 This roadmap is ordered around one coherent customer journey, not around sponsor logos. Each phase has a customer outcome and a proof threshold. A feature is not complete because a screen exists; it is complete when the stated evidence can be reproduced.
 
+## Implementation snapshot
+
+The current source includes **Send abroad** as Pay's default mode and **Buy nearby** as its catalog-purchase mode. Send abroad supports deterministic MYR-to-PHP reference quotes and a guarded Sui testnet-USDC transfer path. It transfers USDC already held in the customer's wallet: it does not charge MYR, obtain live FX, or complete PHP payout. No live USDC digest is claimed by this document; release validation and transaction evidence remain required.
+
+GonkaRouter currently serves Buy nearby, not Send abroad. Relay remains a tamper-evident but unsigned commerce envelope with device-local replay protection. Verify remains a local, native-SUI commerce-receipt verifier; USDC remittance receipts are not yet supported there. Protect remains read-only. Protected Transfer, receipt splitting, full options execution, and Convey Earn are roadmap work, not shipped capabilities.
+
 ## Product principles
 
 - Use customer jobs as the interface: **Pay**, **Relay**, **Protect**, and **Verify**.
@@ -20,6 +26,8 @@ This roadmap is ordered around one coherent customer journey, not around sponsor
 
 Turn a spoken or typed request into a transparent cross-border payment review.
 
+**Status: partially implemented; exit evidence incomplete.** The source has a single MYR-to-PHP reference corridor, integer fee/FX calculations, expiring quote envelopes, server-only attestation and verification, explicit recipient mapping, and client-built testnet-USDC execution. Purpose extraction, live pricing, fiat funding/payout, and a reproducible real settlement receipt remain outstanding.
+
 Customer flow:
 
 1. Say or type the recipient, destination, amount, and purpose.
@@ -31,9 +39,11 @@ Customer flow:
 
 Implementation boundary:
 
-- Use a verified Sui stablecoin and pin its network, coin type, and decimals.
+- The current execution increment pins six-decimal USDC to Sui testnet in `lib/remittance/constants.ts`. Keep asset, network, and decimal checks independent of model or quote-response fields. Mainnet asset/corridor approval is a separate decision.
 - Use **Bridge, a Stripe company**, as the Sui-compatible fiat/stablecoin integration candidate. Stripe's general crypto onramp does not currently document Sui support.
 - Keep payout-provider and regulated-corridor claims behind real provider access.
+- Reference MYR/PHP amounts are not funds collected or disbursed. A testnet USDC receipt must retain **Awaiting payout partner** until a real payout integration provides separate evidence.
+- Extend Verify with an asset-aware remittance receipt schema before claiming portable USDC proof support.
 
 Exit evidence:
 
@@ -45,6 +55,8 @@ Exit evidence:
 ### 2. Gonka-powered payment assistant
 
 Use **GonkaRouter** for multilingual intent extraction and accessible explanations. Gonka is the decentralized inference network; GonkaRouter is the hosted router used by the product.
+
+**Status: commerce adapter implemented; remittance integration outstanding.** Buy nearby uses the Gonka candidate/policy path when configured. Send abroad currently uses deterministic parsing, so commerce inference evidence must not be presented as primary remittance inference evidence.
 
 The model may propose:
 
@@ -85,7 +97,7 @@ Exit evidence:
 
 ### 4. Relay: offline payment handoff
 
-Relay carries a signed, typed, expiring payment intent between devices when one device has poor connectivity. It is an offline transport mechanism, not offline blockchain settlement.
+The target Relay design carries a signed, typed, expiring payment intent between devices when one device has poor connectivity. It is an offline transport mechanism, not offline blockchain settlement. The current commerce envelope provides a checksum, expiry, and device-local nonce registry, but no payer signature, shared nonce authority, or USDC remittance handoff.
 
 Every intent binds:
 
@@ -96,7 +108,7 @@ Every intent binds:
 - issued-at time and expiry;
 - canonical signed bytes.
 
-The connected device verifies the envelope, shows an exact human review, submits once, consumes the nonce, and records the final digest.
+The target connected-device flow verifies the signed envelope, shows an exact human review, submits once, consumes the authoritative nonce, and records the final digest. These signed-redemption and cross-device reconciliation requirements remain exit gates, not claims about the current checksum-only transport.
 
 Exit evidence:
 
@@ -146,6 +158,8 @@ Exit evidence:
 ### 7. Protect with Thetanuts Finance
 
 Use the official **Thetanuts Finance** SDK for a separate Base-mainnet workflow that protects a future purchase or treasury exposure. This is not a Sui settlement feature.
+
+**Status: read-only mapping and market-data adapter implemented.** Model-based constraint extraction, actionable order review, allowance, signer, and real trade evidence remain outstanding.
 
 Customer flow:
 
@@ -225,8 +239,8 @@ Every roadmap increment must pass the same gates before it is presented as compl
 
 ## Decisions still required
 
-- First remittance corridor, currencies, payout partner, KYC flow, refund policy, and jurisdiction coverage.
-- Exact Sui stablecoin, environment, coin type, and decimals.
+- Production corridor approval, payout partner, KYC flow, refund policy, and jurisdiction coverage; MYR-to-PHP is currently a reference corridor only.
+- Mainnet stablecoin and execution approval. The current testnet increment already pins six-decimal Sui USDC; it does not authorize production deployment.
 - Bridge commercial access and supported payout geography.
 - OAuth provider, zkLogin prover/salt strategy, Enoki use, and sponsored-gas policy.
 - GonkaRouter production key, selected model, data policy, and latency target.

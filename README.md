@@ -8,22 +8,31 @@
 
 <p align="center"><strong>Say it. Carry it across. Settle on Sui.</strong></p>
 
-Convey is a voice-first, natural-language commerce PWA for Sui. A customer says
-or types what they want, Convey resolves the request into a bounded purchase
-preview, the customer passes two explicit confirmation gates, and their wallet
-signs the final SUI transfer on the client. An Offline QR Ferry can carry a
-tamper-evident intent between disconnected and connected devices, while a
-portable proof desk makes receipts easy to share and inspect without pretending
-that local validation is an on-chain query.
+Convey is a voice-first payments PWA for Sui. **Pay** opens with **Send abroad**:
+a spoken or typed request becomes a transparent MYR-to-PHP reference quote and
+a reviewed testnet-USDC transfer. **Buy nearby** keeps everyday catalog
+purchases in the same workspace, using native SUI. **Relay** carries an offline
+commerce intent between devices, **Protect** offers read-only options context,
+and **Verify** inspects portable commerce receipts.
+
+Send abroad currently transfers testnet USDC already held in the customer's
+wallet. It does not charge MYR, convert fiat, or pay a Philippine bank account.
+Rates, fees, arrival estimates, and payout methods are reference information;
+on-chain confirmation never changes the separate **Awaiting payout partner**
+status into a completed fiat payout.
 
 The commerce intent route includes a real GonkaRouter adapter with strict output
 schemas, request/model provenance, deterministic catalog policy checks, and a
 safe local fallback. The current checkout still works without provider
-credentials; it labels that path **LOCAL SAFE ROUTE** instead of claiming a
-model call occurred.
+credentials; it labels that path **Local safety route** instead of claiming a
+model call occurred. This adapter serves **Buy nearby** only. **Send abroad**
+currently uses deterministic parsing and reference pricing, not Gonka inference.
 
 > **Current status:** unaudited hackathon build. No public deployment is claimed.
-> Settlement is restricted to Sui testnet and capped at 100 SUI. The included
+> Payment execution is restricted to Sui testnet. Native-SUI purchases are capped
+> at 100 SUI; remittance has separate MYR quote and USDC execution limits. No
+> live FX, fiat funding, bank payout, or captured USDC settlement is claimed here.
+> The included
 > environment template contains no value for `GONKA_ROUTER_API_KEY`, so this checkout has
 > no captured live Gonka request evidence yet. Demo receipts are simulations,
 > not chain transactions. Do not use real funds.
@@ -42,24 +51,53 @@ Conversational checkout is useful only if language cannot silently become wallet
 authority. Convey separates understanding, policy, approval, signing, and proof:
 
 1. A voice transcript or typed message is submitted as text.
-2. GonkaRouter may produce a typed candidate, but only when server credentials
-   are configured and its response passes provenance and schema checks.
-3. Convey resolves that untrusted candidate against its canonical catalog,
-   prices, merchant-item relationships, quantity bounds, and spending ceiling.
-4. If the model route is unavailable or rejected, the original message is sent
-   through a deterministic parser and the UI identifies the fallback.
-5. A preview requires inline confirmation and a separate checkout review.
-6. Only the connected wallet may build, sign, and execute the Sui transaction.
-7. The resulting receipt is explicit about real testnet versus demo mode.
+2. Send abroad resolves a deterministic reference quote; Buy nearby may use
+   GonkaRouter for a typed candidate when configured.
+3. Deterministic code checks monetary bounds and recipients for remittance, or
+   canonical catalog, merchant, quantity, and spending policy for purchases.
+4. A failed commerce model route falls back to parsing the original text and
+   identifies that fallback. A remittance quote must pass a separate server
+   attestation-verification step before it can authorize transaction building.
+5. The customer reviews the proposed action before final payment confirmation.
+6. Client code builds the bounded transaction; only the connected wallet signs
+   and submits it. The server holds no Sui wallet signer.
+7. A remittance receipt requires a confirmed testnet transfer. Without execution
+   prerequisites, the state is **Prepared — not submitted**, with no fake digest.
 
-Raw language therefore never produces transaction bytes, a recipient, a
-signature, or a settlement digest.
+Raw language therefore never produces transaction bytes, an authoritative
+recipient address, a signature, or a settlement digest.
 
 ## What is implemented
 
-### Natural-language and voice commerce
+### Send abroad — reference quote and testnet USDC
 
-- Chat-first purchase flow at `/` with text and browser speech recognition.
+- Default Pay mode for voice or typed MYR-to-PHP requests, such as
+  `Send RM500 to Ana in Manila`.
+- Deterministic parser with explicit missing-field, unsupported-corridor,
+  amount, and injection clarifications; no model or live FX provider call.
+- Integer-only MYR sen, PHP centavos, and six-decimal USDC arithmetic. Fees and
+  each conversion step are explicit; no floating-point money calculations.
+- Itemized reference quote, expiry, recipient alias, unique configured Sui
+  destination, and an off-chain beneficiary reference.
+- Server-only HMAC-SHA256 quote attestation and a separate verification endpoint
+  that rebinds the quote to configuration, recipient, amount, asset, and expiry.
+  Attestation is a Convey integrity check, not beneficiary identity verification.
+- Client-built transfer of the pinned Sui testnet USDC coin type using
+  `Transaction.coin({ type, balance }) → transferObjects`. USDC is sourced from
+  the payer's existing coins, never from the native-SUI gas coin.
+- Review and payment gates, expiry checks, explicit wallet approval, submission
+  and confirmation states, and a distinct **Awaiting payout partner** status.
+- Missing wallet, wrong network, unmapped recipient, or missing attestation
+  leaves a non-executable **Prepared — not submitted** state.
+
+The quote is **not a live exchange offer**. There is no MYR collection,
+fiat-to-USDC conversion, KYC/payout provider, or PHP disbursement in this path.
+Its USDC receipt is not yet accepted by the commerce-only Verify surface.
+
+### Buy nearby — natural-language and voice commerce
+
+- Chat-first purchase flow under Pay's **Buy nearby** mode, with text and browser
+  speech recognition.
 - Live interim voice transcript and a complete keyboard fallback when the
   browser does not expose `SpeechRecognition`.
 - Server-side `POST /api/commerce/intent` with a strict zod request contract.
@@ -86,16 +124,16 @@ signature, or a settlement digest.
   secrets never reach the client.
 - Every valid model candidate is re-resolved against catalog IDs, merchant-item
   relationships, quantity, price, and `maxSpendSui` before a preview exists.
-- Honest UI provenance: **GONKA ROUTED** includes short model/request evidence;
-  **LOCAL SAFE ROUTE** includes a safe fallback reason and never implies Gonka
-  ran.
+- Honest UI provenance: **Gonka routed** includes short model/request evidence;
+  **Local safety route** includes a humanized accessible fallback reason and
+  never implies Gonka ran.
 
 `GET /api/commerce/intent` exposes only non-secret readiness information. A
 configured key is not proof of a successful request; the evidence for a live
 route is `provider: "gonkarouter"`, `mode: "live"`, request ID, requested and
 response model IDs, latency, and usage on a successful POST response.
 
-### Client-confirmed Sui checkout
+### Client-confirmed native-SUI purchase checkout
 
 - Inline **Confirm / Cancel** gate followed by checkout **review → payment**.
 - Client-built native SUI transfer using dApp Kit:
@@ -106,10 +144,11 @@ response model IDs, latency, and usage on a successful POST response.
 - Failed transactions remain failures and cannot create a success receipt.
 - Real mode requires all of: connected wallet, testnet network, canonical
   configured merchant address, and merchant match.
-- Every other state produces an unmistakable `DEMO-…` receipt with no explorer
-  link and the label **DEMO simulation — no on-chain settlement**.
+- The purchase-only preview path uses a `DEMO-…` payload with no explorer link;
+  the customer surface says **Not submitted** or **Preview — no on-chain
+  settlement**. This is not the remittance path and never proves payment.
 
-### Relay — Offline QR Ferry
+### Relay — offline commerce handoff
 
 The `/qr-ferry` flow transports a purchase intent across an air gap. It does not
 authorize payment.
@@ -135,7 +174,8 @@ index.
 ### Verify — Portable receipt proof
 
 `/proof` accepts pasted JSON or a self-contained URL-safe payload produced by a
-settlement card.
+native-SUI commerce settlement card. It does not yet accept USDC remittance
+receipts or attestations.
 
 - Strict schema and exact-key validation.
 - Canonical positive MIST amount and Sui merchant address checks.
@@ -144,7 +184,7 @@ settlement card.
 - Real-form proof must carry a base58-formatted digest and the matching Sui
   testnet explorer URL.
 - Local-only evidence: the verifier clearly says it did not query the chain.
-- Copy, download, share-link, and zero-setup demo-sample paths.
+- Copy, download, share-link, and a clearly non-chain sample receipt.
 
 This is portable structural verification. A well-formed real receipt is not the
 same as proof that its transaction exists or succeeded on-chain.
@@ -183,73 +223,273 @@ is therefore not a trade-complete options integration.
 
 | Route | Purpose | Network / authority |
 | --- | --- | --- |
-| `/` — **Pay** | Voice and text commerce, preview, confirmation, checkout | Intent API; wallet required only for real testnet settlement |
+| `/` — **Pay** | Send abroad reference quotes by default; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Relay** | Generate, transport, verify, and hand off offline intent | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Protect** | Educational strategy mapping and market evidence | Server-side read-only Base SDK calls; no trade execution |
-| `/proof` — **Verify** | Paste or open portable receipt proof | Local structural verification; no chain query |
+| `/proof` — **Verify** | Paste or open native-SUI commerce receipt proof | Local structural verification; no chain query or USDC receipt support |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
+| `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote | Server configuration and optional HMAC attestation; no model, live FX, or transaction |
+| `POST /api/remittance/quote/verify` | Validate quote before client transaction building | Server-side attestation, recipient, asset, amount, configuration, and expiry checks; no wallet signer |
 | `POST /api/strategy` | Strategy mapping plus read-only market snapshot | No approval, signature, or trade |
 
 ## Architecture
 
+The product exposes four focused customer surfaces, but they share one trust
+model: interpretation may propose an action; deterministic code validates it;
+the customer remains the only payment authority. The diagrams below describe
+the current implementation. Dashed nodes are explicitly future architecture,
+not shipped capability.
+
+### Product surfaces and shared trust core
+
+```mermaid
+flowchart TB
+  Customer["Customer"]
+
+  subgraph Surfaces["Convey customer surfaces"]
+    Pay["Pay<br/>Send abroad or Buy nearby"]
+    Relay["Relay<br/>Offline intent transport"]
+    Protect["Protect<br/>Read-only options context"]
+    Verify["Verify<br/>Portable receipt inspection"]
+  end
+
+  subgraph Trust["Shared trust core"]
+    Normalize["Normalize and bound input"]
+    Validate["Deterministic schema and policy checks"]
+    PaymentPolicy["Payment-specific authorization policy"]
+    Confirm["Explicit payment confirmation"]
+    Provenance["Visible source and proof provenance"]
+  end
+
+  subgraph Authority["Separated authorities"]
+    Wallet["Customer wallet<br/>signing authority"]
+    Local["Browser storage<br/>local replay state"]
+    Server["Server adapters<br/>no payment signer"]
+  end
+
+  Customer --> Pay
+  Customer --> Relay
+  Customer --> Protect
+  Customer --> Verify
+  Pay --> Normalize --> PaymentPolicy
+  Relay --> PaymentPolicy
+  PaymentPolicy --> Confirm --> Wallet
+  Protect --> Validate
+  Verify --> Validate
+  Validate --> Provenance
+  PaymentPolicy --> Provenance
+  Relay --> Local
+  Pay --> Server
+  Protect --> Server
+```
+
+Only Pay and an approved Relay handoff can reach payment confirmation. Protect
+and Verify are read-only; neither obtains wallet authority.
+
+### Buy nearby: request to wallet to receipt
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Customer
+  participant Pay as Buy nearby
+  participant Intent as Commerce intent API
+  participant Gonka as GonkaRouter
+  participant Policy as Deterministic policy
+  participant Wallet as Customer wallet
+  participant Sui as Sui testnet
+
+  Customer->>Pay: Speak or type a bounded request
+  Pay->>Intent: Original text, locale, spending ceiling
+  alt Gonka is configured and responds safely
+    Intent->>Gonka: Text plus public catalog manifest only
+    Gonka-->>Intent: Untrusted typed candidate and provenance
+    Intent->>Policy: Revalidate candidate against canonical data
+  else Provider unavailable, invalid, or rejected
+    Intent->>Policy: Parse the original text deterministically
+  end
+  Policy-->>Pay: Preview or clarification plus route provenance
+  Pay-->>Customer: Inline confirmation
+  Customer->>Pay: Confirm intent and review checkout
+  Pay-->>Customer: Final payment confirmation
+  Customer->>Wallet: Approve client-built transaction
+  Wallet->>Sui: Sign and submit native SUI transfer
+  Sui-->>Wallet: Execution result and digest
+  alt Successful execution
+    Wallet-->>Pay: Successful testnet result
+    Pay-->>Customer: Receipt with digest and explorer URL
+  else Rejected or failed execution
+    Wallet-->>Pay: Failure
+    Pay-->>Customer: Error without a success receipt
+  end
+```
+
+GonkaRouter never receives wallet secrets, transaction bytes, signatures, or
+the authority to select a final recipient. A candidate that fails deterministic
+validation cannot reach either confirmation gate.
+
+### Send abroad: reference quote to testnet USDC
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Customer
+  participant Pay as Send abroad
+  participant Quote as Reference quote API
+  participant Verify as Quote verification API
+  participant Wallet as Customer wallet
+  participant Sui as Sui testnet
+
+  Customer->>Pay: Send MYR amount to named recipient and destination
+  Pay->>Quote: Original text
+  Note over Quote: Deterministic parsing and reference pricing; no Gonka call
+  Quote-->>Pay: Itemized quote, expiry, recipient, optional attestation
+  Pay-->>Customer: Review reference amounts and payout limitation
+  Customer->>Pay: Review details and confirm payment
+  Pay->>Verify: Exact quote envelope
+  Verify->>Verify: Check HMAC, configuration, recipient, asset, amount, expiry
+  alt Quote is verified and wallet prerequisites hold
+    Verify-->>Pay: Canonical authorization
+    Pay->>Pay: Validate authorization and build pinned-USDC transaction
+    Pay->>Wallet: Request approval for existing testnet USDC
+    Customer->>Wallet: Approve transaction
+    Wallet->>Sui: Sign and submit
+    Sui-->>Pay: Transaction result and confirmation evidence
+    Pay-->>Customer: USDC receipt; fiat payout still awaiting partner
+  else Missing prerequisites or verification rejected
+    Verify-->>Pay: Non-executable or rejected state
+    Pay-->>Customer: Not submitted; no receipt or invented digest
+  end
+```
+
+The server's attestation key authenticates Convey's quote fields; it cannot
+sign a Sui transfer. Reference MYR/PHP figures do not debit or credit fiat
+accounts. A successful USDC transfer is on-chain-only evidence.
+
+### Relay: offline transport and reconciliation boundary
+
 ```mermaid
 flowchart LR
-  subgraph Browser[Browser / PWA]
-    Speech[Voice transcript]
-    Chat[Commerce chat]
-    Gate[Preview and two confirmations]
-    Wallet[Client wallet]
-    Ferry[QR Ferry]
-    Proof[Proof verifier]
-    Cache[Static-only service worker]
+  subgraph Offline["Offline device"]
+    Draft["Create bounded native-SUI commerce intent"]
+    Canonical["Canonical versioned envelope"]
+    Integrity["blake2b256 integrity checksum"]
+    QR["QR or JSON transport"]
+    Draft --> Canonical --> Integrity --> QR
   end
 
-  subgraph Server[Next.js server]
-    Intent[Commerce intent route]
-    Gonka[GonkaRouter adapter]
-    Local[Deterministic parser]
-    Policy[Canonical catalog policy]
-    Strategy[Strategy route]
-    Options[Read-only options SDK]
+  subgraph Connected["Connected device"]
+    Import["Import envelope"]
+    VerifyEnvelope["Check schema, checksum, expiry, and bounds"]
+    Replay["Consume nonce in fail-closed local registry"]
+    Review["Customer reviews guarded checkout"]
+    Wallet["Customer wallet signs online"]
+    Import --> VerifyEnvelope --> Replay --> Review --> Wallet
   end
 
-  subgraph Chains[Networks]
-    Sui[Sui testnet]
-    Base[Base mainnet data]
+  subgraph Reconcile["Authoritative settlement"]
+    Sui["Sui testnet transaction"]
+    Receipt["Receipt and portable proof payload"]
+    Sui --> Receipt
   end
 
-  Speech --> Chat
-  Chat -->|text only| Intent
-  Intent -->|configured| Gonka
-  Gonka -->|untrusted candidate| Policy
-  Intent -->|missing/rejected/error| Local
-  Local --> Policy
-  Policy -->|preview or clarification + provenance| Chat
-  Chat --> Gate --> Wallet -->|signed native SUI transfer| Sui
-  Ferry --> Gate
-  Gate -->|receipt payload| Proof
-  Strategy --> Options --> Base
-  Cache -. static shell only .-> Browser
+  QR --> Import
+  Wallet --> Sui
+
+  FutureSignature["Future: payer-signed offline intent"]
+  FutureNonce["Future: shared or on-chain nonce registry"]
+  FutureSignature -. "not implemented" .-> Canonical
+  Replay -. "device-local today" .-> FutureNonce
+
+  classDef future stroke-dasharray: 5 5
+  class FutureSignature,FutureNonce future
 ```
 
-### Commerce data flow
+The shipped envelope is tamper-evident but **not payer-signed**. Its checksum is
+an integrity control, not authorization. Reconciliation and wallet signing
+happen only after import on a connected device; cross-device replay authority
+remains a future milestone. Relay does not yet transport USDC remittance quotes.
 
-```text
-voice or text
-  → POST /api/commerce/intent
-  → GonkaRouter candidate when configured
-      → request ID + exact model + strict schema checks
-      → canonical catalog and spending-policy resolution
-    OR deterministic parser on the original text
-  → typed preview / clarification + routing provenance
-  → inline confirmation
-  → checkout review
-  → wallet confirmation
-  → real Sui testnet receipt OR labelled demo receipt
-  → portable local proof
+### Network and authority separation
+
+```mermaid
+flowchart TB
+  subgraph Browser["Browser / PWA"]
+    UI["Product surfaces"]
+    Pay["Pay and approved Relay handoff"]
+    ReadOnly["Protect and Verify<br/>no signing path"]
+    Confirm["Customer confirmation gates"]
+    SuiWallet["Sui wallet<br/>only payment signer"]
+    StaticCache["Static-only service worker"]
+    UI --> Pay --> Confirm --> SuiWallet
+    UI --> ReadOnly
+  end
+
+  subgraph NextServer["Next.js server — no wallet authority"]
+    IntentAPI["Commerce intent API"]
+    Policy["Canonical commerce policy"]
+    StrategyAPI["Read-only strategy API"]
+    QuoteAPI["Deterministic reference quote API"]
+    Attestation["Server-only quote attestation and verification"]
+    IntentAPI --> Policy
+    QuoteAPI --> Attestation
+  end
+
+  subgraph GonkaNetwork["GonkaRouter inference boundary"]
+    Gonka["OpenAI-compatible inference"]
+  end
+
+  subgraph SuiNetwork["Sui testnet settlement boundary"]
+    Sui["Native SUI purchase transfer"]
+    Usdc["Pinned testnet USDC transfer"]
+  end
+
+  subgraph BaseNetwork["Base mainnet read boundary"]
+    Thetanuts["Thetanuts SDK market and order reads"]
+  end
+
+  Pay -->|Buy nearby text only| IntentAPI
+  Pay -->|Send abroad text or quote| QuoteAPI
+  Attestation -->|quote or canonical authorization| Pay
+  IntentAPI -->|public catalog and request| Gonka
+  Gonka -->|untrusted candidate and request evidence| IntentAPI
+  Policy -->|preview or clarification| Pay
+  SuiWallet -->|client-signed transaction| Sui
+  SuiWallet -->|client-signed transaction| Usdc
+  ReadOnly --> StrategyAPI
+  StrategyAPI -->|read calls only| Thetanuts
+  Thetanuts -->|market evidence or unavailable state| StrategyAPI
+  StaticCache -. "never caches APIs, wallet, RPC, or settlement" .-> UI
 ```
+
+These boundaries prevent inference from becoming payment authority. GonkaRouter
+interprets; Convey policy decides whether a candidate is admissible; the Sui
+wallet alone signs payments. Remittance uses server-configured reference pricing
+and quote attestation, not Gonka inference or a fiat payout provider. The
+Base/Thetanuts path is read-only and cannot approve or submit an options trade.
+
+### Commerce receipt and proof data flow
+
+```mermaid
+flowchart LR
+  Result["Native-SUI commerce checkout result"] --> Classify{"Settlement mode"}
+  Classify -->|Successful testnet execution| Real["Digest plus matching Sui explorer URL"]
+  Classify -->|No chain submission| Preview["Explicit non-chain receipt<br/>no explorer URL"]
+  Real --> Canonical["Exact-key portable receipt payload"]
+  Preview --> Canonical
+  Canonical --> Share["Copy, download, or URL-safe share payload"]
+  Share --> Verify["Verify surface"]
+  Verify --> Schema["Schema, amount, address, mode, digest, and URL checks"]
+  Schema --> Finding["Local structural finding"]
+  Finding --> Boundary["Clear boundary: no chain query performed"]
+```
+
+Verify establishes that a receipt is structurally self-consistent. It does not
+claim that a real-form digest exists on-chain; authoritative chain verification
+is a separate future proof point. USDC remittance receipts use a different
+schema and are not connected to this share-and-verify flow yet.
 
 ## Quick start
 
@@ -268,9 +508,10 @@ cp .env.example .env
 pnpm dev
 ```
 
-Open `http://localhost:3000`. With the checked-in `.env.example` values, the app
-runs the deterministic **LOCAL SAFE ROUTE** and demo settlement without requiring
-any secrets.
+Open `http://localhost:3000`. Pay starts in **Send abroad**, where reference
+quotes work without secrets but remain **Prepared — not submitted**. Switch to
+**Buy nearby** for catalog purchases; without Gonka credentials that flow uses
+the deterministic **Local safety route**. Neither fallback proves settlement.
 
 ### Environment variables
 
@@ -285,9 +526,20 @@ any secrets.
 | `GONKA_MODEL_ID` | Server only | `deepseek-ai/DeepSeek-V4-Flash-0731` |
 | `GONKA_REQUEST_TIMEOUT_MS` | Server only | `30000` milliseconds |
 | `GONKA_MAX_RETRIES` | Server only | `1`; accepted range is 0 or 1 |
+| `REMITTANCE_MYR_PER_USDC` | Server only | Reference MYR sen per USDC; default `450` |
+| `REMITTANCE_PHP_PER_USDC` | Server only | Reference PHP centavos per USDC; default `5600` |
+| `REMITTANCE_FIXED_FEE_MYR` | Server only | Reference fixed fee in MYR sen; default `200` |
+| `REMITTANCE_FEE_BPS` | Server only | Reference fee basis points; default `150` |
+| `REMITTANCE_MIN_MYR` | Server only | Minimum quote amount in MYR sen; default `100` |
+| `REMITTANCE_MAX_MYR` | Server only | Maximum quote amount in MYR sen; default `100000` |
+| `REMITTANCE_QUOTE_TTL_MS` | Server only | Quote lifetime; default `120000`, supported range `10000`–`600000` |
+| `REMITTANCE_RECIPIENTS_JSON` | Server only | Empty; beneficiary alias to unique canonical Sui destination mapping |
+| `REMITTANCE_QUOTE_SIGNING_KEY_HEX` | Server only | Empty; 64 lowercase hex characters for the HMAC quote key; never a Sui wallet key |
 
-Never prefix the Gonka key with `NEXT_PUBLIC_`. Restart the development server
-after changing environment variables.
+Never prefix the Gonka or remittance attestation key with `NEXT_PUBLIC_`. Restart
+the development server after changing environment variables. The testnet USDC
+coin type and six-decimal precision are pinned in `lib/remittance/constants.ts`,
+not chosen by a model or client request.
 
 For a live router run, set `GONKA_ROUTER_API_KEY`, submit a supported purchase,
 and inspect the assistant provenance badge or the POST response. Only a response
@@ -298,7 +550,14 @@ contain that key or evidence.
 For real Sui testnet settlement, set a valid
 `NEXT_PUBLIC_MERCHANT_ADDRESS`, keep the network on `testnet`, connect a testnet
 wallet, and ensure the preview merchant matches the configured address. If any
-condition fails, Convey remains in demo mode.
+condition fails, the purchase path remains non-chain preview only.
+
+For the USDC path, configure a unique recipient address per beneficiary alias
+and a valid quote attestation key. The customer needs a connected Sui testnet
+wallet with the pinned testnet USDC asset and native SUI for gas. Quote
+verification must succeed immediately before client transaction building. These
+settings enable only the on-chain transfer path; they do not enable fiat
+funding or bank payout.
 
 ## Commands and verification
 
@@ -312,19 +571,18 @@ condition fails, Convey remains in demo mode.
 | `pnpm build` | Create a production build |
 | `pnpm start` | Serve the production build |
 
-Latest observed full-suite result for this README update:
-
-```text
-Test Files  27 passed (27)
-Tests       510 passed (510)
-```
+Run the commands above against the exact revision being released. Final QA
+results are recorded with release evidence; this README deliberately does not
+present a changing test count as proof that the current worktree passed.
 
 The suite covers deterministic parsing, Gonka schemas and adapter behavior,
 retry/repair boundaries, route provenance and fallback, candidate catalog
 resolution, checkout lifecycle, transaction shape and failures, voice cleanup,
 QR integrity/replay/expiry/storage behavior, portable proof validation, strategy
 mapping and read-only SDK states, PWA cache policy, navigation, accessibility,
-and the responsive commerce experience.
+and the responsive commerce experience. Remittance tests additionally cover
+parsing, integer quote math, expiry, recipient/configuration binding,
+attestation, the pinned-USDC transaction shape, and payment lifecycle states.
 
 ## Security and threat model
 
@@ -340,26 +598,43 @@ and the responsive commerce experience.
 | QR payload is replayed | Consume-once local nonce registry; fail-closed corrupt storage | Device-local, not globally authoritative |
 | Sensitive traffic is served from PWA cache | API, wallet, RPC, payment, transaction, auth, and cross-origin bypass rules | Offline settlement is intentionally unavailable |
 | Options interface submits a trade | Read-only server adapter; no signer/write path; explicit `execution: "none"` | No Base trade evidence or transaction path |
+| Remittance quote fields change before payment | Server-only attestation and verification of canonical fields; client-pinned asset and amount bounds | Server configuration remains trusted; no independent beneficiary-ownership proof |
+| Reference FX is mistaken for a live offer | Explicit reference provenance and separate payout status | No live FX, fiat collection, or payout provider |
+| USDC confirmation is mistaken for bank payout | On-chain receipt and **Awaiting payout partner** remain separate | No bank payout completion evidence |
 
 Additional boundaries:
 
 - Maximum commerce input length: 500 characters.
 - Model candidate quantity: 1–100.
-- Real Sui transfer cap: 100 SUI.
+- Native-SUI purchase transfer cap: 100 SUI.
+- Remittance reference quote default range: 1–1,000 MYR, subject to positive
+  value after fees; the independent client-pinned execution ceiling is
+  2,000 testnet USDC, not an available balance or authorized quote amount.
 - QR envelope amount cap: 1,000,000 SUI.
 - QR lifetime cap: 24 hours.
 - No analytics or advertising trackers are included.
 - Browser speech may be implemented by the browser vendor; Convey itself sends
   only the final submitted text to its intent endpoint, not raw audio.
 
-## Sandbox walkthrough
+## Trying the payment flows
 
-1. **State the safety claim.** Open `/`: language can propose a purchase,
-   but it cannot sign one.
+### Send abroad
+
+1. Open Pay and enter `Send RM500 to Ana in Manila`.
+2. Inspect the MYR amount, itemized reference fees, PHP estimate, exact USDC
+   amount, destination, and quote expiry. None is a live FX or payout promise.
+3. Review the details. Without a mapped recipient, attestation, and connected
+   testnet wallet, the flow remains **Prepared — not submitted**.
+4. With the required testnet setup, approve the exact USDC transfer in the
+   wallet. Inspect transaction evidence separately from fiat payout status.
+
+### Buy nearby, Relay, and Verify
+
+1. **Choose Buy nearby.** Language can propose a purchase, but cannot sign one.
 2. **Use the product.** Say or type
    `Buy two iced coffees under 8 SUI from River Cafe`. Show the typed 6 SUI
    preview and the routing provenance. With the current empty key, call out
-   **LOCAL SAFE ROUTE — not_configured** honestly.
+   **Local safety route** honestly.
 3. **Show controlled settlement.** Confirm inline, review again, then
    confirm payment. In zero-setup mode, point to the `DEMO-…` receipt, explicit
    no-chain label, and absent explorer link.
@@ -390,32 +665,38 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Client-signed native SUI testnet checkout, explicit confirmation, offline intent transport, receipt proof | No stablecoin settlement path and no public live testnet digest is claimed here |
-| Sui AI × Sui | Model-router code is wired into the commerce intent API before guarded Sui checkout | No server key or captured successful live model request in this environment |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting and pinned testnet-USDC execution path | Real USDC digest evidence, live FX, fiat funding, and payout integration remain unproven |
+| Sui AI × Sui | Model-router code is wired into Buy nearby before guarded native-SUI checkout | Send abroad is deterministic; no live Gonka request evidence is claimed here |
 | Thetanuts Best Product Built on SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Read-only; no quote selection, approval, signing, or trade |
 | Thetanuts AI × Options | Natural-language risk-goal interface plus SDK market context | Mapping is deterministic, not model-routed, and no options trade is submitted |
-| Gonka AI for Society | Strict multilingual-capable intent candidate, detected-language metadata, bounded retry/repair, and visible provenance | Live provider evidence requires a real key and successful request; current screenshots show local fallback |
+| Gonka AI for Society | Commerce intent candidate, detected-language metadata, bounded retry/repair, and visible provenance | Primary remittance flow is not model-routed; a live key/request and multilingual remittance evidence remain required |
 
 ## Project map
 
 ```text
 app/
-  page.tsx                     commerce chat
+  page.tsx                     Pay workspace: Send abroad / Buy nearby
   qr-ferry/page.tsx            offline intent transport
   proof/page.tsx               portable local receipt verifier
   strategy/page.tsx            educational options strategy desk
   offline/page.tsx             PWA navigation fallback
   api/commerce/intent/route.ts Gonka route + deterministic fallback
+  api/remittance/quote/route.ts reference quote + optional attestation
+  api/remittance/quote/verify/route.ts quote verification + authorization
   api/strategy/route.ts        mapping + read-only market snapshot
   manifest.ts                  installable PWA manifest
 components/
   commerce/                    chat, voice, checkout, ferry, receipt and proof UI
+  remittance/                  quote, review, USDC payment and receipt UI
   strategy/                    strategy desk UI
   pwa/                         service-worker registration
   wallet/                      Sui wallet providers and connection
 lib/
   commerce/                    catalog, intent, Gonka resolver, payment, QR, proof
   gonka/                       adapter, schemas, retries and provenance types
+  remittance/                  integer money, parser, schemas, USDC transfer
+    server-config.ts           server-only pricing, recipients and quote key
+    attestation.server.ts      server-only HMAC signing and verification
   strategy/                    deterministic mapping and read-only SDK adapter
   protocol/                    shared hashing utilities
 public/
@@ -425,6 +706,7 @@ public/
 tests/
   commerce/                    product, safety, proof, PWA and responsive tests
   gonka/                       adapter, schema and retry tests
+  remittance/                  quote API and remittance UI lifecycle tests
   strategy/                    mapping, API, SDK and UI tests
 ```
 
@@ -433,12 +715,18 @@ tests/
 - Configure a real GonkaRouter key, capture successful request/model provenance,
   and record a reproducible live multilingual commerce run.
 - Execute and verify a capped Sui testnet payment with a real explorer digest.
-- Add stablecoin payment support without weakening the confirmation boundary.
+- Capture a real pinned-USDC testnet transfer and validate its full evidence.
+- Connect a real FX/funding/payout provider only after corridor and compliance
+  requirements are verified; keep bank payout distinct from chain settlement.
+- Add Gonka interpretation to remittance behind the existing deterministic
+  quote and authorization controls.
+- Extend portable proof to USDC receipts with explicit asset and recipient
+  semantics; do not reinterpret USDC micro-units as SUI MIST.
 - Add a Base signer only behind a separate options confirmation flow, then
   execute a minimal mainnet trade and publish transaction evidence.
 - Replace device-local QR replay storage with a cross-device authoritative nonce
   registry.
-- Expand catalog and merchant onboarding beyond the current demo inventory.
+- Expand catalog and merchant onboarding beyond the current sample inventory.
 - Perform an independent security audit before any production or real-money use.
 
 Convey's central invariant should remain unchanged as these capabilities grow:

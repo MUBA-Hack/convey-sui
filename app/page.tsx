@@ -1,29 +1,20 @@
 import type { Metadata } from "next";
-import { CommerceChat } from "@/components/commerce/commerce-chat";
+import { PayWorkspace } from "@/components/commerce/pay-workspace";
 
 export const metadata: Metadata = {
   title: "Pay — Convey",
   description:
-    "Say it, approve it, settle on Sui. Minimal black-and-white voice commerce: chat, voice, client-signed checkout, and Offline QR Ferry.",
+    "Voice-first cross-border remittance with transparent fees and Sui USDC settlement. Say it, approve it, settle on Sui.",
 };
 
 /**
- * The home route is the Convey commerce experience.
+ * The home route is the Convey Pay workspace.
  *
- * Per the locked product rules, "/" is the chat-first purchase surface. The
- * CommerceChat submits free text (typed or spoken) to the typed
- * `/api/commerce/intent` endpoint and renders the response in a thread with an
- * inline preview, clarification, error recovery, and a cancel/reopen confirm
- * gate that opens a checkout dialog. No transaction is built on this route.
- *
- * The wrapper provides the soft warm-gray page ground the monochrome commerce
- * shell sits on; the chat panel, context rail, empty state and composer live
- * inside `CommerceChat`.
+ * A thin mode switch lets the customer choose "Send abroad" (default —
+ * voice-first cross-border remittance) or "Buy nearby" (the existing catalog
+ * purchase flow, unchanged). The remittance module lives beside the commerce
+ * purchase module; neither is rewritten. No new top-level route is added.
  */
 export default function HomePage() {
-  return (
-    <div className="cv-shell__ground flex min-h-[calc(100vh-60px)] flex-col">
-      <CommerceChat />
-    </div>
-  );
+  return <PayWorkspace />;
 }

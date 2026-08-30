@@ -24,6 +24,7 @@
     "@mysten/sui": "^2.26.2",
     "@noble/hashes": "^2.3.0",
     "@thetanuts-finance/thetanuts-client": "0.3.0",
+    "@wallet-standard/errors": "0.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ethers": "6.17.0",
@@ -35,6 +36,7 @@
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "0.0.1",
     "shadcn": "^4.19.0",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"

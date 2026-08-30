@@ -5,6 +5,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./", import.meta.url)),
+      // Production code still imports `server-only`; tests replace the package
+      // with a no-op so Node can load server modules without Next's build guard.
+      "server-only": fileURLToPath(new URL("./tests/shims/server-only.ts", import.meta.url)),
     },
   },
   test: {
