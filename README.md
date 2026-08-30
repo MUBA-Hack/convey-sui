@@ -61,6 +61,7 @@ a contract, or submit a trade.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, and Family Guardian pre-approval checks | Production pricing and independent recipient/payout-provider verification |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
+| Tested single-milestone Protected Transfer Move package plus a pinned TypeScript transaction core | Testnet publication, server-issued execution plans, Pay integration, lifecycle receipts, and captured create/release/refund evidence |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
@@ -129,6 +130,30 @@ versioned receipt containing the quote and carried settlement fields. Those
 fields alone are not proof. Receipts can export or share the remittance receipt
 only after its independent Sui check confirms the exact settlement. It keeps
 **Awaiting family payout** separate and does not prove bank or cash payout.
+
+### Protected Transfer contract core — implemented, not yet connected to Pay
+
+The repository includes a tested Sui Move package for one narrow escrow policy:
+the payer locks one coin, an assigned reviewer can release the full balance to
+the immutable beneficiary at or before the deadline, and the payer can reclaim
+the full balance only after the deadline. Terminal release or refund consumes
+the shared object so it cannot be acted on twice.
+
+The accompanying client-safe TypeScript core validates a strict atomic
+execution plan, pins testnet USDC, the Move module/function, and the standard
+Sui Clock, derives a deterministic 32-byte evidence commitment, and constructs
+the exact `create_escrow` transaction. The Move and TypeScript suites cover
+authority, deadline boundaries, terminal behavior, event payloads, canonical
+binding, input bounds, and transaction structure.
+
+This is source-level implementation evidence, not a shipped payment option. The
+package has not yet been published from this repository, the Pay flow does not
+request a server-issued protected execution plan, and Receipts does not yet
+verify Created, Released, or Refunded events. The evidence commitment is
+immutable metadata on the escrow; it does not prove that the underlying claim
+is true. No screen should describe Protected Transfer as available until a real
+package ID, reviewer policy, wallet execution, and lifecycle evidence are
+configured and independently checked.
 
 ### GonkaRouter remittance interpretation
 
@@ -768,8 +793,8 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, and independent read-only settlement verification | A reproducible real USDC digest artifact, live FX, fiat funding, and payout integration remain unproven |
-| Sui AI x Sui | GonkaRouter remittance interpretation wired into Send abroad behind deterministic rebind/policy; commerce intent candidate path | Live Gonka request evidence for remittance remains required |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent read-only settlement verification, and a tested Protected Transfer Move/TypeScript core | Protected Transfer publication/lifecycle, a reproducible real USDC digest artifact, live FX, fiat funding, and payout integration remain unproven |
+| Sui AI x Sui | GonkaRouter remittance interpretation wired into Send abroad behind deterministic rebind/policy; commerce intent candidate path | Protected execution-plan API, advisory evidence review, Pay/lifecycle integration, and live Gonka + Sui evidence remain required |
 | Thetanuts Best Product Built on SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Read-only; no quote selection, approval, signing, or trade |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Mapping is deterministic, not model-routed, and no options trade is submitted |
 | Gonka AI for Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, visible provenance, and honest local fallback | A live key/request and captured multilingual remittance evidence remain required |
@@ -808,6 +833,8 @@ lib/
     sui-settlement.server.ts   fixed-testnet read-only RPC adapter and timeout
   strategy/                    deterministic mapping, remittance context, read-only SDK adapter
   protocol/                    shared hashing utilities
+move/
+  protected_transfer/         tested single-milestone escrow package; not yet published or wired into Pay
 public/
   brand/                       Convey mark
   icons/                       PWA icons
@@ -828,6 +855,10 @@ tests/
   and record a reproducible live multilingual remittance run.
 - Capture a reproducible capped Sui testnet payment with a real explorer digest
   and preserve the independent verifier result as release evidence.
+- Publish the Protected Transfer package, bind package/reviewer/deadline/note in
+  one server-issued execution plan, connect it to Pay without changing the
+  direct-transfer path, and capture independently verified create plus terminal
+  lifecycle evidence.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
 - Add a Base signer only behind a separate options confirmation flow, then

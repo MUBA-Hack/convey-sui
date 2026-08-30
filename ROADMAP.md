@@ -72,11 +72,14 @@ FX, fiat funding, or bank disbursement in this path.
   salt/prover handling, and captured restoration evidence remain pending, so
   the feature is not yet presented as a proven onboarding path.
 
-Fiat on/off-ramp, payout, Move escrow, recipient intelligence, receipt splits,
-a production signed offline envelope, real Thetanuts trade, and Sui Earn remain
-future work, not shipped capabilities. The signed-quote handoff wrapper in the
-tree is a transport envelope with no outer signature; a production signed
-offline envelope with cross-device replay authority is future work.
+Fiat on/off-ramp, payout, recipient intelligence, receipt splits, a production
+signed offline envelope, real Thetanuts trade, and Sui Earn remain future work,
+not shipped capabilities. Protected Transfer now has a tested single-milestone
+Move package and pinned TypeScript transaction core, but it is not published,
+authorized by the server, connected to Pay, or represented by lifecycle
+receipts. The signed-quote handoff wrapper in the tree is a transport envelope
+with no outer signature; a production signed offline envelope with cross-device
+replay authority is future work.
 
 ## Product principles
 
@@ -286,30 +289,49 @@ Exit evidence:
 
 ### 6. Protected Transfer
 
-Add programmable escrow for milestones, delivery confirmation, matched grants,
-and human-reviewed edge cases.
+Add a narrow, human-reviewed escrow option inside the existing Pay journey.
 
-The Sui Move escrow object records:
+**Status: contract and transaction core implemented; product lifecycle
+incomplete.** The current Move package supports one full-balance release or
+post-deadline refund. It does not implement multiple milestones, automated
+delivery verification, disputes, early cancellation, matched grants, or model
+authority. The TypeScript core builds the pinned `create_escrow` call from one
+strict execution plan but cannot prove that plan's server provenance.
+
+The implemented Sui Move escrow object records:
 
 - payer and beneficiary;
 - asset and amount;
-- condition policy and deadline;
+- one deadline;
 - reviewer or arbiter;
 - evidence commitment;
 - release and refund paths.
 
-GonkaRouter may extract facts from submitted evidence and explain its
-assessment. Deterministic rules and an authorized human or contract policy make
-the release decision. High-value or ambiguous cases always require human review.
+GonkaRouter may later extract bounded facts from submitted evidence and explain
+an advisory assessment. It never releases funds. The assigned human reviewer
+remains the only release authority, and the payer refund becomes valid strictly
+after the deadline. The on-chain evidence commitment records exact metadata; it
+does not validate the underlying evidence.
+
+Next implementation sequence:
+
+1. Publish the package on Sui testnet and record the package, upgrade authority,
+   source, and bytecode evidence without claiming immutability prematurely.
+2. Produce package, reviewer, deadline, note, beneficiary, asset, and amount as
+   one server-issued execution plan bound to the verified quote.
+3. Add **Hold until reviewed** inside Pay without changing the direct-transfer
+   path or adding a new top-level route.
+4. Verify Created, Released, and Refunded as distinct receipt states; keep each
+   separate from bank or cash payout.
 
 Exit evidence:
 
 - A deployed Sui Move package and one complete on-chain lifecycle.
-- Tests for unauthorized release, duplicate release, deadline, cancellation,
-  refund, and mismatched evidence.
+- Tests for unauthorized release/refund, duplicate terminal action, exact
+  deadline boundaries, zero funding, commitment length, and destination binding.
 - An audit trail connecting the evidence hash, model assessment, reviewer
   decision, and Sui action.
-- A visible human override that cannot be bypassed by model output.
+- A visible human decision that cannot be bypassed by model output.
 
 ### 7. Safer recipients and shared expenses
 
@@ -439,7 +461,7 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof, independent read-only settlement verification | Protected Transfer (Move escrow), Convey Earn, reproducible real USDC digest artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof, independent read-only settlement verification, tested Protected Transfer Move/TypeScript core | Protected Transfer publication and product lifecycle, Convey Earn, reproducible real USDC digest artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
 | Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; commerce intent candidate path | Live Gonka request evidence for remittance | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
 | Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
