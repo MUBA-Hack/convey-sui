@@ -75,14 +75,6 @@ export type SignAndExecuteResult =
       Transaction?: never;
     };
 
-/** JSON-RPC waitForTransaction response shape used by SuiJsonRpcClient. */
-export interface WaitForTransactionResponse {
-  digest?: string;
-  effects?: {
-    status?: { status?: "success" | "failure"; error?: string };
-  } | null;
-}
-
 export function validateRecipientAddress(value: string | null | undefined): string | null {
   if (typeof value !== "string" || value.trim().length === 0) return null;
   const normalized = normalizeSuiAddress(value.trim());
@@ -259,18 +251,6 @@ export function extractSuccessfulDigest(result: unknown): string | null {
     return null;
   }
   return result.Transaction.digest;
-}
-
-/** Inspect JSON-RPC waitForTransaction response. Missing effects stays pending. */
-export function inspectFinality(
-  response: WaitForTransactionResponse | null | undefined,
-  expectedDigest: string,
-): "success" | "failure" | "pending" {
-  if (response?.digest !== expectedDigest) return "pending";
-  const status = response?.effects?.status?.status;
-  if (status === "success") return "success";
-  if (status === "failure") return "failure";
-  return "pending";
 }
 
 /**

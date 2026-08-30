@@ -63,13 +63,13 @@ a contract, or submit a trade.
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
-| Result-oriented portable receipts with local structure and quote-binding checks | Independent Sui ledger verification and separate fiat-payout evidence |
+| Result-oriented portable receipts with local structure, quote binding, server quote re-check, and an independent Sui testnet settlement check | Captured real-transfer evidence, live FX, and separate fiat-payout evidence |
 | Conceptual ETH/BTC payoff workspace and read-only market context | Contract selection, allowance, signer, pricing, and a real Thetanuts fill |
 
 This is an unaudited testnet build. Reference MYR/PHP figures do not collect or
-disburse fiat, a carried digest is not yet an independent Sui ledger lookup, and
-no screen should be used as proof that Ana received a bank payout. Do not use
-real funds.
+disburse fiat, and no screen should be used as proof that Ana received a bank
+payout. The Receipts check is read-only Sui testnet evidence, not payout proof.
+Do not use real funds.
 
 ## Why the boundary matters
 
@@ -113,6 +113,11 @@ reference quote and a guarded testnet-USDC transfer.
   the payer's existing coins, never from the native-SUI gas coin.
 - Review and payment gates, expiry checks, explicit wallet approval, submission
   and confirmation states, and a distinct **Awaiting payout partner** status.
+- A read-only `POST /api/remittance/settlement/verify` check from Receipts and
+  after payment. It matches the receipt digest, successful transaction arm,
+  canonical recipient, pinned testnet USDC type, and exact positive balance
+  change; provider failures become **Sui check unavailable** without exposing
+  RPC details.
 - Missing wallet, wrong network, unmapped recipient, or missing attestation
   leaves a non-executable **Prepared — not submitted** state.
 
@@ -121,8 +126,8 @@ fiat-to-USDC conversion, KYC/payout provider, or PHP disbursement in this path.
 After a confirmed testnet transfer, the remittance flow creates an asset-aware,
 versioned receipt containing the quote and settlement evidence. The receipt
 keeps **Awaiting payout partner** separate from on-chain confirmation and can
-be exported or shared for structural inspection. It does not query the Sui
-ledger or prove bank payout.
+be exported or shared only after the independent Sui check confirms the exact
+settlement. It does not prove bank payout.
 
 ### GonkaRouter remittance interpretation
 
@@ -266,7 +271,10 @@ any validation runs, then checks each kind with its own strict rules.
   quote**, not a receipt; share and export are withheld.
 - Share and export controls appear only for a confirmed remittance settlement;
   an unconfirmed quote is explicitly not a receipt.
-- Local-only evidence: the verifier clearly says it did not query the chain.
+- Independent Sui testnet evidence: the verifier checks the exact digest,
+  recipient, pinned USDC type, successful transaction result, and amount through
+  a server-only read-only route. RPC failure is shown as unavailable, never as
+  confirmation.
 - Copy, download, share-link, and a clearly non-chain sample receipt.
 
 #### Evidence ladder
@@ -279,15 +287,15 @@ honestly; a lower rung is never worded as a higher one.
 | 1. Local schema | Strict Zod schema, exact keys, canonical amounts/addresses, mode-consistent digest/label/explorer URL | Browser | "Strict fields" |
 | 2. Cross-field binding | Settlement digest, recipient, USDC amount, beneficiary, quote expiry, payout status, and Family Rule bound back to the quote | Browser | "Receipt details and quote binding checked" |
 | 3. Server quote re-check | HMAC-SHA256 attestation re-verified in constant time, plus recipient/corridor/config binding; historical evidence mode relaxes only the expiry gate | Server (`/api/remittance/quote/verify?evidence=1`) | "Quote re-verified" or "Quote verified (historical record)" |
-| 4. Sui ledger query | Not performed | — | "This page did not check the Sui ledger; the transaction ID was carried in by the receipt" |
+| 4. Sui ledger query | Read-only testnet lookup matches digest, successful execution, pinned USDC type, recipient, and exact amount | Server (`/api/remittance/settlement/verify`) | "Confirmed on Sui"; mismatch, not-found, and RPC failure stay distinct |
 | 5. Payout proof | Not performed | — | "Awaiting payout partner" stays separate from on-chain confirmation |
 
 #### Exact boundaries
 
-- **Local checks are schema and cross-field only.** Receipts never calls the Sui
-  RPC, never reads transaction status, and never resolves a digest against the
-  ledger. A well-formed real receipt is not the same as proof that its
-  transaction exists or succeeded on-chain.
+- **Local checks are schema and cross-field only.** The browser does not call
+  Sui RPC directly. The server-only settlement route performs a bounded,
+  read-only testnet lookup and returns only strict, secret-free evidence or an
+  explicit rejection/unavailable state.
 - **The remittance quote HMAC is server-held symmetric integrity, not public
   non-repudiation.** The same server key signs and verifies; anyone who holds
   the key can produce a valid seal. It binds the quote fields against server
@@ -296,9 +304,10 @@ honestly; a lower rung is never worded as a higher one.
 - **Historical evidence mode is not authorization.** An expired-but-genuine
   quote can be confirmed as a historical record, but the verify endpoint never
   returns an executable authorization for an expired quote.
-- **A carried transaction ID is not chain verification.** The digest on a
-  remittance receipt was captured at finality and is carried in by the receipt;
-  Receipts does not re-confirm it against Sui.
+- **A carried transaction ID is not chain verification by itself.** The digest
+  on a remittance receipt is treated as an expectation; Receipts independently
+  checks it against the Sui testnet result, recipient, pinned USDC type, and
+  exact amount before showing **Confirmed on Sui**.
 - **On-chain confirmation is not payout.** A confirmed testnet USDC transfer
   keeps **Awaiting payout partner** until a real payout integration provides
   separate evidence. Receipts never claims bank payout completion.
@@ -349,12 +358,13 @@ is therefore not a trade-complete options integration.
 | `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Treasury** | Map an explicit ETH/BTC treasury goal to a conceptual payoff shape and read-only market context | Server-side read-only Base SDK calls; no pricing, contract selection, or trade execution |
-| `/proof` — **Receipts** | Open or import a native-SUI commerce receipt or confirmed remittance settlement receipt | Customer result first; local schema + cross-field binding and server quote re-check under advanced details; no Sui ledger query or payout proof |
+| `/proof` — **Receipts** | Open or import a native-SUI commerce receipt or confirmed remittance settlement receipt | Customer result first; local schema + cross-field binding, server quote re-check, and read-only Sui testnet settlement check; no payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional Gonka interpretation | Server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
+| `POST /api/remittance/settlement/verify` | Independently check a remittance receipt against Sui testnet | Server-only, read-only lookup of the pinned transaction, recipient, USDC type, and exact amount; bounded timeout; no signer or payout authority |
 | `POST /api/strategy` | Strategy mapping plus read-only market snapshot | No approval, signature, or trade |
 
 ## Architecture
@@ -408,7 +418,8 @@ flowchart TB
 Only Pay and a verified cross-device handoff can reach wallet approval. Treasury
 and Receipts are read-only; neither obtains wallet authority. Receipts inspects both
 commerce receipts and confirmed remittance receipts, re-checks the remittance
-quote attestation server-side, and never queries the Sui ledger.
+quote attestation server-side, and uses a separate server-only read-only Sui
+testnet check for remittance settlement evidence.
 
 ### Trust and authority boundary
 
@@ -489,6 +500,7 @@ flowchart TB
     IntentAPI["Commerce intent API"]
     QuoteAPI["Remittance quote API"]
     VerifyAPI["Quote verify API"]
+    SettlementAPI["Settlement verify API"]
     StrategyAPI["Read-only strategy API"]
     Attestation["Server-only HMAC attestation"]
     QuoteAPI --> Attestation
@@ -502,6 +514,7 @@ flowchart TB
   subgraph SuiNetwork["Sui testnet"]
     Usdc["Pinned testnet USDC transfer"]
     Sui["Native SUI purchase transfer"]
+    Lookup["Read-only settlement lookup"]
   end
 
   subgraph BaseNetwork["Base mainnet reads"]
@@ -511,12 +524,14 @@ flowchart TB
   Pay -->|commerce text| IntentAPI
   Pay -->|remittance text| QuoteAPI
   Pay -->|verify before build| VerifyAPI
+  ReadOnly -->|verify remittance receipt| SettlementAPI
   IntentAPI -->|public catalog and request| Gonka
   QuoteAPI -->|public manifest and prompt| Gonka
   Gonka -->|untrusted candidate and evidence| IntentAPI
   Gonka -->|untrusted candidate and evidence| QuoteAPI
   SuiWallet -->|client-signed transaction| Usdc
   SuiWallet -->|client-signed transaction| Sui
+  SettlementAPI -->|read only| Lookup
   ReadOnly --> StrategyAPI
   StrategyAPI -->|read calls only| Thetanuts
 ```
@@ -635,7 +650,7 @@ and the responsive experience.
 | Model invents a recipient, destination, or amount | Frozen public manifest plus deterministic rebind against original text and corridor | Catalog/manifest is currently small and static |
 | Provider failure is mistaken for AI success | Request/model provenance; safe fallback enum; visible route label | No live Gonka evidence without a configured key and successful call |
 | Server steals wallet authority | No server-side Sui signer; wallet signs client-side | Payer must hold testnet gas |
-| Failed chain operation looks successful | Failed transaction union is rejected before receipt creation | Receipt verifier does not query chain state |
+| Failed or mismatched chain evidence looks successful | Settlement check requires a successful transaction and exact pinned-USDC recipient balance change | Public testnet RPC can be unavailable; fiat payout remains unverified |
 | Demo looks like settlement | `DEMO-` digest, explicit label, no explorer URL | Demo proves UI flow only |
 | QR payload is modified | Canonical blake2b256 checksum and strict bounds (commerce envelope) | Checksum is not a payer signature |
 | QR payload is replayed | Consume-once local nonce registry; fail-closed corrupt storage (commerce envelope) | Device-local, not globally authoritative |
@@ -692,8 +707,9 @@ Additional boundaries:
    confirm payment. In zero-setup mode, point to the `DEMO-…` receipt, explicit
    no-chain label, and absent explorer link.
 4. **Review the receipt.** Open **Receipts** (`/proof`); show the customer result
-   first, then strict local
-   evidence and the statement that no chain query was made.
+   first, then strict local evidence and the independent Sui check. A confirmed
+   check still shows **Awaiting family payout** because chain settlement is not
+   bank or cash payout.
 5. **Cross the air gap.** Open **Continue elsewhere** (`/qr-ferry`), generate and
    import the commerce envelope, then show duplicate nonce or checksum-tamper
    rejection. The camera scanner starts only on an explicit **Scan QR** tap.
@@ -734,12 +750,13 @@ complete track submission.
 app/
   page.tsx                     Pay workspace: Send abroad / Buy nearby
   qr-ferry/page.tsx            Continue elsewhere: signed-quote carry and commerce handoff
-  proof/page.tsx               portable local receipt verifier
+  proof/page.tsx               portable receipt verifier and Sui settlement check
   strategy/page.tsx            conceptual ETH/BTC treasury payoff workspace
   offline/page.tsx             PWA navigation fallback
   api/commerce/intent/route.ts Gonka commerce route + deterministic fallback
   api/remittance/quote/route.ts reference quote + optional Gonka interpretation + attestation
   api/remittance/quote/verify/route.ts quote verification + authorization
+  api/remittance/settlement/verify/route.ts read-only Sui settlement evidence
   api/strategy/route.ts        mapping + read-only market snapshot
   manifest.ts                  installable PWA manifest
 components/
@@ -751,7 +768,7 @@ components/
 lib/
   commerce/                    catalog, intent, Gonka resolver, payment, QR, proof
   gonka/                       shared structured-router core, commerce + remittance specs
-  remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, offline handoff
+  remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, offline handoff, settlement verification
     server-config.ts           server-only pricing, recipients, manifest and quote key
     attestation.server.ts      server-only HMAC signing and verification
   strategy/                    deterministic mapping, remittance context, read-only SDK adapter
@@ -773,11 +790,10 @@ tests/
 - Configure a real GonkaRouter key, capture successful request/model provenance,
   and record a reproducible live multilingual remittance run.
 - Execute and verify a capped Sui testnet payment with a real explorer digest.
-- Capture a real pinned-USDC testnet transfer and validate its full evidence.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
-- Query the Sui ledger for an independent transaction-existence check; the
-  current portable proof intentionally remains structural and quote-bound.
+- Capture a real pinned-USDC testnet transfer and validate its full evidence,
+  including the independent Sui lookup and separate payout boundary.
 - Add a Base signer only behind a separate options confirmation flow, then
   execute a minimal mainnet trade and publish transaction evidence.
 - Replace device-local QR replay storage with a cross-device authoritative nonce

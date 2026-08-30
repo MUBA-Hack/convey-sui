@@ -58,12 +58,13 @@ FX, fiat funding, or bank disbursement in this path.
   selection, or trade execution.
 - **Receipts** accepts local, asset-aware native-SUI commerce and confirmed Sui
   testnet-USDC remittance receipts. Remittance receipts bind settlement
-  evidence to the signed quote, expose share/export only after confirmation,
-  and re-check quote attestation server-side including a historical evidence
-  mode for expired-but-genuine quotes. The surface does not query the Sui
-  ledger, does not prove payout, and labels the carried transaction ID as not
-  checked on Sui. The quote HMAC is server-held symmetric integrity, not public
-  non-repudiation.
+  evidence to the signed quote, independently check the digest, successful
+  transaction, pinned USDC type, recipient, and exact amount through a
+  server-only read-only testnet lookup, expose share/export only after that
+  check confirms, and re-check quote attestation server-side including a
+  historical evidence mode for expired-but-genuine quotes. The surface does
+  not prove bank or cash payout, and the quote HMAC is server-held symmetric
+  integrity, not public non-repudiation.
 - **Seedless Sui onboarding (zkLogin via Enoki) is implemented.** Enoki wallet
   registration and Google sign-in are wired through dApp Kit, with the
   registered redirect URI pinned to the origin. Live session restoration,
@@ -129,8 +130,9 @@ Implementation boundary:
   receipt must retain **Awaiting payout partner** until a real payout integration
   provides separate evidence.
 - Receipts now accepts an asset-aware remittance receipt schema after confirmed
-  settlement; it checks local structure and quote binding, while server quote
-  re-verification remains separate from ledger or payout verification.
+  settlement; it checks local structure and quote binding, re-verifies the
+  quote server-side, and independently checks Sui settlement through a bounded
+  read-only testnet lookup. Payout verification remains separate.
 
 Exit evidence:
 

@@ -1,8 +1,10 @@
 # Convey agent guide
 
 This file applies to every coding agent working in this repository. `CLAUDE.md`
-remains the concise project baseline; this guide adds coordination, review, and
-evidence rules for parallel agents.
+is the concise source of project truth; this guide expands it with coordination,
+review, and evidence rules for parallel agents. It does not relax or override a
+rule in `CLAUDE.md`. If the two files appear to conflict, stop, cite the exact
+clauses, and let the integration owner reconcile them before editing code.
 
 ## Product contract
 
@@ -36,6 +38,9 @@ and production build before a commit.
 - Use ESM. `@noble/hashes` v2 subpath imports require `.js` suffixes.
 - Use the installed `@mysten/sui` v2 APIs. Do not introduce v1 `SuiClient`
   patterns from memory; check the package documentation in `node_modules`.
+- The client-signed nearby-commerce payment seam is
+  `lib/commerce/payment.ts` plus `components/commerce/payment-action.tsx`.
+  Treat edits there as security-sensitive and review the pair together.
 - Models may propose structured intent but never receive secrets or transaction
   authority. Validate model output and fail closed before payment preparation.
 - A real transfer requires a connected wallet, the expected network, canonical
@@ -56,6 +61,26 @@ and production build before a commit.
   jank and decorative motion that delays task completion.
 - Read the relevant Next.js documentation under `node_modules/next/dist/docs/`
   before using framework APIs that may have changed.
+
+## Repository map
+
+Keep this map aligned with `CLAUDE.md`; the extra entries identify current trust
+boundaries that workers commonly miss.
+
+- `app/` — product routes and typed APIs. `/` is Pay, `/qr-ferry` is Continue
+  elsewhere, `/proof` is Receipts, and `/strategy` is Treasury.
+- `app/api/remittance/settlement/verify/` — server-only, read-only Sui testnet
+  settlement verification. It never signs or submits a transaction.
+- `lib/commerce/` — nearby-commerce intent, payment, offline envelope, and proof
+  verification.
+- `lib/remittance/` — remittance intent, quotes, transfer constraints, receipt
+  rules, and independent settlement evaluation.
+- `lib/protocol/hash.ts` — shared blake2b256 used by the offline checksum.
+- `components/remittance/` — primary family-transfer journey.
+- `components/commerce/` — nearby-commerce, cross-device handoff, and receipt UI.
+- `components/wallet/`, `components/pwa/`, `components/landing/`, and
+  `components/ui/` — wallet providers, PWA registration, presentation primitives,
+  and the shared shadcn system respectively.
 
 ## Parallel ownership
 
@@ -138,9 +163,47 @@ GLM workers must check this list before returning work:
   command output, screenshots, and runtime behavior.
 - **Secret exposure:** echoing environment values, inserting keys into prompts,
   or placing credentials in tracked examples.
+- **Partial-file reasoning:** editing the first matching function without reading
+  the complete component, its caller, schemas, and focused tests.
+- **Contract widening:** parsing a provider or API response with permissive
+  strings, passthrough objects, unsafe casts, or defaults that turn malformed
+  evidence into success.
+- **Test-shaped implementation:** satisfying one visible fixture while omitting
+  adversarial cases such as stale responses, identity mismatch, extra fields,
+  cancellation, and repeated actions.
+- **Formatting churn:** rewriting unrelated imports, prose, snapshots, or lockfile
+  content and making a small behavior change impossible to review.
+- **Invented completion:** claiming commands, browser states, screenshots, remote
+  pushes, or live-chain evidence that the worker did not personally observe.
+- **Mermaid breakage:** using punctuation, labels, or arrows that GitHub's Mermaid
+  renderer rejects. Keep node IDs simple and validate every changed diagram.
 
 If a required fact cannot be proved, label it as unverified and stop that action.
 Do not invent evidence to keep a demo moving.
+
+## Minimum GLM task packet
+
+Do not send a GLM worker a goal-only prompt. Every assignment must include:
+
+1. **Ownership:** exact files or subsystem it may edit, plus protected shared
+   files it must not touch.
+2. **Observed state:** current `git status --short`, relevant existing behavior,
+   installed library version, and any concurrent work already in the tree.
+3. **Contract:** required behavior, forbidden behavior, truth boundaries, input
+   bounds, and explicit non-goals.
+4. **Acceptance table:** success, failure, stale, malformed, and retry behavior
+   with the expected customer-visible result.
+5. **Evidence:** exact focused tests, typecheck or lint command, and runtime or
+   screenshot states the worker must personally inspect.
+6. **Return format:** changed files, concise rationale, raw command outcomes,
+   observed limitations, and no commit or push unless explicitly authorized.
+
+After a GLM return, a fresh critic must inspect the actual diff and rerun the
+relevant evidence. Never accept the builder's summary as proof. For visual work,
+the critic compares full desktop and mobile flows—including transitions—against
+the current product bar, then returns the single largest remaining gap. The
+builder/critic loop continues until the output passes; the integration owner
+still performs the final truth, simplification, secret, and repository checks.
 
 ## Handoff format
 

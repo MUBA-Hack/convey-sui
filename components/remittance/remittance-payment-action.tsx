@@ -15,13 +15,15 @@ import {
   buildUsdcTransfer,
   classifyPreSignError,
   extractSuccessfulDigest,
-  inspectFinality,
   isTypedWalletRejection,
   isValidDigest,
   resolveTransferMode,
   type RemittanceWalletErrorCode,
-  type WaitForTransactionResponse,
 } from "@/lib/remittance/transfer";
+import {
+  verifySettlement,
+  type SettlementEvidence,
+} from "@/lib/remittance/sui-settlement-verification";
 import { formatUsdcGrouped } from "@/lib/remittance/money";
 import { formatMyr } from "@/lib/remittance/quote";
 import { RemittanceReceiptActions } from "./remittance-receipt-actions";
@@ -39,9 +41,9 @@ import {
  *
  * Lifecycle after signing begins is fail-closed:
  * - typed wallet rejection before a known result: unlock, retryable
- * - structural FailedTransaction / effects.status=failure: unlock, retryable
- * - valid digest + effects success: confirmed
- * - valid digest + missing effects / finality error: submitted pending, lock
+ * - explicit chain failure (FailedTransaction / status.success=false): unlock, retryable
+ * - valid digest + verified balance change: confirmed
+ * - valid digest + timeout/provider error / unverified mismatch: submitted pending, lock
  * - any other post-sign outcome: unknown, lock, never retry
  */
 
@@ -286,21 +288,36 @@ export function RemittancePaymentAction({
         explorerUrl: buildExplorerUrl(digestOrNull),
       });
 
-      let finality: WaitForTransactionResponse;
+      // v2 waitForTransaction via the core API: the SuiJsonRpcClient's own
+      // waitForTransaction is the deprecated v1 shape (GetTransactionBlockParams
+      // + SuiTransactionBlockResponse). The .core property is a JSONRpcCoreClient
+      // extending CoreClient, which has the v2 include/timeout/pollSchedule API.
+      // No cast around the client result.
+      let evidence: SettlementEvidence;
       try {
-        finality = (await client.waitForTransaction({
+        const txResult = await client.core.waitForTransaction({
           digest: digestOrNull,
-          options: { showEffects: true },
-        })) as WaitForTransactionResponse;
+          include: { balanceChanges: true },
+          timeout: 15_000,
+          pollSchedule: [0, 300, 600, 1500, 3500],
+        });
+        if (!mountedRef.current) return;
+        evidence = verifySettlement({
+          expectedDigest: digestOrNull,
+          expectedRecipientAddress: auth.recipientAddress,
+          expectedUsdcMicro: auth.usdcMicro,
+          result: txResult,
+        });
       } catch {
+        // Timeout/provider error after digest exists: stay submitted-pending,
+        // never onSettled, never retryable.
         if (!mountedRef.current) return;
         lockSubmitted(digestOrNull);
         return;
       }
       if (!mountedRef.current) return;
 
-      const outcome = inspectFinality(finality, digestOrNull);
-      if (outcome === "success") {
+      if (evidence.kind === "verified") {
         const real: RemittanceSettlement = {
           mode: "real",
           digest: digestOrNull,
@@ -323,18 +340,16 @@ export function RemittancePaymentAction({
         onSettled?.(real);
         return;
       }
-      if (outcome === "failure") {
-        unlockRetryable(
-          "failure",
-          finality.effects?.status?.error ?? "Transfer failed on-chain.",
-        );
+      if (evidence.kind === "failed") {
+        unlockRetryable("failure", evidence.error ?? "Transfer failed on-chain.");
         onTerminal?.({
           kind: "failed",
-          message: finality.effects?.status?.error ?? "Transfer failed on-chain.",
+          message: evidence.error ?? "Transfer failed on-chain.",
         });
         return;
       }
-      // Missing effects: retain lock, show submitted pending.
+      // Unverified mismatch after digest exists: stay submitted-pending,
+      // never onSettled, never retryable.
       lockSubmitted(digestOrNull);
     } catch (error) {
       if (!mountedRef.current) return;

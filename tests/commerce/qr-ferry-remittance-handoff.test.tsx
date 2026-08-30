@@ -29,7 +29,9 @@ const { wallet, client } = vi.hoisted(() => ({
     signAndExecuteTransaction: vi.fn(),
   },
   client: {
-    waitForTransaction: vi.fn(),
+    core: {
+      waitForTransaction: vi.fn(),
+    },
   },
 }));
 
@@ -178,10 +180,22 @@ beforeEach(() => {
     $kind: "Transaction",
     Transaction: { digest: VALID_DIGEST, status: { success: true } },
   });
-  client.waitForTransaction.mockReset();
-  client.waitForTransaction.mockResolvedValue({
-    digest: VALID_DIGEST,
-    effects: { status: { status: "success" as const } },
+  client.core.waitForTransaction.mockReset();
+  client.core.waitForTransaction.mockResolvedValue({
+    $kind: "Transaction",
+    Transaction: {
+      digest: VALID_DIGEST,
+      signatures: [],
+      epoch: null,
+      status: { success: true, error: null },
+      balanceChanges: [
+        {
+          coinType: USDC_COIN_TYPE_TESTNET,
+          address: ADDR,
+          amount: "109000000",
+        },
+      ],
+    },
   });
 });
 

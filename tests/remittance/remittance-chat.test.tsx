@@ -124,10 +124,24 @@ const { voice, wallet, client } = vi.hoisted(() => ({
     signAndExecuteTransaction: vi.fn(),
   },
   client: {
-    waitForTransaction: vi.fn(async ({ digest }: { digest: string }) => ({
-      digest,
-      effects: { status: { status: "success" as const } },
-    })),
+    core: {
+      waitForTransaction: vi.fn(async ({ digest }: { digest: string }) => ({
+        $kind: "Transaction" as const,
+        Transaction: {
+          digest,
+          signatures: [],
+          epoch: null,
+          status: { success: true, error: null },
+          balanceChanges: [
+            {
+              coinType: USDC_COIN_TYPE_TESTNET,
+              address: "0x" + "1234567890abcdef".repeat(4),
+              amount: "109000000",
+            },
+          ],
+        },
+      })),
+    },
   },
 }));
 
@@ -235,10 +249,22 @@ beforeEach(() => {
   wallet.account = null;
   wallet.network = "testnet";
   wallet.signAndExecuteTransaction.mockReset();
-  client.waitForTransaction.mockReset();
-  client.waitForTransaction.mockImplementation(async ({ digest }: { digest: string }) => ({
-    digest,
-    effects: { status: { status: "success" as const } },
+  client.core.waitForTransaction.mockReset();
+  client.core.waitForTransaction.mockImplementation(async ({ digest }: { digest: string }) => ({
+    $kind: "Transaction" as const,
+    Transaction: {
+      digest,
+      signatures: [],
+      epoch: null,
+      status: { success: true, error: null },
+      balanceChanges: [
+        {
+          coinType: USDC_COIN_TYPE_TESTNET,
+          address: "0x" + "1234567890abcdef".repeat(4),
+          amount: "109000000",
+        },
+      ],
+    },
   }));
 });
 

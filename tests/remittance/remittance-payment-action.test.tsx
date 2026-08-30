@@ -23,7 +23,9 @@ const { wallet, client } = vi.hoisted(() => ({
     signAndExecuteTransaction: vi.fn(),
   },
   client: {
-    waitForTransaction: vi.fn(),
+    core: {
+      waitForTransaction: vi.fn(),
+    },
   },
 }));
 
@@ -168,10 +170,18 @@ beforeEach(() => {
   wallet.account = null;
   wallet.network = "testnet";
   wallet.signAndExecuteTransaction.mockReset();
-  client.waitForTransaction.mockReset();
-  client.waitForTransaction.mockResolvedValue({
-    digest: VALID_DIGEST,
-    effects: { status: { status: "success" } },
+  client.core.waitForTransaction.mockReset();
+  client.core.waitForTransaction.mockResolvedValue({
+    $kind: "Transaction",
+    Transaction: {
+      digest: VALID_DIGEST,
+      signatures: [],
+      epoch: null,
+      status: { success: true, error: null },
+      balanceChanges: [
+        { coinType: USDC_COIN_TYPE_TESTNET, address: ADDR, amount: "109000000" },
+      ],
+    },
   });
   fetchMock.mockReset();
 });
@@ -219,8 +229,13 @@ describe("RemittancePaymentAction — real path", () => {
     fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() => expect(screen.getByTestId("remittance-digest")).toBeInTheDocument());
     expect(wallet.signAndExecuteTransaction).toHaveBeenCalledTimes(1);
-    expect(client.waitForTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ digest: VALID_DIGEST, options: { showEffects: true } }),
+    expect(client.core.waitForTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        digest: VALID_DIGEST,
+        include: { balanceChanges: true },
+        timeout: 15_000,
+        pollSchedule: [0, 300, 600, 1500, 3500],
+      }),
     );
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
@@ -311,7 +326,7 @@ describe("RemittancePaymentAction — real path", () => {
     render(<RemittancePaymentAction quote={q} onTerminal={onTerminal} />);
     fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() => expect(screen.getByTestId("remittance-unknown")).toBeInTheDocument());
-    expect(client.waitForTransaction).not.toHaveBeenCalled();
+    expect(client.core.waitForTransaction).not.toHaveBeenCalled();
     expect(onTerminal).toHaveBeenCalledWith({ kind: "unknown" });
     expect(screen.queryByText(/try again/i)).not.toBeInTheDocument();
   });
@@ -323,7 +338,7 @@ describe("RemittancePaymentAction — real path", () => {
       $kind: "Transaction",
       Transaction: { digest: VALID_DIGEST, status: { success: true } },
     });
-    client.waitForTransaction.mockRejectedValue(new Error("timeout"));
+    client.core.waitForTransaction.mockRejectedValue(new Error("timeout"));
     const onTerminal = vi.fn();
     render(<RemittancePaymentAction quote={q} onTerminal={onTerminal} />);
     fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
@@ -340,30 +355,49 @@ describe("RemittancePaymentAction — real path", () => {
     );
   });
 
-  it("missing effects stays submitted pending", async () => {
+  it("missing balance changes stays submitted pending (unverified, locked)", async () => {
     const q = realQuote();
     fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
     wallet.signAndExecuteTransaction.mockResolvedValue({
       $kind: "Transaction",
       Transaction: { digest: VALID_DIGEST, status: { success: true } },
     });
-    client.waitForTransaction.mockResolvedValue({ digest: VALID_DIGEST });
-    render(<RemittancePaymentAction quote={q} />);
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: {
+        digest: VALID_DIGEST,
+        signatures: [],
+        epoch: null,
+        status: { success: true, error: null },
+        balanceChanges: [],
+      },
+    });
+    const onSettled = vi.fn();
+    render(<RemittancePaymentAction quote={q} onSettled={onSettled} />);
     fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() => expect(screen.getByTestId("remittance-submitted-pending")).toBeInTheDocument());
     expect(screen.queryByTestId("remittance-settlement")).not.toBeInTheDocument();
+    expect(onSettled).not.toHaveBeenCalled();
   });
 
-  it("a success response for another digest stays submitted pending", async () => {
+  it("a verified response for another digest stays submitted pending (digest mismatch)", async () => {
     const q = realQuote();
     fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
     wallet.signAndExecuteTransaction.mockResolvedValue({
       $kind: "Transaction",
       Transaction: { digest: VALID_DIGEST, status: { success: true } },
     });
-    client.waitForTransaction.mockResolvedValue({
-      digest: "9WzSziM8bVKmJKyvHX3ivQcpbwEyKBZb5swuocPL7x4D",
-      effects: { status: { status: "success" } },
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: {
+        digest: "9WzSziM8bVKmJKyvHX3ivQcpbwEyKBZb5swuocPL7x4D",
+        signatures: [],
+        epoch: null,
+        status: { success: true, error: null },
+        balanceChanges: [
+          { coinType: USDC_COIN_TYPE_TESTNET, address: ADDR, amount: "109000000" },
+        ],
+      },
     });
     const onSettled = vi.fn();
     render(<RemittancePaymentAction quote={q} onSettled={onSettled} />);
@@ -405,21 +439,128 @@ describe("RemittancePaymentAction — real path", () => {
     expect(wallet.signAndExecuteTransaction).not.toHaveBeenCalled();
   });
 
-  it("effects status failure unlocks with truthful failure", async () => {
+  it("unsuccessful status (Transaction arm, success=false) unlocks with truthful failure", async () => {
     const q = realQuote();
     fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
     wallet.signAndExecuteTransaction.mockResolvedValue({
       $kind: "Transaction",
       Transaction: { digest: VALID_DIGEST, status: { success: true } },
     });
-    client.waitForTransaction.mockResolvedValue({
-      digest: VALID_DIGEST,
-      effects: { status: { status: "failure", error: "InsufficientGas" } },
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: {
+        digest: VALID_DIGEST,
+        signatures: [],
+        epoch: null,
+        status: { success: false, error: { message: "InsufficientGas" } },
+        balanceChanges: [],
+      },
     });
     render(<RemittancePaymentAction quote={q} />);
     fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/InsufficientGas/i));
     expect(screen.getByRole("button", { name: /Confirm transfer/i })).not.toBeDisabled();
+  });
+
+  it("FailedTransaction arm from waitForTransaction unlocks with truthful failure", async () => {
+    const q = realQuote();
+    fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "FailedTransaction",
+      FailedTransaction: {
+        digest: VALID_DIGEST,
+        signatures: [],
+        epoch: null,
+        status: { success: false, error: { message: "MoveAbort" } },
+        balanceChanges: [],
+      },
+    });
+    render(<RemittancePaymentAction quote={q} />);
+    fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/MoveAbort/i));
+    expect(screen.getByRole("button", { name: /Confirm transfer/i })).not.toBeDisabled();
+  });
+
+  it("wrong coin type in balance changes stays submitted pending (locked)", async () => {
+    const q = realQuote();
+    fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: {
+        digest: VALID_DIGEST,
+        signatures: [],
+        epoch: null,
+        status: { success: true, error: null },
+        balanceChanges: [
+          { coinType: "0x2::sui::SUI", address: ADDR, amount: "109000000" },
+        ],
+      },
+    });
+    const onSettled = vi.fn();
+    render(<RemittancePaymentAction quote={q} onSettled={onSettled} />);
+    fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() => expect(screen.getByTestId("remittance-submitted-pending")).toBeInTheDocument());
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("wrong recipient in balance changes stays submitted pending (locked)", async () => {
+    const q = realQuote();
+    fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: {
+        digest: VALID_DIGEST,
+        signatures: [],
+        epoch: null,
+        status: { success: true, error: null },
+        balanceChanges: [
+          { coinType: USDC_COIN_TYPE_TESTNET, address: ADDR_OTHER, amount: "109000000" },
+        ],
+      },
+    });
+    const onSettled = vi.fn();
+    render(<RemittancePaymentAction quote={q} onSettled={onSettled} />);
+    fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() => expect(screen.getByTestId("remittance-submitted-pending")).toBeInTheDocument());
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("amount mismatch (+1) in balance changes stays submitted pending (locked)", async () => {
+    const q = realQuote();
+    fetchMock.mockResolvedValue(verifyResponse(matchingAuth(q)));
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST, status: { success: true } },
+    });
+    client.core.waitForTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: {
+        digest: VALID_DIGEST,
+        signatures: [],
+        epoch: null,
+        status: { success: true, error: null },
+        balanceChanges: [
+          { coinType: USDC_COIN_TYPE_TESTNET, address: ADDR, amount: "109000001" },
+        ],
+      },
+    });
+    const onSettled = vi.fn();
+    render(<RemittancePaymentAction quote={q} onSettled={onSettled} />);
+    fireEvent.click(screen.getByRole("button", { name: /Confirm transfer/i }));
+    await waitFor(() => expect(screen.getByTestId("remittance-submitted-pending")).toBeInTheDocument());
+    expect(onSettled).not.toHaveBeenCalled();
   });
 
   it("prevents double-submit while pending", async () => {

@@ -8,7 +8,6 @@ import {
   classifyPreSignError,
   extractSuccessfulDigest,
   hasValidAttestation,
-  inspectFinality,
   isFailedTransactionResult,
   isTypedWalletRejection,
   isValidDigest,
@@ -331,20 +330,6 @@ describe("result inspection", () => {
         Transaction: { digest: "abc", status: { success: true } },
       }),
     ).toBe("abc");
-  });
-
-  it("inspectFinality requires effects.status.status === success", () => {
-    expect(inspectFinality({ digest: "x", effects: { status: { status: "success" } } }, "x")).toBe(
-      "success",
-    );
-    expect(inspectFinality({ digest: "x", effects: { status: { status: "failure" } } }, "x")).toBe(
-      "failure",
-    );
-    expect(inspectFinality({ digest: "x" }, "x")).toBe("pending");
-    expect(inspectFinality(null, "x")).toBe("pending");
-    expect(
-      inspectFinality({ digest: "y", effects: { status: { status: "success" } } }, "x"),
-    ).toBe("pending");
   });
 });
 

@@ -37,6 +37,66 @@ import {
   type EvidenceView,
   type QuoteVerifyStatus,
 } from "./proof-advanced-details";
+import {
+  FamilyPayoutStatus,
+  parseSettlementCheckResponse,
+  RemittanceSettlementStatus,
+  type SettlementCheckState,
+} from "./remittance-settlement-status";
+
+const CHECKING_SETTLEMENT: SettlementCheckState = { status: "checking" };
+
+interface ReceiptPageCopy {
+  eyebrow: string;
+  title: string;
+  intro: string;
+}
+
+const DEFAULT_RECEIPT_PAGE_COPY: ReceiptPageCopy = {
+  eyebrow: "Receipt",
+  title: "Your receipt, in plain terms.",
+  intro:
+    "Open a Convey receipt link to see the amount, recipient, and status of your transfer. The full technical verification stays available under Advanced details.",
+};
+
+function remittancePageCopy(view: EvidenceView): ReceiptPageCopy {
+  if (view.kind !== "remittance" || !view.result.ok) {
+    return DEFAULT_RECEIPT_PAGE_COPY;
+  }
+  const state = view.settlementVerify;
+  if (state.status === "checking") {
+    return {
+      eyebrow: "Receipt · Checking",
+      title: "Checking this transfer.",
+      intro:
+        "We’re matching the receipt’s transaction, recipient, and USDC amount on Sui. The amounts below remain receipt details while the check runs.",
+    };
+  }
+  if (state.status === "verified") {
+    return {
+      eyebrow: "Receipt · Confirmed on Sui",
+      title: "Transfer confirmed on Sui.",
+      intro:
+        "The Sui transaction matches this receipt. Family payout remains a separate status.",
+    };
+  }
+  if (state.status === "unavailable") {
+    return {
+      eyebrow: "Receipt · Status unavailable",
+      title: "Transfer status unavailable.",
+      intro:
+        "The independent Sui check is unavailable. The amounts below come from the receipt and are not an on-chain confirmation.",
+    };
+  }
+  const notFound = state.reason === "transaction_not_found";
+  return {
+    eyebrow: "Receipt · Needs review",
+    title: "This transfer needs review.",
+    intro: notFound
+      ? "We could not find this transaction on Sui testnet. Review the receipt details before relying on the amounts below."
+      : "The Sui transaction does not match this receipt. Review the details before relying on the amounts below.",
+  };
+}
 
 function mistToSui(mist: string): string {
   const value = BigInt(mist);
@@ -60,8 +120,10 @@ export function ProofVerifier() {
   const [view, setView] = useState<EvidenceView>(EMPTY_VIEW);
   const [copied, setCopied] = useState(false);
   const [urlLoaded, setUrlLoaded] = useState(false);
+  const [settlementRetry, setSettlementRetry] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const verifySeq = useRef(0);
+  const settlementVerifySeq = useRef(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -80,6 +142,7 @@ export function ProofVerifier() {
             kind: "remittance",
             result: verifyRemittanceReceipt(doc),
             quoteVerify: "checking",
+            settlementVerify: CHECKING_SETTLEMENT,
           });
           setUrlLoaded(true);
         } else if (commercePayload) {
@@ -96,6 +159,7 @@ export function ProofVerifier() {
             kind: "remittance",
             result: { ok: false, errors: [message] },
             quoteVerify: "error",
+            settlementVerify: CHECKING_SETTLEMENT,
           });
         } else {
           setView({
@@ -159,6 +223,54 @@ export function ProofVerifier() {
     };
   }, [activeQuote]);
 
+  const activeReceipt =
+    view.kind === "remittance" && view.result.ok ? view.result.document : null;
+  useEffect(() => {
+    if (!activeReceipt) return;
+    const seq = ++settlementVerifySeq.current;
+    const controller = new AbortController();
+    let active = true;
+    void (async () => {
+      let next: SettlementCheckState;
+      try {
+        const response = await fetch("/api/remittance/settlement/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(activeReceipt),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          next = { status: "unavailable", reason: "invalid_response" };
+        } else {
+          try {
+            next = parseSettlementCheckResponse(await response.json(), {
+              digest: activeReceipt.settlement.digest,
+              recipientAddress: activeReceipt.settlement.recipientAddress,
+              receivedMicro: activeReceipt.settlement.usdcMicro,
+            });
+          } catch {
+            next = { status: "unavailable", reason: "invalid_response" };
+          }
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        next = { status: "unavailable", reason: "rpc_unavailable" };
+      }
+      if (!active || settlementVerifySeq.current !== seq) return;
+      setView((current) =>
+        current.kind === "remittance" &&
+        current.result.ok &&
+        current.result.document === activeReceipt
+          ? { ...current, settlementVerify: next }
+          : current,
+      );
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [activeReceipt, settlementRetry]);
+
   const handleRawChange = (value: string) => {
     setRaw(value);
     setView(EMPTY_VIEW);
@@ -173,6 +285,7 @@ export function ProofVerifier() {
         kind: "remittance",
         result: verifyRemittanceReceipt(raw),
         quoteVerify: "checking",
+        settlementVerify: CHECKING_SETTLEMENT,
       });
       return;
     }
@@ -250,18 +363,43 @@ export function ProofVerifier() {
     exportReceiptJson(view.result.document, "convey-remittance-proof.json");
   };
 
+  const handleReviewDetails = () => {
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[data-testid="proof-advanced-trigger"]',
+    );
+    if (trigger?.getAttribute("aria-expanded") !== "true") trigger?.click();
+    trigger?.focus();
+  };
+
+  const handleRetrySettlement = () => {
+    setView((current) =>
+      current.kind === "remittance" && current.result.ok
+        ? { ...current, settlementVerify: CHECKING_SETTLEMENT }
+        : current,
+    );
+    setSettlementRetry((value) => value + 1);
+  };
+
+  const pageCopy = remittancePageCopy(view);
+
   return (
     <section className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-16">
       <div className="mb-8">
         <span className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1 font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-700">
           <ShieldSearch size="14" variant="Linear" aria-hidden="true" />
-          Receipt
+          {pageCopy.eyebrow}
         </span>
-        <h1 className="mt-4 text-4xl font-normal tracking-[-0.05em] text-black sm:text-5xl">
-          Your receipt, in plain terms.
+        <h1
+          data-testid="receipt-page-title"
+          className="mt-4 text-4xl font-normal tracking-[-0.05em] text-black sm:text-5xl"
+        >
+          {pageCopy.title}
         </h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 sm:text-base">
-          Open a Convey receipt link to see the amount, recipient, and status of your transfer. The full technical verification stays available under Advanced details.
+        <p
+          data-testid="receipt-page-intro"
+          className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 sm:text-base"
+        >
+          {pageCopy.intro}
         </p>
       </div>
 
@@ -282,10 +420,13 @@ export function ProofVerifier() {
           <RemittanceReceipt
             result={view.result}
             quoteVerify={view.quoteVerify}
+            settlementVerify={view.settlementVerify}
             urlLoaded={urlLoaded}
             copied={copied}
             onShare={handleRemittanceShare}
             onExport={handleRemittanceExport}
+            onRetrySettlement={handleRetrySettlement}
+            onReviewDetails={handleReviewDetails}
           />
         ) : (
           <RemittanceUnsettled
@@ -469,17 +610,23 @@ function familyRuleCustomer(quote: VerifiedRemittanceReceipt["document"]["quote"
 function RemittanceReceipt({
   result,
   quoteVerify,
+  settlementVerify,
   urlLoaded,
   copied,
   onShare,
   onExport,
+  onRetrySettlement,
+  onReviewDetails,
 }: {
   result: RemittanceReceiptResult;
   quoteVerify: QuoteVerifyStatus;
+  settlementVerify: SettlementCheckState;
   urlLoaded: boolean;
   copied: boolean;
   onShare: () => void;
   onExport: () => void;
+  onRetrySettlement: () => void;
+  onReviewDetails: () => void;
 }) {
   if (!result.ok) {
     return <RejectionCard title="This remittance receipt couldn't be verified." errors={result.errors} />;
@@ -495,7 +642,7 @@ function RemittanceReceipt({
   const explorerHref = settlement.explorerUrl;
 
   return (
-    <div data-testid="remittance-result" aria-live="polite">
+    <div data-testid="remittance-result">
       <RemittanceMoneySlab
         receiveLabel={`${titleCase(quote.recipient)} · estimated receive`}
         sendAmount={`RM${youPayFixed}`}
@@ -507,10 +654,20 @@ function RemittanceReceipt({
         {titleCase(quote.recipient)} · {titleCase(quote.destinationCity)}, {quote.destinationCountry}
       </p>
 
+      <RemittanceSettlementStatus
+        state={settlementVerify}
+        onRetry={onRetrySettlement}
+        onReview={onReviewDetails}
+      />
+      <FamilyPayoutStatus
+        recipient={titleCase(quote.recipient)}
+        settlementVerified={settlementVerify.status === "verified"}
+      />
+
       <div className="mt-5">
-        <h2 className="text-2xl tracking-[-0.035em] text-black">Receipt checked</h2>
+        <h2 className="text-xl tracking-[-0.025em] text-black">Receipt details checked</h2>
         <p className="mt-3 text-sm leading-6 text-neutral-600">
-          Receipt details and the linked quote were checked. This page did not look up the transfer on Sui — the transaction mark was carried in by the receipt.
+          Receipt details and the linked quote are checked separately from the Sui transfer status above.
         </p>
         {urlLoaded ? (
           <p className="mt-3 text-xs text-neutral-500">
@@ -559,33 +716,35 @@ function RemittanceReceipt({
         <dd className="text-black">{quote.exchangeRate.rateText}</dd>
         <dt className="text-neutral-500">Fee</dt>
         <dd className="text-black">{fee} {quote.feeCurrency}</dd>
-        <dt className="text-neutral-500">Payout</dt>
-        <dd className="text-black">{settlement.payoutStatus}</dd>
         <dt className="text-neutral-500">Family rule</dt>
         <dd className="text-black">{familyRuleCustomer(quote)}</dd>
-        <dt className="text-neutral-500">Confirmed</dt>
+        <dt className="text-neutral-500">Receipt created</dt>
         <dd className="font-mono text-black">{new Date(settlement.confirmedAt).toLocaleString()}</dd>
         <dt className="text-neutral-500">Exported</dt>
         <dd className="font-mono text-black">{new Date(ok.document.exportedAt).toLocaleString()}</dd>
       </dl>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onShare}
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          {copied ? <CopySuccess size="14" variant="Bold" aria-hidden="true" /> : <Copy size="14" variant="Linear" aria-hidden="true" />}
-          {copied ? "Link copied" : "Copy share link"}
-        </button>
-        <button
-          type="button"
-          onClick={onExport}
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        >
-          <DocumentDownload size="14" variant="Linear" aria-hidden="true" />
-          Export proof
-        </button>
+        {settlementVerify.status === "verified" ? (
+          <>
+            <button
+              type="button"
+              onClick={onShare}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            >
+              {copied ? <CopySuccess size="14" variant="Bold" aria-hidden="true" /> : <Copy size="14" variant="Linear" aria-hidden="true" />}
+              {copied ? "Link copied" : "Copy share link"}
+            </button>
+            <button
+              type="button"
+              onClick={onExport}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-black/15 px-4 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+            >
+              <DocumentDownload size="14" variant="Linear" aria-hidden="true" />
+              Export proof
+            </button>
+          </>
+        ) : null}
         <a
           href={explorerHref}
           target="_blank"

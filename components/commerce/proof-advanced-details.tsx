@@ -13,6 +13,7 @@ import {
 } from "@/lib/remittance/receipt-proof";
 import { formatMyrGrouped } from "@/lib/remittance/money";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
+import type { SettlementCheckState } from "./remittance-settlement-status";
 
 // Shared state model — defined here so the orchestrator (proof-verifier.tsx)
 // can import it without a circular dependency. One authoritative state model:
@@ -27,7 +28,12 @@ export type QuoteVerifyStatus =
 export type EvidenceView =
   | { kind: "empty" }
   | { kind: "commerce"; result: ReceiptProofResult }
-  | { kind: "remittance"; result: RemittanceReceiptResult; quoteVerify: QuoteVerifyStatus }
+  | {
+      kind: "remittance";
+      result: RemittanceReceiptResult;
+      quoteVerify: QuoteVerifyStatus;
+      settlementVerify: SettlementCheckState;
+    }
   | {
       kind: "remittance-unsettled";
       recipient: string | null;
@@ -93,7 +99,11 @@ export function ProofAdvancedDetails({
           <CommerceTechnical result={view.result} />
         ) : null}
         {view.kind === "remittance" && view.result.ok ? (
-          <RemittanceTechnical result={view.result} quoteVerify={view.quoteVerify} />
+          <RemittanceTechnical
+            result={view.result}
+            quoteVerify={view.quoteVerify}
+            settlementVerify={view.settlementVerify}
+          />
         ) : null}
       </div>
     </SheetDisclosure>
@@ -215,9 +225,11 @@ function CommerceTechnical({ result }: { result: VerifiedReceiptProof }) {
 function RemittanceTechnical({
   result,
   quoteVerify,
+  settlementVerify,
 }: {
   result: VerifiedRemittanceReceipt;
   quoteVerify: QuoteVerifyStatus;
+  settlementVerify: SettlementCheckState;
 }) {
   const ok = result;
   const quote = ok.document.quote;
@@ -232,6 +244,8 @@ function RemittanceTechnical({
         <dd className="break-all font-mono text-black">{settlement.recipientAddress}</dd>
         <dt className="text-neutral-500">Beneficiary ref</dt>
         <dd className="font-mono text-black">{settlement.beneficiaryRef}</dd>
+        <dt className="text-neutral-500">Payout status</dt>
+        <dd className="font-mono text-black">{settlement.payoutStatus}</dd>
         <dt className="text-neutral-500">Quote expiry</dt>
         <dd className="font-mono text-black">{new Date(settlement.quoteExpiresAt).toISOString()}</dd>
         <dt className="text-neutral-500">Digest mark</dt>
@@ -257,7 +271,42 @@ function RemittanceTechnical({
         ))}
       </ol>
 
-      <ClaimBox>{ok.claim}</ClaimBox>
+      <SectionLabel>Sui settlement check</SectionLabel>
+      <dl className="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs">
+        <dt className="text-neutral-500">Status</dt>
+        <dd className="font-mono text-black">{settlementVerify.status}</dd>
+        {settlementVerify.status === "verified" ? (
+          <>
+            <dt className="text-neutral-500">Network</dt>
+            <dd className="font-mono text-black">{settlementVerify.evidence.network}</dd>
+            <dt className="text-neutral-500">Digest</dt>
+            <dd className="break-all font-mono text-black">{settlementVerify.evidence.digest}</dd>
+            <dt className="text-neutral-500">Coin type</dt>
+            <dd className="break-all font-mono text-black">{settlementVerify.evidence.coinType}</dd>
+            <dt className="text-neutral-500">Recipient address</dt>
+            <dd className="break-all font-mono text-black">{settlementVerify.evidence.recipientAddress}</dd>
+            <dt className="text-neutral-500">Received micro units</dt>
+            <dd className="font-mono text-black">{settlementVerify.evidence.receivedMicro}</dd>
+            <dt className="text-neutral-500">Checked at</dt>
+            <dd className="font-mono text-black">{settlementVerify.evidence.checkedAt}</dd>
+          </>
+        ) : settlementVerify.status === "rejected" || settlementVerify.status === "unavailable" ? (
+          <>
+            <dt className="text-neutral-500">Reason</dt>
+            <dd className="font-mono text-black">{settlementVerify.reason}</dd>
+          </>
+        ) : null}
+      </dl>
+
+      <ClaimBox>
+        {settlementVerify.status === "verified"
+          ? "The independent Sui check matched this receipt. Bank or cash payout remains unconfirmed."
+          : settlementVerify.status === "rejected"
+            ? "The independent Sui check did not match this receipt. No settlement confirmation is claimed."
+            : settlementVerify.status === "unavailable"
+              ? "The independent Sui check is unavailable. Local receipt fields remain available without an on-chain confirmation claim."
+              : "The independent Sui check is in progress. Local receipt fields do not confirm settlement on their own."}
+      </ClaimBox>
     </div>
   );
 }
