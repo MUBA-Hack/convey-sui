@@ -26,10 +26,10 @@ import { decodeHandoff } from "@/lib/remittance/offline-handoff";
 import {
   formatMyrGrouped,
   formatMyrFixedGrouped,
-  formatPhpGrouped,
   formatPhpFixedGrouped,
   formatUsdcGrouped,
 } from "@/lib/remittance/money";
+import { RemittanceMoneySlab } from "@/components/remittance/remittance-money-slab";
 import { copyReceiptUrl, exportReceiptJson } from "@/lib/remittance/receipt-share";
 import {
   EMPTY_VIEW,
@@ -489,8 +489,6 @@ function RemittanceReceipt({
   const quote = ok.document.quote;
   const settlement = ok.document.settlement;
   const usdcAmount = formatUsdcGrouped(quote.usdcMicro);
-  const youPay = formatMyrGrouped(quote.youPayMinor);
-  const familyReceives = formatPhpGrouped(quote.familyReceivesMinor);
   const youPayFixed = formatMyrFixedGrouped(quote.youPayMinor);
   const familyReceivesFixed = formatPhpFixedGrouped(quote.familyReceivesMinor);
   const fee = formatMyrGrouped(quote.totalFeeMinor);
@@ -498,24 +496,16 @@ function RemittanceReceipt({
 
   return (
     <div data-testid="remittance-result" aria-live="polite">
-      <div
-        data-testid="remittance-stage"
-        data-proof-mode="remittance"
-        className="rounded-2xl bg-black p-5 text-white"
-      >
-        <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
-          Receipt for {titleCase(quote.recipient)}
-        </p>
-        <p className="mt-3 text-[44px] font-medium leading-[0.92] tracking-[-0.04em] sm:text-[56px]">
-          {youPayFixed}
-          <span className="ml-2 align-baseline text-[16px] font-semibold uppercase tracking-[0.16em] text-white/60 sm:text-[18px]">
-            {quote.youPayCurrency}
-          </span>
-        </p>
-        <p className="mt-3 text-sm text-white/80">
-          {familyReceivesFixed} {quote.familyReceivesCurrency} received by {titleCase(quote.recipient)} in {titleCase(quote.destinationCity)}, {quote.destinationCountry}
-        </p>
-      </div>
+      <RemittanceMoneySlab
+        receiveLabel={`${titleCase(quote.recipient)} · estimated receive`}
+        sendAmount={`RM${youPayFixed}`}
+        receiveAmount={`${quote.familyReceivesCurrency} ${familyReceivesFixed}`}
+        testId="remittance-stage"
+        dataProofMode="remittance"
+      />
+      <p className="mt-2 text-xs text-neutral-500">
+        {titleCase(quote.recipient)} · {titleCase(quote.destinationCity)}, {quote.destinationCountry}
+      </p>
 
       <div className="mt-5">
         <h2 className="text-2xl tracking-[-0.035em] text-black">Receipt checked</h2>
@@ -554,10 +544,6 @@ function RemittanceReceipt({
       )}
 
       <dl className="mt-5 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-3 border-y border-black/10 py-4 text-xs">
-        <dt className="text-neutral-500">You paid</dt>
-        <dd className="text-black">{youPay} {quote.youPayCurrency}</dd>
-        <dt className="text-neutral-500">Family receives</dt>
-        <dd className="text-black">{familyReceives} {quote.familyReceivesCurrency}</dd>
         <dt className="text-neutral-500">Wallet transfer</dt>
         <dd className="text-black">{usdcAmount} USDC</dd>
         <dt className="text-neutral-500">Transaction mark</dt>

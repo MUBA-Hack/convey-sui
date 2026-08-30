@@ -13,6 +13,7 @@ import {
   type QuoteBlocker,
 } from "./remittance-quote-actions";
 import { RemittanceQuoteCarry } from "./remittance-quote-carry";
+import { RemittanceMoneySlab } from "./remittance-money-slab";
 
 function isHandoffEligible(quote: QuoteEnvelope, now: number): boolean {
   if (isExpired(quote.expiresAt, now)) return false;
@@ -182,32 +183,15 @@ export function RemittanceQuotePreview({
             </div>
           </div>
 
-          {/* Black amount/receive tile — strong visual depth, financial sans
-              numerals (no mono/slashed zeros). Fixed two-decimal typesetting. */}
-          <div className="cv-money-tile mx-4 grid gap-4 rounded-[18px] bg-black p-4 text-white sm:grid-cols-2 sm:gap-0 lg:mx-5 lg:p-5">
-            <div className="sm:border-r sm:border-white/12 sm:pr-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
-                You send
-              </p>
-              <div
-                data-testid="quote-you-pay"
-                className="mt-1 font-sans text-[32px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-white"
-              >
-                RM{vm.sendAmount}
-              </div>
-            </div>
-            <div className="border-t border-white/12 pt-3 sm:border-t-0 sm:pt-0 sm:pl-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/55">
-                Estimated receive
-              </p>
-              <div
-                data-testid="quote-family-receives"
-                className="mt-1 font-sans text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-white"
-              >
-                PHP {vm.phpPayout}
-              </div>
-            </div>
-          </div>
+          <RemittanceMoneySlab
+            receiveLabel={`${quote.recipient} · estimated receive`}
+            sendAmount={`RM${vm.sendAmount}`}
+            receiveAmount={`PHP ${vm.phpPayout}`}
+            testId="quote-money-slab"
+            sendTestId="quote-you-pay"
+            receiveTestId="quote-family-receives"
+            className="mx-4 lg:mx-5"
+          />
 
           <dl className="space-y-1.5 px-4 pt-3 pb-3 text-sm">
             <div className="flex items-center justify-between gap-3">

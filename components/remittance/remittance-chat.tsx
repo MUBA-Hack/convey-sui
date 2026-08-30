@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCurrentAccount, useCurrentNetwork } from "@mysten/dapp-kit-react";
-import { formatUsdcGrouped } from "@/lib/remittance/quote";
+import { formatMyrFixedGrouped, formatUsdcGrouped } from "@/lib/remittance/quote";
 import {
   QuoteEnvelopeSchema,
   RemittanceClarificationSchema,
@@ -22,6 +22,7 @@ import {
   type QuoteBlocker,
   type QuotePreviewStatus,
 } from "./remittance-quote-preview";
+import { RemittanceMoneySlab } from "./remittance-money-slab";
 import { RemittanceCheckoutDialog } from "./remittance-checkout-dialog";
 import type { RemittanceSettlement, RemittanceTerminalState } from "./remittance-payment-action";
 
@@ -117,6 +118,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
   // disclosure. Voice populates the disclosure's composer and opens it so the
   // transcribed text is visible, but never submits.
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
+  const [amountFocused, setAmountFocused] = useState(false);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [typeOpen, setTypeOpen] = useState(false);
   const parsedHeroAmount = parseAmountToMinor(amount);
@@ -124,6 +126,9 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
     ? estimatePhpPayout(parsedHeroAmount.minor)
     : null;
   const heroFee = parsedHeroAmount.ok ? estimateMyrFee(parsedHeroAmount.minor) : null;
+  const heroSendAmount = parsedHeroAmount.ok
+    ? formatMyrFixedGrouped(parsedHeroAmount.minor)
+    : amount;
 
   const account = useCurrentAccount();
   const network = useCurrentNetwork();
@@ -358,38 +363,38 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                   Sister · {HERO_CITY}, {HERO_COUNTRY}
                 </p>
               </div>
+              <div className="flex shrink-0 gap-1.5" aria-label="Quick amounts">
+                {["250", "500", "750"].map((quickAmount) => (
+                  <button
+                    key={quickAmount}
+                    type="button"
+                    onClick={() => {
+                      setAmount(quickAmount);
+                      setAmountFocused(false);
+                      setAmountError(null);
+                    }}
+                    className={`min-h-8 rounded-full border px-2.5 text-[10px] font-semibold transition ${amount === quickAmount ? "border-black bg-black text-white" : "border-black/15 text-neutral-600 hover:border-black/40 hover:text-black"}`}
+                  >
+                    {quickAmount}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="cv-money-tile mx-5 rounded-[20px] bg-black p-4 text-white lg:mx-7 lg:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">You send</p>
-                <div className="flex gap-1.5" aria-label="Quick amounts">
-                  {["250", "500", "750"].map((quickAmount) => (
-                    <button
-                      key={quickAmount}
-                      type="button"
-                      onClick={() => {
-                        setAmount(quickAmount);
-                        setAmountError(null);
-                      }}
-                      className={`min-h-8 rounded-full border px-2.5 text-[10px] font-semibold transition ${amount === quickAmount ? "border-white bg-white text-black" : "border-white/20 text-white/80 hover:border-white/50 hover:text-white"}`}
-                    >
-                      {quickAmount}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5 transition-colors">
-                <span className="font-sans text-[34px] font-semibold leading-none tracking-[-0.02em] text-white">
-                  RM
-                </span>
+            <RemittanceMoneySlab
+              receiveLabel={`${HERO_RECIPIENT} · estimated receive`}
+              sendAmount={
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <span>RM</span>
                 <input
                   data-testid="hero-amount"
                   type="text"
                   inputMode="decimal"
                   autoComplete="off"
-                  value={amount}
+                  value={amountFocused ? amount : heroSendAmount}
                   aria-label="Send amount in MYR"
+                  onFocus={() => setAmountFocused(true)}
+                  onBlur={() => setAmountFocused(false)}
                   onChange={(e) => {
                     setAmount(e.target.value);
                     if (amountError) setAmountError(null);
@@ -400,29 +405,24 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                       handleSeeQuote();
                     }
                   }}
-                  className="w-full min-w-0 flex-1 border-0 bg-transparent p-0 font-sans text-[34px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-white outline-none placeholder:text-white/30"
+                  className="w-full min-w-0 flex-1 border-0 bg-transparent p-0 font-sans text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-white outline-none placeholder:text-white/30 sm:text-[30px]"
                 />
-              </div>
-              <div className="mt-4 border-t border-white/15 pt-3">
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/50">
-                    Ana receives about
-                  </p>
-                  <p data-testid="hero-payout" className="mt-0.5 text-xl font-semibold tabular-nums text-white">
-                    {heroPayout ? `PHP ${heroPayout}` : "—"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-white/60">
-                <span>Fee</span>
-                <span className="font-medium tabular-nums text-white">{heroFee ? `RM${heroFee}` : "—"}</span>
-              </div>
-              {amountError && (
-                <p role="alert" className="mt-1.5 text-[11px] text-red-300">
-                  {amountError}
-                </p>
-              )}
+                </span>
+              }
+              receiveAmount={heroPayout ? `PHP ${heroPayout}` : "—"}
+              testId="hero-money-slab"
+              receiveTestId="hero-payout"
+              className="mx-5 lg:mx-7"
+            />
+            <div className="mx-5 mt-3 flex items-center justify-between text-[11px] text-neutral-500 lg:mx-7">
+              <span>Fee</span>
+              <span className="font-medium tabular-nums text-black">{heroFee ? `RM${heroFee}` : "—"}</span>
             </div>
+            {amountError && (
+              <p role="alert" className="mx-5 mt-1.5 text-[11px] text-red-700 lg:mx-7">
+                {amountError}
+              </p>
+            )}
 
             <p
               data-testid="hero-truth"

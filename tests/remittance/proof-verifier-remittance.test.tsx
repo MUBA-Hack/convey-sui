@@ -124,9 +124,12 @@ describe("ProofVerifier — remittance receipt rendering", () => {
     fireEvent.click(screen.getByRole("button", { name: /verify structure/i }));
 
     const result = await screen.findByTestId("remittance-result");
-    // Hero leads with Ana + RM500 paid + PHP6,104 received — the family money
-    // object, not the wallet USDC transfer.
     const stage = screen.getByTestId("remittance-stage");
+    expect(stage).toHaveAttribute("data-money-slab", "dual-currency");
+    expect(stage).toHaveTextContent(/You send/i);
+    expect(stage).toHaveTextContent(/Ana · estimated receive/i);
+    expect(stage).toHaveTextContent("RM500.00");
+    expect(stage).toHaveTextContent("PHP 6,104.00");
     expect(stage).toHaveTextContent(/Ana/);
     expect(stage).toHaveTextContent(/500/);
     expect(stage).toHaveTextContent(/6,104/);
@@ -162,7 +165,7 @@ describe("ProofVerifier — remittance receipt rendering", () => {
     expect(result.textContent ?? "").not.toMatch(/DEMO|LOCAL\/DEMO|build/i);
   });
 
-  it("leads with a black stage containing the RM paid and PHP received; digest mark is subordinate", () => {
+  it("leads with a black stage containing the RM amount and estimated PHP reference; digest mark is subordinate", () => {
     fetchMock.mockResolvedValue(jsonResponse({ kind: "authorization" }));
     render(<ProofVerifier />);
     openAdvanced();
@@ -172,12 +175,15 @@ describe("ProofVerifier — remittance receipt rendering", () => {
     const stage = screen.getByTestId("remittance-stage");
     expect(stage.className).toContain("bg-black");
     expect(stage.className).toContain("text-white");
-    // Hero leads with RM paid + PHP received, not USDC.
+    expect(stage).toHaveAttribute("data-money-slab", "dual-currency");
     expect(stage).toHaveTextContent(/500/);
     expect(stage).toHaveTextContent(/6,104/);
     expect(stage.textContent ?? "").not.toMatch(/USDC/i);
     // Digest mark is subordinate — not in the hero stage.
     expect(stage.querySelector("[data-remittance-digest]")).toBeNull();
+    const values = stage.querySelectorAll('[data-money-value="true"]');
+    expect(values).toHaveLength(2);
+    expect(values[0]?.className).toBe(values[1]?.className);
     // Digest remains available in the full result detail rows.
     const result = screen.getByTestId("remittance-result");
     const digestEl = result.querySelector("[data-remittance-digest]");

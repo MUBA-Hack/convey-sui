@@ -315,9 +315,16 @@ describe("PayWorkspace — premium money sheet visual round", () => {
 
   it("frames the amount in a black tile with strong visual depth", () => {
     render(<PayWorkspace />);
-    const hero = screen.getByTestId("remittance-hero");
+    const slab = screen.getByTestId("hero-money-slab");
     // The black amount tile is the financial focal point of the sheet.
-    expect(hero.querySelector(".cv-money-tile")).not.toBeNull();
+    expect(slab).toHaveAttribute("data-money-slab", "dual-currency");
+    expect(slab).toHaveTextContent(/You send/i);
+    expect(slab).toHaveTextContent(/Ana · estimated receive/i);
+    expect(screen.getByTestId("hero-amount")).toHaveValue("500.00");
+    expect(screen.getByTestId("hero-payout")).toHaveTextContent("PHP 6,104.00");
+    const values = slab.querySelectorAll('[data-money-value="true"]');
+    expect(values).toHaveLength(2);
+    expect(values[0]?.className).toBe(values[1]?.className);
   });
 
   it("updates the receive estimate before requesting a quote", () => {
@@ -325,6 +332,38 @@ describe("PayWorkspace — premium money sheet visual round", () => {
     fireEvent.change(screen.getByTestId("hero-amount"), { target: { value: "750" } });
     expect(screen.getByTestId("hero-payout")).toHaveTextContent("PHP 9,168.44");
     expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
+  });
+
+  it("edits a raw amount on focus, restores fixed decimals on blur, and requests that amount", async () => {
+    const quote750: QuoteEnvelope = {
+      ...QUOTE,
+      youPayMinor: "75000",
+      familyReceivesMinor: "916844",
+      totalFeeMinor: "1325",
+    };
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(quote750));
+    render(<PayWorkspace />);
+
+    const amount = screen.getByTestId("hero-amount");
+    expect(amount).toHaveValue("500.00");
+    fireEvent.focus(amount);
+    expect(amount).toHaveValue("500");
+    fireEvent.change(amount, { target: { value: "750" } });
+    expect(amount).toHaveValue("750");
+    fireEvent.blur(amount);
+    expect(amount).toHaveValue("750.00");
+
+    fireEvent.click(screen.getByTestId("see-quote"));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
+        "/api/remittance/quote",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringMatching(/Send RM750 to Ana in Manila/i),
+        }),
+      ),
+    );
+    expect(await screen.findByTestId("quote-you-pay")).toHaveTextContent("RM750.00");
   });
 
   it("renders the recipient as a designed circular portrait chip", () => {
@@ -802,7 +841,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(text).not.toMatch(/build progress/i);
   });
 
-  it("uses honest quote copy — You send / estimated receive, no promised-outcome language", async () => {
+  it("uses the shared dual-currency quote slab without promised-outcome language", async () => {
     vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
@@ -814,9 +853,16 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(text).not.toMatch(/within minutes/i);
     // Required honest framing is present: primary hierarchy + truth note.
     expect(text).toMatch(/You send/i);
-    expect(text).toMatch(/estimated receive/i);
+    expect(text).toMatch(/Ana · estimated receive/i);
     expect(text).toMatch(/no MYR charge until you approve/i);
     expect(text).not.toMatch(/Payout method/i);
+    const slab = within(preview).getByTestId("quote-money-slab");
+    expect(slab).toHaveAttribute("data-money-slab", "dual-currency");
+    expect(within(slab).getByTestId("quote-you-pay")).toHaveTextContent("RM500.00");
+    expect(within(slab).getByTestId("quote-family-receives")).toHaveTextContent("PHP 6,104.00");
+    const values = slab.querySelectorAll('[data-money-value="true"]');
+    expect(values).toHaveLength(2);
+    expect(values[0]?.className).toBe(values[1]?.className);
   });
 
   it("does not show Sign in when other blockers exist (unmapped recipient, no wallet)", async () => {
@@ -1379,10 +1425,9 @@ describe("RemittanceChat — desktop workspace, two groups, and mobile order", (
   it("entry layout centers the instrument on desktop with min-height, no two-column rail", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
-    // No two-column grid rail — the entry container is a centered flex.
-    expect(section.querySelector(".grid")).toBeNull();
     const flex = section.querySelector(".flex.w-full.flex-1");
     expect(flex).not.toBeNull();
+    expect(flex?.className).not.toMatch(/grid-cols/);
     expect(flex?.className).toContain("items-center");
     expect(flex?.className).toMatch(/lg:min-h-/);
     // The instrument wrapper centers at ~1040px on desktop.
