@@ -113,15 +113,16 @@ FX, fiat funding, or bank disbursement in this path.
   receipt into settlement or chain evidence. A Protected Transfer is recorded
   only after its submitted transaction passes the exact independent `Created`
   event check. Submitted, unknown, rejected, malformed, sample, and imported
-  receipts are not recorded. Other receipt producers remain pending.
+  receipts are not recorded. Verified direct remittance, terminal Protected
+  Transfer, and Treasury protection-purchase receipts now record their native
+  proof links. Nearby commerce remains pending.
 - **Seedless Sui onboarding (zkLogin via Enoki) is implemented.** Enoki wallet
   registration and Google sign-in are wired through dApp Kit, with the
   registered redirect URI pinned to the origin. Live session restoration,
   salt/prover handling, and captured restoration evidence remain pending, so
   the feature is not yet presented as a proven onboarding path.
 
-Fiat on/off-ramp, payout, recipient intelligence, receipt splits, Activity
-recording from the remaining completed transfer flows, a production
+Fiat on/off-ramp, payout, recipient intelligence, nearby-commerce Activity, a production
 signed offline envelope, a captured real Thetanuts fill and Sui Earn remain
 future evidence, not shipped outcomes. Protected Transfer now has a tested single-milestone
 Move package, pinned TypeScript transaction core, bounded plan and Created-event
@@ -475,9 +476,10 @@ navigation.
 - **Recipient check:** explain concrete warning signals such as a changed
   destination, first-time recipient, unusual amount, expired handoff, replayed
   nonce, or merchant mismatch.
-- **Receipt split:** scan or paste a receipt, let AI propose line items, then
-  require each person and amount to be confirmed before producing payment
-  requests.
+- **Receipt split:** a confirmed remittance receipt now supports an exact
+  integer-USDC split for two to eight people. Every participant and allocation
+  must be confirmed and reconcile to the source before copyable request text is
+  produced. Receipt scanning and AI-proposed line items remain future work.
 - **Family payout:** save a verified recipient and payout preference, but
   require step-up review when account details change.
 - **Guardrails:** let customers set a spending envelope for a card, recipient,

@@ -41,6 +41,7 @@ import {
   type CanonicalAuthorization,
 } from "./quote-schema";
 import { blake2b256, toHex } from "../protocol/hash";
+import { CustodyManifestDigestSchema } from "../pharmacy/custody-evidence";
 
 /** Schema/domain version bound into every commitment. */
 export const PROTECTED_TRANSFER_SCHEMA_VERSION = "convey.protected-transfer.v1";
@@ -85,6 +86,17 @@ export interface ProtectedTransferExecutionPlan {
   deadlineMs: number;
   /** Free-form review note. Trimmed; control characters rejected. */
   reviewNote: string;
+  /**
+   * Optional custody manifest digest (lowercase `0x` + 64 hex blake2b256).
+   * When present it is bound into the canonical commitment encoding so a
+   * different or tampered digest changes the outer commitment. The Move call
+   * still receives only the single 32-byte outer commitment; this digest is
+   * NOT a separate Move argument and is never verified, authenticated, or
+   * approved by this builder. Ordinary transfers omit it; medicine-pickup
+   * flows require it later at the medicine UI layer. Typed `string` to match
+   * the strict runtime schema inference; the regex is the fail-closed guard.
+   */
+  custodyManifestDigest?: string;
 }
 
 /**
@@ -111,6 +123,11 @@ export const ProtectedTransferExecutionPlanSchema = z.strictObject({
   // in `validateReviewNote` so the fail-closed empty boundary is preserved.
   // A missing property is still rejected by `strictObject`.
   reviewNote: z.string().max(500),
+  // Optional custody manifest digest. Reuses the single canonical digest
+  // schema from the custody-evidence module — no duplicated regex. A missing
+  // property is accepted (ordinary transfers); a present-but-malformed value
+  // fails closed through the strict schema.
+  custodyManifestDigest: CustodyManifestDigestSchema.optional(),
 });
 
 /**
@@ -163,6 +180,10 @@ export const ProtectedTransferPlanRequestSchema = z
     }),
     deadlinePreset: ProtectedTransferDeadlinePresetSchema,
     reviewNote: z.string().max(500),
+    // Optional custody manifest digest. Ordinary transfers omit it; a
+    // medicine-pickup flow may supply one. The route preserves it after quote
+    // verification; no client package/reviewer/network/coin override is added.
+    custodyManifestDigest: CustodyManifestDigestSchema.optional(),
   });
 export type ProtectedTransferPlanRequest = z.infer<
   typeof ProtectedTransferPlanRequestSchema
@@ -225,6 +246,13 @@ export interface ProtectedTransferMetadata {
   readonly canonicalEncoding: string;
   /** Full Move target string: `${packageId}::${module}::${function}`. */
   readonly target: string;
+  /**
+   * Optional custody manifest digest bound into the commitment. Present only
+   * when the plan carried one. Immutable. This is a commitment to supplied
+   * custody data only — never a verified, authentic, medically valid,
+   * authorized, or approved artifact.
+   */
+  readonly custodyManifestDigest?: string;
 }
 
 export interface BuildProtectedTransferResult {
@@ -473,6 +501,11 @@ export function parseProtectedTransferExecutionPlan(
     ...(plan.reviewerName === undefined ? {} : { reviewerName: plan.reviewerName }),
     deadlineMs: plan.deadlineMs,
     reviewNote: normalizedNote,
+    // Preserve the optional custody manifest digest verbatim. The strict
+    // schema already validated its shape; the parser does not transform it.
+    ...(plan.custodyManifestDigest === undefined
+      ? {}
+      : { custodyManifestDigest: plan.custodyManifestDigest }),
   };
 }
 
@@ -524,6 +557,12 @@ export function buildProtectedTransfer(
   const normalizedNote = plan.reviewNote;
 
   // Canonical fixed-order JSON encoding. No object spread; every key explicit.
+  // The optional `custodyManifestDigest` is appended only when present, so
+  // no-digest plans keep their existing canonical encoding and commitment
+  // byte-for-byte (a new null field is never injected into old encodings).
+  // When present, the digest is bound into the outer commitment, so a
+  // different or tampered digest changes the 32-byte commitment the Move call
+  // receives. The Move call signature and argument count are unchanged.
   const encoding = {
     schemaVersion: PROTECTED_TRANSFER_SCHEMA_VERSION,
     package: canonicalPackage,
@@ -537,6 +576,9 @@ export function buildProtectedTransfer(
     deadlineMs: plan.deadlineMs,
     reviewNote: normalizedNote,
     authorization: canonicalAuthorizationEncoding(auth, canonicalBeneficiary),
+    ...(plan.custodyManifestDigest === undefined
+      ? {}
+      : { custodyManifestDigest: plan.custodyManifestDigest }),
   };
   const canonicalJson = JSON.stringify(encoding);
   const digest = blake2b256(new TextEncoder().encode(canonicalJson));
@@ -586,6 +628,9 @@ export function buildProtectedTransfer(
     commitmentBytes,
     canonicalEncoding: canonicalJson,
     target,
+    ...(plan.custodyManifestDigest === undefined
+      ? {}
+      : { custodyManifestDigest: plan.custodyManifestDigest }),
   };
   Object.freeze(metadata);
 

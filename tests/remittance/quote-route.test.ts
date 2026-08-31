@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __setGonkaRemittanceRouterFactoryForTest,
+  GONKA_INFERENCE_TIMEOUT_CAP_MS,
   type GonkaRemittanceRouterFactory,
 } from "@/app/api/remittance/quote/route";
 import type {
@@ -32,6 +33,14 @@ function postReq(text: string): Request {
   return new Request("http://localhost/api/remittance/quote", {
     method: "POST",
     body: JSON.stringify({ text }),
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function postReqMode(text: string, interpretationMode: "deterministic" | "gonka"): Request {
+  return new Request("http://localhost/api/remittance/quote", {
+    method: "POST",
+    body: JSON.stringify({ text, interpretationMode }),
     headers: { "content-type": "application/json" },
   });
 }
@@ -429,6 +438,142 @@ describe("POST /api/remittance/quote — unsafe env ints", () => {
     expect(body.kind).toBe("quote");
     // Default fee bps is 150.
     expect(body.provenance.feeBps).toBe(150);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// interpretationMode — deterministic bypass + Gonka inference budget cap.
+// ---------------------------------------------------------------------------
+
+describe("POST /api/remittance/quote — interpretationMode", () => {
+  it("deterministic mode never calls an injected router factory/run and returns a structured_input quote", async () => {
+    const factory = vi.fn(
+      (): GonkaRemittanceRouterFactory => () => {
+        const router: GonkaRemittanceRouter = {
+          run: vi.fn(async () => {
+            throw new Error("router.run must not be called in deterministic mode");
+          }),
+        };
+        return router;
+      },
+    ) as unknown as GonkaRemittanceRouterFactory;
+    __setGonkaRemittanceRouterFactoryForTest(factory);
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReqMode(GOLDEN_EN, "deterministic"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("quote");
+    expect(body.recipient).toBe("Ana");
+    expect(body.youPayMinor).toBe("50000");
+    expect(body.intentReview.reviewer).toBe("local");
+    expect(body.intentReview.fallbackReason).toBe("structured_input");
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("deterministic mode still returns exact clarifications (missing amount)", async () => {
+    __setGonkaRemittanceRouterFactoryForTest(fakeLiveRouterFactory(goldenCandidate()));
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReqMode("Send to Ana in Manila", "deterministic"));
+    const body = await res.json();
+    expect(body.kind).toBe("clarification");
+    expect(body.clarification.code).toBe("missing_amount");
+  });
+
+  it("gonka mode (explicit) still invokes the injected router and returns a live review", async () => {
+    const factory = fakeLiveRouterFactory(goldenCandidate());
+    __setGonkaRemittanceRouterFactoryForTest(factory);
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReqMode(GOLDEN_REMITTANCE, "gonka"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("quote");
+    expect(body.intentReview.reviewer).toBe("gonka");
+    expect(body.intentReview.requestId).toBe("req_rem_live_1");
+  });
+
+  it("omitted interpretationMode still invokes the injected router (backward compatible)", async () => {
+    const factory = fakeLiveRouterFactory(goldenCandidate());
+    __setGonkaRemittanceRouterFactoryForTest(factory);
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReq(GOLDEN_REMITTANCE));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("quote");
+    expect(body.intentReview.reviewer).toBe("gonka");
+  });
+
+  it("injected factory observes timeout <= cap and maxRetries 0", async () => {
+    const observed: { timeoutMs?: number; maxRetries?: number }[] = [];
+    const factory: GonkaRemittanceRouterFactory = (cfg) => {
+      observed.push({ timeoutMs: cfg.timeoutMs, maxRetries: cfg.maxRetries });
+      return fakeLiveRouterFactory(goldenCandidate())(cfg);
+    };
+    __setGonkaRemittanceRouterFactoryForTest(factory);
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReqMode(GOLDEN_REMITTANCE, "gonka"));
+    expect(res.status).toBe(200);
+    expect(observed).toHaveLength(1);
+    expect(observed[0]!.maxRetries).toBe(0);
+    expect(observed[0]!.timeoutMs).toBeLessThanOrEqual(GONKA_INFERENCE_TIMEOUT_CAP_MS);
+  });
+
+  it("a lower configured timeout is preserved (not raised to the cap)", async () => {
+    vi.stubEnv("GONKA_REQUEST_TIMEOUT_MS", "2000");
+    const observed: { timeoutMs?: number; maxRetries?: number }[] = [];
+    const factory: GonkaRemittanceRouterFactory = (cfg) => {
+      observed.push({ timeoutMs: cfg.timeoutMs, maxRetries: cfg.maxRetries });
+      return fakeLiveRouterFactory(goldenCandidate())(cfg);
+    };
+    __setGonkaRemittanceRouterFactoryForTest(factory);
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReqMode(GOLDEN_REMITTANCE, "gonka"));
+    expect(res.status).toBe(200);
+    expect(observed[0]!.timeoutMs).toBe(2000);
+    expect(observed[0]!.maxRetries).toBe(0);
+  });
+
+  it("provider failure still returns deterministic/provider_error under gonka mode", async () => {
+    const errFactory: GonkaRemittanceRouterFactory = () => ({
+      run: vi.fn(async () => ({
+        type: "gonka-run-err" as const,
+        reason: "PROVIDER_ERROR" as const,
+        attempts: [],
+      })),
+    });
+    __setGonkaRemittanceRouterFactoryForTest(errFactory);
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const res = await POST(postReqMode(GOLDEN_EN, "gonka"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("quote");
+    expect(body.intentReview.reviewer).toBe("local");
+    expect(body.intentReview.fallbackReason).toBe("provider_error");
+  });
+
+  it("rejects an invalid interpretationMode value with a 400", async () => {
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const req = new Request("http://localhost/api/remittance/quote", {
+      method: "POST",
+      body: JSON.stringify({ text: GOLDEN_EN, interpretationMode: "fast" }),
+      headers: { "content-type": "application/json" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an extra field alongside interpretationMode (strict object)", async () => {
+    const { POST } = await import("@/app/api/remittance/quote/route");
+    const req = new Request("http://localhost/api/remittance/quote", {
+      method: "POST",
+      body: JSON.stringify({
+        text: GOLDEN_EN,
+        interpretationMode: "deterministic",
+        extra: 1,
+      }),
+      headers: { "content-type": "application/json" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
   });
 });
 

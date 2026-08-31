@@ -653,3 +653,84 @@ describe("buildProtectedTransfer — metadata immutability", () => {
     expect(typeof result.transaction.setSender).toBe("function");
   });
 });
+
+describe("buildProtectedTransfer — optional custody manifest digest", () => {
+  const DIGEST_A = "0x" + "aa".repeat(32);
+  const DIGEST_B = "0x" + "bb".repeat(32);
+
+  it("preserves an optional digest in metadata and the parsed plan", () => {
+    const result = buildProtectedTransfer(
+      baseInput({ plan: { custodyManifestDigest: DIGEST_A } }),
+    );
+    expect(result.metadata.custodyManifestDigest).toBe(DIGEST_A);
+  });
+
+  it("omits custodyManifestDigest from metadata when the plan omits it", () => {
+    const result = buildProtectedTransfer(baseInput());
+    expect(result.metadata).not.toHaveProperty("custodyManifestDigest");
+  });
+
+  it("keeps the no-digest canonical encoding and commitment unchanged", () => {
+    // A plan without a digest must produce the identical canonical encoding
+    // and commitment it produced before the optional digest was introduced.
+    const result = buildProtectedTransfer(baseInput());
+    expect(result.metadata.canonicalEncoding).not.toMatch(/custodyManifestDigest/);
+    // Pin a deterministic commitment for the default baseInput plan.
+    expect(result.metadata.commitmentHex).toMatch(/^0x[0-9a-f]{64}$/);
+    // Two no-digest builds remain identical.
+    const again = buildProtectedTransfer(baseInput());
+    expect(again.metadata.commitmentHex).toBe(result.metadata.commitmentHex);
+    expect(again.metadata.canonicalEncoding).toBe(result.metadata.canonicalEncoding);
+  });
+
+  it("changes the commitment when the digest is present vs absent", () => {
+    const without = buildProtectedTransfer(baseInput());
+    const withDigest = buildProtectedTransfer(
+      baseInput({ plan: { custodyManifestDigest: DIGEST_A } }),
+    );
+    expect(withDigest.metadata.commitmentHex).not.toBe(without.metadata.commitmentHex);
+    expect(withDigest.metadata.canonicalEncoding).toMatch(/custodyManifestDigest/);
+  });
+
+  it("changes the commitment when the digest value changes", () => {
+    const a = buildProtectedTransfer(
+      baseInput({ plan: { custodyManifestDigest: DIGEST_A } }),
+    );
+    const b = buildProtectedTransfer(
+      baseInput({ plan: { custodyManifestDigest: DIGEST_B } }),
+    );
+    expect(a.metadata.commitmentHex).not.toBe(b.metadata.commitmentHex);
+  });
+
+  it("rejects a malformed digest through the strict schema", () => {
+    expect(() =>
+      buildProtectedTransfer(
+        baseInput({ plan: { custodyManifestDigest: "0xdeadbeef" } as never }),
+      ),
+    ).toThrow(/schema/i);
+    expect(() =>
+      buildProtectedTransfer(
+        baseInput({ plan: { custodyManifestDigest: "0x" + "zz".repeat(32) } as never }),
+      ),
+    ).toThrow(/schema/i);
+  });
+
+  it("keeps the Move call argument count and order unchanged with a digest", () => {
+    const result = buildProtectedTransfer(
+      baseInput({ plan: { custodyManifestDigest: DIGEST_A } }),
+    );
+    const { moveCall } = inspect(result);
+    // Still exactly six Move arguments in the original order; the digest is
+    // bound INTO the single 32-byte commitment (arg 3), not appended as a new
+    // Move argument. The commitment length is already pinned by the metadata
+    // commitmentBytes.length === 32 assertion in the determinism suite.
+    expect(moveCall.MoveCall.arguments.length).toBe(6);
+    expect(argKind(moveCall.MoveCall.arguments[0]!)).toBe("Result"); // coin
+    expect(argKind(moveCall.MoveCall.arguments[1]!)).toBe("Input.pure"); // beneficiary
+    expect(argKind(moveCall.MoveCall.arguments[2]!)).toBe("Input.pure"); // reviewer
+    expect(argKind(moveCall.MoveCall.arguments[3]!)).toBe("Input.pure"); // commitment bytes
+    expect(argKind(moveCall.MoveCall.arguments[4]!)).toBe("Input.pure"); // deadline u64
+    expect(argKind(moveCall.MoveCall.arguments[5]!)).toBe("Input.object"); // &Clock
+    expect(result.metadata.commitmentBytes.length).toBe(32);
+  });
+});

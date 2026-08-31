@@ -8,6 +8,7 @@ import {
   type ProtectedTransferExecutionPlan,
   type ProtectedTransferMetadata,
 } from "./protected-transfer";
+import { CustodyManifestDigestSchema } from "../pharmacy/custody-evidence";
 import { ProtectedTransferCreatedVerifyResponseSchema } from "./protected-transfer-created";
 import { buildExplorerUrl } from "./transfer";
 
@@ -60,6 +61,11 @@ export const ProtectedTransferCreatedReceiptTermsSchema = z.strictObject({
   evidenceCommitmentHex: z.string().regex(/^0x[0-9a-f]{64}$/),
   reviewNote: ReviewNoteSchema,
   createdCheckedAt: z.iso.datetime(),
+  // Optional custody manifest digest bound into the outer commitment. Present
+  // only when the plan carried one. Cross-checked against the strict plan so a
+  // tampered digest fails receipt verification. Never a verified/authentic/
+  // authorized artifact — only a commitment to supplied custody data.
+  custodyManifestDigest: CustodyManifestDigestSchema.optional(),
 });
 export type ProtectedTransferCreatedReceiptTerms = z.infer<
   typeof ProtectedTransferCreatedReceiptTermsSchema
@@ -148,6 +154,11 @@ export const ProtectedTransferCreatedReceiptSchema = z
           field: "evidenceCommitmentHex",
           actual: created.evidenceCommitmentHex,
           expected: rebuilt.commitmentHex,
+        },
+        {
+          field: "custodyManifestDigest",
+          actual: transfer.custodyManifestDigest,
+          expected: document.plan.custodyManifestDigest,
         },
       ];
       for (const binding of planBindings) {
@@ -244,6 +255,9 @@ export function buildProtectedTransferCreatedReceipt(
       evidenceCommitmentHex: verification.evidenceCommitmentHex,
       reviewNote: rebuilt.reviewNote,
       createdCheckedAt: verification.checkedAt,
+      ...(plan.custodyManifestDigest === undefined
+        ? {}
+        : { custodyManifestDigest: plan.custodyManifestDigest }),
     },
     exportedAt: input.exportedAt ?? new Date().toISOString(),
   });

@@ -108,6 +108,9 @@ export async function POST(req: Request) {
 
   // The candidate plan carries server-resolved package/reviewer and the raw
   // note; the shared parser normalizes the note and enforces all invariants.
+  // The optional custody manifest digest is preserved verbatim after quote
+  // verification; the parser validates its shape and the builder binds it
+  // into the outer commitment. No client package/reviewer/network/coin input.
   const candidatePlan: ProtectedTransferExecutionPlan = {
     kind: "protected_transfer_execution_plan",
     authorization,
@@ -116,6 +119,9 @@ export async function POST(req: Request) {
     reviewerName,
     deadlineMs,
     reviewNote: request.reviewNote,
+    ...(request.custodyManifestDigest === undefined
+      ? {}
+      : { custodyManifestDigest: request.custodyManifestDigest }),
   };
 
   // Normalize through the shared parser; any failure fails closed.

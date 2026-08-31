@@ -250,3 +250,83 @@ describe("Protected Transfer Created receipt", () => {
     expect(sniffProofKind(JSON.stringify({ mode: "demo", digest: "x" }))).toBe("commerce");
   });
 });
+
+describe("Protected Transfer Created receipt — optional custody manifest digest", () => {
+  const CUSTODY_DIGEST = "0x" + "aa".repeat(32);
+
+  function planWithDigest(): ProtectedTransferExecutionPlan {
+    return { ...plan(), custodyManifestDigest: CUSTODY_DIGEST };
+  }
+
+  function fixtureWithDigest() {
+    const executionPlan = planWithDigest();
+    const metadata = buildProtectedTransfer({
+      plan: executionPlan,
+      sender: PAYER,
+      nowMs: NOW,
+    }).metadata;
+    const verification: Extract<ProtectedTransferCreatedVerifyResponse, { kind: "verified" }> = {
+      kind: "verified",
+      network: "testnet",
+      digest: DIGEST,
+      escrowObjectId: ESCROW,
+      payerAddress: PAYER,
+      beneficiaryAddress: BENEFICIARY,
+      reviewer: { name: "Convey Review", address: REVIEWER },
+      coinType: USDC_COIN_TYPE_TESTNET,
+      amountMicro: "109000000",
+      deadlineMs: executionPlan.deadlineMs,
+      evidenceCommitmentHex: metadata.commitmentHex,
+      checkedAt: new Date(NOW + 30_000).toISOString(),
+    };
+    return { executionPlan, metadata, verification };
+  }
+
+  function receiptWithDigest(): ProtectedTransferCreatedReceiptDocument {
+    const { executionPlan, metadata, verification } = fixtureWithDigest();
+    return buildProtectedTransferCreatedReceipt({
+      verification,
+      plan: executionPlan,
+      metadata,
+      exportedAt: new Date(NOW + 60_000).toISOString(),
+    });
+  }
+
+  it("carries the optional digest in transfer terms and round-trips through a payload", () => {
+    const document = receiptWithDigest();
+    expect(document.transfer.custodyManifestDigest).toBe(CUSTODY_DIGEST);
+    expect(document.plan.custodyManifestDigest).toBe(CUSTODY_DIGEST);
+    const payload = encodeProtectedTransferCreatedReceiptPayload(document);
+    expect(decodeProtectedTransferCreatedReceiptPayload(payload)).toEqual(document);
+  });
+
+  it("rejects a transfer digest that does not match the plan digest", () => {
+    const base = receiptWithDigest();
+    const tampered = verifyProtectedTransferCreatedReceipt({
+      ...base,
+      transfer: {
+        ...base.transfer,
+        custodyManifestDigest: "0x" + "bb".repeat(32),
+      },
+    });
+    expect(tampered.ok).toBe(false);
+    if (!tampered.ok) {
+      expect(tampered.errors.join(" ")).toMatch(/custodyManifestDigest/i);
+    }
+  });
+
+  it("rejects a plan digest change through the commitment rebuild", () => {
+    const base = receiptWithDigest();
+    const tampered = verifyProtectedTransferCreatedReceipt({
+      ...base,
+      plan: { ...base.plan, custodyManifestDigest: "0x" + "bb".repeat(32) },
+    });
+    expect(tampered.ok).toBe(false);
+  });
+
+  it("omits custodyManifestDigest when the plan omits it", () => {
+    const document = receipt();
+    expect(document.transfer).not.toHaveProperty("custodyManifestDigest");
+    expect(document.plan).not.toHaveProperty("custodyManifestDigest");
+  });
+});

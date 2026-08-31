@@ -63,8 +63,26 @@ import { isGonkaRunErr, isGonkaRunOk } from "@/lib/gonka/types";
  *    and attempt trails are never exposed to the model or the response.
  */
 
+/**
+ * Inference-attempt budget for the Gonka router adapter. The route clones the
+ * resolved Gonka config and caps `timeoutMs` at this value (and `maxRetries`
+ * at 0) before constructing the router, so a single inference attempt cannot
+ * exceed the interactive-demo budget. A lower configured timeout is preserved.
+ * This caps only the adapter's per-call timeout contract; it does not promise
+ * that every response completes within this bound end-to-end.
+ */
+export const GONKA_INFERENCE_TIMEOUT_CAP_MS = 6_000;
+
 const RequestSchema = z.strictObject({
   text: z.string().max(MAX_REMITTANCE_INPUT_LENGTH),
+  /**
+   * Optional interpretation mode. Omitted defaults to `"gonka"` for backward
+   * compatibility. `"deterministic"` skips Gonka router construction/run even
+   * when configured or a test factory is injected, and uses the deterministic
+   * parse/build/attestation path with an honest `structured_input` local
+   * review. Extra fields are still rejected by the strict object.
+   */
+  interpretationMode: z.enum(["deterministic", "gonka"]).optional(),
 });
 
 /**
@@ -184,6 +202,7 @@ export async function POST(req: Request) {
   }
 
   const text = parsed.data.text;
+  const interpretationMode = parsed.data.interpretationMode ?? "gonka";
 
   // Resolve reference-pricing config from server-only env (with safe defaults).
   const config = resolveRemittanceConfig(process.env);
@@ -208,6 +227,14 @@ export async function POST(req: Request) {
     );
   }
 
+  // --- Deterministic mode: skip Gonka entirely, even if configured or a test
+  // router is injected. Honest `structured_input` local review — the user
+  // supplied structured controls, so deterministic parse is the intended path,
+  // not a Gonka failure or misconfiguration. ---
+  if (interpretationMode === "deterministic") {
+    return deterministicQuote(text, config, "structured_input");
+  }
+
   // --- Resolve Gonka configuration from server-only env (no secrets leaked). ---
   const env = process.env;
   const { config: gonkaConfig, configured } = gonkaConfigFromEnv(env);
@@ -219,7 +246,19 @@ export async function POST(req: Request) {
       const factory =
         TEST_ROUTER_FACTORY.current ??
         ((cfg: GonkaAdapterConfig) => createGonkaRemittanceRouter(cfg));
-      router = factory(gonkaConfig);
+      // Clone the resolved config and cap the inference-attempt budget. Do not
+      // mutate the shared env-derived config: a lower configured timeout is
+      // preserved, maxRetries is forced to 0, and the per-call timeout is
+      // capped at GONKA_INFERENCE_TIMEOUT_CAP_MS.
+      const cappedConfig: GonkaAdapterConfig = {
+        ...gonkaConfig,
+        timeoutMs: Math.min(
+          gonkaConfig.timeoutMs ?? GONKA_INFERENCE_TIMEOUT_CAP_MS,
+          GONKA_INFERENCE_TIMEOUT_CAP_MS,
+        ),
+        maxRetries: 0,
+      };
+      router = factory(cappedConfig);
     } catch {
       // Factory threw (e.g. bad config) — fail closed to deterministic.
       return deterministicQuote(text, config, "not_configured");

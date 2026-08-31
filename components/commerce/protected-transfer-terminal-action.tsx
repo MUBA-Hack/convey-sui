@@ -18,8 +18,11 @@ import {
   buildProtectedTransferTerminalReceipt,
   encodeProtectedTransferTerminalReceiptPayload,
   PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM,
+  type ProtectedTransferTerminalReceiptDocument,
 } from "@/lib/remittance/protected-transfer-terminal-receipt";
 import type { VerifiedProtectedTransferCreatedReceipt } from "@/lib/remittance/protected-transfer-created-receipt";
+import { recordActivity } from "@/lib/activity/storage";
+import type { ActivityItem } from "@/lib/activity/types";
 import {
   buildExplorerUrl,
   extractSuccessfulDigest,
@@ -99,6 +102,24 @@ function terminalRequest(
     amountMicro: transfer.amountMicro,
     deadlineMs: transfer.deadlineMs,
     evidenceCommitmentHex: transfer.evidenceCommitmentHex,
+  };
+}
+
+export function terminalActivityItem(
+  terminalReceipt: ProtectedTransferTerminalReceiptDocument,
+  payload: string,
+  recipient: string,
+): ActivityItem {
+  const action = terminalReceipt.transfer.action;
+  const usdc = Number(terminalReceipt.transfer.amountMicro) / 1_000_000;
+  return {
+    id: `pt-terminal:${terminalReceipt.transfer.digest}:${action}`,
+    href: `/proof?${PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM}=${payload}`,
+    title: "Protected Transfer",
+    amountLabel: `${usdc} USDC`,
+    detailLabel: action === "release" ? `Released to ${recipient}` : "Returned to payer",
+    nextOwner: action === "release" ? recipient : "Payer",
+    updatedAt: terminalReceipt.terminal.checkedAt,
   };
 }
 
@@ -194,6 +215,18 @@ export function ProtectedTransferTerminalAction({
         terminal: verification.response,
       });
       const payload = encodeProtectedTransferTerminalReceiptPayload(terminalReceipt);
+      try {
+        // Device-local convenience only — never change verified success UI or throw.
+        recordActivity(
+          terminalActivityItem(
+            terminalReceipt,
+            payload,
+            receipt.document.plan.authorization.recipient,
+          ),
+        );
+      } catch {
+        // Storage failure never alters the verified terminal outcome.
+      }
       navigate(`/proof?${PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM}=${payload}`);
     } catch {
       setStatus("review_needed");

@@ -118,4 +118,53 @@ describe("strict schemas", () => {
     expect(isExpired(10, 11)).toBe(true);
     expect(isExpired(20, 10)).toBe(false);
   });
+
+  it("accepts structured_input as an honest local fallbackReason", () => {
+    const result = QuoteEnvelopeSchema.safeParse({
+      kind: "quote",
+      recipient: "Ana",
+      destinationCity: "manila",
+      destinationCountry: "Philippines",
+      youPayMinor: "50000",
+      youPayCurrency: "MYR",
+      familyReceivesMinor: "610400",
+      familyReceivesCurrency: "PHP",
+      exchangeRate: { fromCurrency: "MYR", toCurrency: "PHP", rateText: "1 MYR = 12.44 PHP" },
+      totalFeeMinor: "950",
+      feeCurrency: "MYR",
+      fixedFeeMinor: "200",
+      feeBps: 150,
+      usdcMicro: "109000000",
+      usdcAmount: "109",
+      settlementRail: "Sui testnet USDC",
+      payoutMethod: "Bank deposit",
+      estimatedArrival: "Soon",
+      payoutStatus: "Awaiting payout partner",
+      issuedAt: 1,
+      expiresAt: 2,
+      provenance: {
+        pricing: "reference",
+        sourceLabel: "ref",
+        myrPerUsdc: "450",
+        phpPerUsdc: "5600",
+        fixedFeeMyr: "200",
+        feeBps: 150,
+      },
+      corridor: { source: "MYR", destination: "PHP" },
+      recipientAddress: null,
+      beneficiaryRef: "R-ABCD1234",
+      attestation: null,
+      intentReview: {
+        reviewer: "local",
+        mode: "fallback",
+        provider: "deterministic",
+        fallbackReason: "structured_input",
+        purpose: null,
+        maximumFamilyLimitMinor: null,
+        ruleStatus: "not_set",
+      },
+      clarification: null,
+    });
+    expect(result.success).toBe(true);
+  });
 });

@@ -165,6 +165,34 @@ describe("requestProtectedTransferPlan", () => {
       requestProtectedTransferPlan({ request: makeRequest(), fetchImpl }),
     ).rejects.toThrow(/strict schema/i);
   });
+
+  it("forwards an optional custody manifest digest in the strict request body", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(planResponse()), { status: 200 }));
+    const digest = "0x" + "aa".repeat(32);
+    const request = { ...makeRequest(), custodyManifestDigest: digest };
+
+    await requestProtectedTransferPlan({ request, fetchImpl });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/remittance/protected-transfer/plan",
+      expect.objectContaining({
+        body: expect.stringContaining(`"custodyManifestDigest":"${digest}"`),
+      }),
+    );
+  });
+
+  it("rejects a malformed custody manifest digest before fetch", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(planResponse()), { status: 200 }));
+    const bad = {
+      ...makeRequest(),
+      custodyManifestDigest: "0xdeadbeef",
+    } as unknown as ProtectedTransferPlanRequest;
+
+    await expect(
+      requestProtectedTransferPlan({ request: bad, fetchImpl }),
+    ).rejects.toThrow(/request failed strict schema/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
 
 describe("terminal client adapters", () => {

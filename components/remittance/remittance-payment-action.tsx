@@ -28,6 +28,11 @@ import { formatUsdcGrouped } from "@/lib/remittance/money";
 import { formatMyr } from "@/lib/remittance/quote";
 import { RemittanceReceiptActions } from "./remittance-receipt-actions";
 import {
+  buildRemittanceReceipt,
+  encodeRemittanceReceiptPayload,
+} from "@/lib/remittance/receipt-proof";
+import { recordActivity } from "@/lib/activity/storage";
+import {
   CanonicalAuthorizationSchema,
   isExpired,
   type QuoteEnvelope,
@@ -71,7 +76,6 @@ export interface RemittancePaymentActionProps {
 }
 
 export interface RemittanceSettlement {
-  mode: "real";
   digest: string;
   explorerUrl: string;
   usdcMicro: string;
@@ -109,6 +113,35 @@ const ERROR_MESSAGES: Record<RemittanceWalletErrorCode, string> = {
 function shortAddress(addr: string | null): string {
   if (!addr) return "Not configured";
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+/**
+ * Record a device-local Activity link for a confirmed remittance settlement.
+ * Invariant: built only at the verified->confirmed transition, never for
+ * prepared/submitted/pending/unknown/failed. The id is derived from the
+ * settlement digest so a replayed verified outcome upserts the same record.
+ * Activity is device-local convenience only; a storage or encoding failure
+ * must never change the confirmed settlement UI or throw.
+ */
+function recordConfirmedRemittanceActivity(
+  quote: QuoteEnvelope,
+  settlement: RemittanceSettlement,
+): void {
+  try {
+    const doc = buildRemittanceReceipt({ quote, settlement });
+    const payload = encodeRemittanceReceiptPayload(doc);
+    recordActivity({
+      id: `remittance:${settlement.digest}`,
+      href: `/proof?r=${payload}`,
+      title: "Beneficiary transfer",
+      amountLabel: `${formatUsdcGrouped(settlement.usdcMicro)} USDC`,
+      detailLabel: "Confirmed on Sui · Awaiting payout partner",
+      nextOwner: "View receipt",
+      updatedAt: new Date(settlement.confirmedAt).toISOString(),
+    });
+  } catch {
+    // Device-local convenience only — never change confirmed UI or throw.
+  }
 }
 
 type Status =
@@ -319,7 +352,6 @@ export function RemittancePaymentAction({
 
       if (evidence.kind === "verified") {
         const real: RemittanceSettlement = {
-          mode: "real",
           digest: digestOrNull,
           explorerUrl: buildExplorerUrl(digestOrNull),
           usdcMicro: auth.usdcMicro,
@@ -338,6 +370,7 @@ export function RemittancePaymentAction({
         onPendingChange?.(false);
         onTerminal?.({ kind: "confirmed", settlement: real });
         onSettled?.(real);
+        recordConfirmedRemittanceActivity(quote, real);
         return;
       }
       if (evidence.kind === "failed") {

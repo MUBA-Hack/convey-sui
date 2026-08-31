@@ -20,6 +20,9 @@ import {
   PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM,
   type ProtectionPurchaseReceiptDocument,
 } from "@/lib/strategy/protection-purchase-receipt";
+import { formatUsdcMicro } from "@/lib/strategy/format";
+import { recordActivity } from "@/lib/activity/storage";
+import type { ActivityItem } from "@/lib/activity/types";
 import {
   ProtectionWalletError,
   connectBaseWallet,
@@ -208,6 +211,21 @@ function walletMessage(error: unknown): string {
   if (error.code === "rejected") return "Wallet request canceled. Nothing was purchased.";
   if (error.code === "reverted") return "The wallet transaction did not complete. Nothing was purchased.";
   return "The wallet could not complete this request. Try again.";
+}
+
+export function protectionPurchaseActivityItem(
+  receipt: ProtectionPurchaseReceiptDocument,
+  payload: string,
+): ActivityItem {
+  return {
+    id: `treasury:protection:${receipt.purchase.txHash}`,
+    href: `/proof?${PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM}=${payload}`,
+    title: "Treasury protection position",
+    amountLabel: `${formatUsdcMicro(receipt.purchase.premiumAmountMicro)} USDC`,
+    detailLabel: `${receipt.plan.asset} protection on Base`,
+    nextOwner: "You",
+    updatedAt: receipt.purchase.checkedAt,
+  };
 }
 
 function PlanError({ message }: { message: string }) {
@@ -495,6 +513,12 @@ export function ProtectionWalletAction({
       if (result.kind === "verified") {
         const receipt = buildProtectionPurchaseReceipt({ plan, purchase: result, approvalTxHash: approvalHash });
         const payload = encodeProtectionPurchaseReceiptPayload(receipt);
+        try {
+          // Device-local convenience only — never change verified success UI or throw.
+          recordActivity(protectionPurchaseActivityItem(receipt, payload));
+        } catch {
+          // Storage failure never alters the verified purchase outcome.
+        }
         await withBrowserPurchaseLock(async () => {
           const stored = readProtectionPurchaseRecovery();
           if (

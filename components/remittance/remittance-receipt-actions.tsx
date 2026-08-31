@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, CopySuccess, DocumentDownload } from "@/components/icons";
+import { useMemo, useState } from "react";
+import { Copy, CopySuccess, DocumentDownload, People } from "@/components/icons";
 import {
   buildRemittanceReceipt,
   encodeRemittanceReceiptPayload,
-  type RemittanceReceiptDocument,
 } from "@/lib/remittance/receipt-proof";
 import { copyReceiptUrl, exportReceiptJson } from "@/lib/remittance/receipt-share";
+import { ReceiptSplitAction } from "./receipt-split-action";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
 import type { RemittanceSettlement } from "./remittance-payment-action";
 
@@ -27,45 +27,47 @@ export interface RemittanceReceiptActionsProps {
   settlement: RemittanceSettlement;
 }
 
-function buildReceipt(
-  quote: QuoteEnvelope,
-  settlement: RemittanceSettlement,
-): RemittanceReceiptDocument {
-  return buildRemittanceReceipt({
-    quote,
-    settlement: {
-      digest: settlement.digest,
-      explorerUrl: settlement.explorerUrl,
-      recipientAddress: settlement.recipientAddress,
-      usdcMicro: settlement.usdcMicro,
-      beneficiaryRef: settlement.beneficiaryRef,
-      quoteExpiresAt: settlement.quoteExpiresAt,
-      payoutStatus: settlement.payoutStatus,
-      purpose: settlement.purpose,
-      maximumFamilyLimitMinor: settlement.maximumFamilyLimitMinor,
-      // Bound once at settlement confirmation; reused on every share/export so
-      // repeated shares produce identical evidence, not a new timestamp.
-      confirmedAt: settlement.confirmedAt,
-    },
-  });
-}
-
 export function RemittanceReceiptActions({
   quote,
   settlement,
 }: RemittanceReceiptActionsProps) {
   const [copied, setCopied] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
+
+  // Memoize the receipt document and encoded payload by quote+settlement so
+  // row edits inside the split panel (local child state) and `copied` toggles
+  // here never rebuild the encoded proof.
+  const receiptDoc = useMemo(
+    () => buildRemittanceReceipt({ quote, settlement }),
+    [quote, settlement],
+  );
+  const receiptPayload = useMemo(
+    () => encodeRemittanceReceiptPayload(receiptDoc),
+    [receiptDoc],
+  );
+  // SSR-safe: never dereference `window`/`location` during server render.
+  // The split panel is closed at initial render so this URL is not in the SSR
+  // DOM; the guard still keeps the memo safe and yields a deterministic
+  // relative fallback until client hydration supplies an absolute origin.
+  const splitReceiptUrl = useMemo(() => {
+    let origin = "";
+    if (typeof window !== "undefined") {
+      try {
+        origin = window.location.origin;
+      } catch {
+        origin = "";
+      }
+    }
+    return origin ? `${origin}/proof?r=${receiptPayload}` : `/proof?r=${receiptPayload}`;
+  }, [receiptPayload]);
 
   const handleShare = async () => {
-    const doc = buildReceipt(quote, settlement);
-    const payload = encodeRemittanceReceiptPayload(doc);
-    const ok = await copyReceiptUrl(payload, "r");
+    const ok = await copyReceiptUrl(receiptPayload, "r");
     setCopied(ok);
   };
 
   const handleExport = () => {
-    const doc = buildReceipt(quote, settlement);
-    exportReceiptJson(doc, "convey-remittance-proof.json");
+    exportReceiptJson(receiptDoc, "convey-remittance-proof.json");
   };
 
   return (
@@ -95,6 +97,25 @@ export function RemittanceReceiptActions({
         <DocumentDownload size="14" variant="Linear" aria-hidden="true" />
         Export receipt
       </button>
+      <button
+        type="button"
+        data-testid="remittance-split-toggle"
+        aria-expanded={splitOpen}
+        aria-controls="remittance-split-panel"
+        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/15 px-3 text-xs font-semibold text-black transition hover:border-black/45 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+        onClick={() => setSplitOpen((v) => !v)}
+      >
+        <People size="14" variant="Linear" aria-hidden="true" />
+        {splitOpen ? "Hide split" : "Split with friends"}
+      </button>
+      {splitOpen && (
+        <div id="remittance-split-panel" className="w-full">
+          <ReceiptSplitAction
+            usdcMicro={settlement.usdcMicro}
+            receiptUrl={splitReceiptUrl}
+          />
+        </div>
+      )}
     </div>
   );
 }

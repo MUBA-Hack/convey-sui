@@ -228,6 +228,22 @@ canonical binding, transport and input bounds, receipt tampering, transaction
 structure, and result-first receipt states. The Move package passes all 20 Move
 tests with Sui CLI v1.78.1.
 
+#### Medicine pickup — privacy-minimal order commitment
+
+The `medicine_pickup` Family Mission reuses Protected Transfer instead of
+creating a separate payment product. A replaceable pharmacy-network boundary
+ships with a deterministic fictional reference provider for local development.
+The client-safe order adapter resolves one site, hashes the beneficiary and
+order references separately, and commits one strict `pharmacy_order` manifest
+plus its validity window. Its manifest digest can be bound into the same
+Protected Transfer evidence commitment and Created receipt without changing the
+Move call or introducing a second source of payment authority.
+
+This is an initial order commitment only. It does not prove pharmacy
+partnership, medicine authenticity, prescription validity, pickup, settlement,
+or release approval. Production use still requires a real pharmacy provider,
+identity and prescription policy, verified custody events, and human review.
+
 #### Evidence Council — advisory review after verified creation
 
 Evidence Council appears only inside a Protected Transfer Created receipt after
@@ -435,9 +451,11 @@ device-local receipt links. Malformed or unavailable local storage fails safe to
 an empty state, and a local Activity record is never presented as settlement or
 chain evidence. After a Protected Transfer submission passes the independent
 exact `Created` event check, Convey records its portable receipt link here.
-Submitted, unknown, rejected, malformed, sample, and imported receipts are not
-recorded. Direct remittance, nearby-commerce, terminal, and Treasury producers
-remain future Activity integrations.
+Verified direct remittance settlements, verified Protected Transfer terminal
+actions, and verified Treasury protection purchases also record their native
+receipt links. Submitted, unknown, rejected, malformed, sample, and imported
+receipts are not recorded. Nearby commerce remains a future Activity
+integration.
 
 <p align="center">
   <img src="docs/screenshots/activity-desktop.png" alt="Convey Activity sample receipt ledger on desktop" width="820" />
@@ -459,6 +477,12 @@ Created receipt, or a Protected Transfer terminal receipt. It discriminates
 commerce, remittance, quote, Created, and terminal documents before validation,
 then checks each kind with its own strict rules. Terminal links use
 `/proof?t=...`.
+
+A verified remittance receipt also offers **Split with friends**. It allocates
+the confirmed integer USDC amount across two to eight participants, distributes
+minor-unit remainders deterministically, and requires every row plus the exact
+total to be confirmed before producing copyable request text. These are payment
+requests only: the split panel never signs, sends, or claims that anyone paid.
 
 - Strict schema and exact-key validation for every supported receipt family.
 - Canonical positive MIST amount and Sui merchant address checks (commerce).
@@ -663,7 +687,7 @@ approval, fill, or receipt artifact is claimed.
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
-| `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional Gonka interpretation | Server configuration and optional HMAC attestation; no live FX or transaction |
+| `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional bounded Gonka interpretation | Structured product actions may explicitly bypass inference; interactive Gonka calls use at most a six-second adapter timeout and no retries; server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
 | `POST /api/remittance/family-steward` | Review one pasted payment solicitation with two configured Gonka models | Fresh advisory quote gate; message-only inference; exact-evidence server span resolution; strict safe union and `no-store`; no signer, path mutation, or payment authority |
 | `POST /api/remittance/settlement/verify` | Independently check one strict remittance receipt against Sui testnet | Fixed server-side testnet/RPC/USDC; 16 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact success/digest/recipient/amount match; strict safe response union; `no-store`; no signer, submission, client-selected endpoint, or payout authority |

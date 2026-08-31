@@ -19,11 +19,17 @@ import type {
   ProtectedTransferTerminalVerifyRequest,
   ProtectedTransferTerminalVerifyResponse,
 } from "@/lib/remittance/protected-transfer-terminal";
-import { decodeProtectedTransferTerminalReceiptPayload } from "@/lib/remittance/protected-transfer-terminal-receipt";
+import {
+  buildProtectedTransferTerminalReceipt,
+  decodeProtectedTransferTerminalReceiptPayload,
+  encodeProtectedTransferTerminalReceiptPayload,
+} from "@/lib/remittance/protected-transfer-terminal-receipt";
 import { buildExplorerUrl } from "@/lib/remittance/transfer";
+import { loadActivity, recordActivity } from "@/lib/activity/storage";
 import {
   ProtectedTransferTerminalAction,
   resolveProtectedTransferTerminalAction,
+  terminalActivityItem,
 } from "@/components/commerce/protected-transfer-terminal-action";
 
 const wallet = vi.hoisted(() => ({
@@ -151,6 +157,7 @@ function successResult() {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   wallet.account = { address: REVIEWER };
   wallet.network = "testnet";
   wallet.signAndExecuteTransaction.mockReset();
@@ -164,6 +171,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  window.localStorage.clear();
 });
 
 describe("resolveProtectedTransferTerminalAction", () => {
@@ -365,5 +373,158 @@ describe("ProtectedTransferTerminalAction", () => {
         escrowObjectId: ESCROW,
       }),
     });
+  });
+});
+
+function terminalRequestFor(action: "release" | "refund", digest: string): ProtectedTransferTerminalVerifyRequest {
+  const created = createdReceipt().document;
+  return {
+    action,
+    digest,
+    packageId: created.transfer.packageId,
+    escrowObjectId: created.transfer.escrowObjectId,
+    payerAddress: created.transfer.payerAddress,
+    beneficiaryAddress: created.transfer.beneficiaryAddress,
+    reviewerAddress: created.transfer.reviewerAddress,
+    amountMicro: created.transfer.amountMicro,
+    deadlineMs: created.transfer.deadlineMs,
+    evidenceCommitmentHex: created.transfer.evidenceCommitmentHex,
+  };
+}
+
+function builtTerminalReceipt(action: "release" | "refund", digest: string) {
+  const created = createdReceipt();
+  const terminal = verifiedTerminal(terminalRequestFor(action, digest));
+  return buildProtectedTransferTerminalReceipt({ createdReceipt: created.document, terminal });
+}
+
+describe("terminalActivityItem", () => {
+  it("builds a strict release item bound to the verified terminal digest and recipient", () => {
+    const doc = builtTerminalReceipt("release", TERMINAL_DIGEST);
+    const payload = encodeProtectedTransferTerminalReceiptPayload(doc);
+    const item = terminalActivityItem(doc, payload, "Ana");
+    expect(item).toEqual({
+      id: `pt-terminal:${TERMINAL_DIGEST}:release`,
+      href: `/proof?t=${payload}`,
+      title: "Protected Transfer",
+      amountLabel: "109 USDC",
+      detailLabel: "Released to Ana",
+      nextOwner: "Ana",
+      updatedAt: doc.terminal.checkedAt,
+    });
+    expect(item.href).toMatch(/^\/proof\?t=[A-Za-z0-9_-]+$/);
+  });
+
+  it("builds a refund item that says returned to payer, not released", () => {
+    const doc = builtTerminalReceipt("refund", TERMINAL_DIGEST);
+    const payload = encodeProtectedTransferTerminalReceiptPayload(doc);
+    const item = terminalActivityItem(doc, payload, "Ana");
+    expect(item.id).toBe(`pt-terminal:${TERMINAL_DIGEST}:refund`);
+    expect(item.detailLabel).toBe("Returned to payer");
+    expect(item.nextOwner).toBe("Payer");
+  });
+
+  it("stable id differs by outcome so release and refund do not collide", () => {
+    const release = builtTerminalReceipt("release", TERMINAL_DIGEST);
+    const refund = builtTerminalReceipt("refund", TERMINAL_DIGEST);
+    const a = terminalActivityItem(release, "p", "Ana");
+    const b = terminalActivityItem(refund, "p", "Ana");
+    expect(a.id).not.toBe(b.id);
+  });
+});
+
+describe("ProtectedTransferTerminalAction activity recording", () => {
+  it("records one Activity item after a verified release and links the t receipt", async () => {
+    const navigate = vi.fn();
+    render(<ProtectedTransferTerminalAction
+      receipt={createdReceipt()}
+      createdVerified
+      nowMs={() => DEADLINE}
+      navigate={navigate}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "Release funds" }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+    const items = loadActivity();
+    expect(items).toHaveLength(1);
+    const item = items[0]!;
+    expect(item.id).toBe(`pt-terminal:${TERMINAL_DIGEST}:release`);
+    expect(item.href).toMatch(/^\/proof\?t=/);
+    expect(item.detailLabel).toBe("Released to Ana");
+    expect(item.title).toBe("Protected Transfer");
+  });
+
+  it("upserts instead of duplicating when the same verified outcome is recorded twice", async () => {
+    const navigate = vi.fn();
+    render(<ProtectedTransferTerminalAction
+      receipt={createdReceipt()}
+      createdVerified
+      nowMs={() => DEADLINE}
+      navigate={navigate}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "Release funds" }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+    expect(loadActivity()).toHaveLength(1);
+
+    // A second verified recheck on a fresh mount re-records the same id; upsert, not duplicate.
+    const doc = builtTerminalReceipt("release", TERMINAL_DIGEST);
+    const payload = encodeProtectedTransferTerminalReceiptPayload(doc);
+    recordActivity(terminalActivityItem(doc, payload, "Ana"));
+    recordActivity(terminalActivityItem(doc, payload, "Ana"));
+    const items = loadActivity();
+    expect(items).toHaveLength(1);
+    expect(items[0]!.id).toBe(`pt-terminal:${TERMINAL_DIGEST}:release`);
+  });
+
+  it("records nothing for non-verified branches (not_found, unavailable, request failure)", async () => {
+    requestTerminal.mockResolvedValue({ response: { kind: "not_found" } });
+    render(<ProtectedTransferTerminalAction
+      receipt={createdReceipt()}
+      createdVerified
+      nowMs={() => DEADLINE}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "Release funds" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/not confirmed/i));
+    expect(loadActivity()).toEqual([]);
+
+    requestTerminal.mockResolvedValue({ response: { kind: "unavailable", reason: "rpc_unavailable" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check outcome again" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/temporarily unavailable/i));
+    expect(loadActivity()).toEqual([]);
+
+    requestTerminal.mockRejectedValue(new Error("offline"));
+    fireEvent.click(screen.getByRole("button", { name: "Check outcome again" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/temporarily unavailable/i));
+    expect(loadActivity()).toEqual([]);
+  });
+
+  it("records nothing when verification names a different transaction", async () => {
+    requestTerminal.mockImplementation(async ({ request }: { request: ProtectedTransferTerminalVerifyRequest }) => ({
+      response: { ...verifiedTerminal(request), digest: CREATED_DIGEST },
+    }));
+    render(<ProtectedTransferTerminalAction
+      receipt={createdReceipt()}
+      createdVerified
+      nowMs={() => DEADLINE}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "Release funds" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/did not match/i));
+    expect(loadActivity()).toEqual([]);
+  });
+
+  it("still navigates and records nothing when localStorage is unavailable", async () => {
+    const navigate = vi.fn();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    render(<ProtectedTransferTerminalAction
+      receipt={createdReceipt()}
+      createdVerified
+      nowMs={() => DEADLINE}
+      navigate={navigate}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "Release funds" }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+    expect(navigate.mock.calls[0]![0]).toMatch(/^\/proof\?t=/);
+    expect(loadActivity()).toEqual([]);
   });
 });

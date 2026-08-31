@@ -178,6 +178,59 @@ Apply the useful language-independent parts of high-reliability guidance:
 Comments explain a non-obvious invariant or security boundary, not what readable
 code already says. Do not add narration comments to satisfy a reviewer.
 
+## Local ideation tools
+
+`autoideate` and `autotriz` are installed locally for divergent problem solving
+before a costly architecture or product decision. They are advisory only and
+never override a trust boundary, builder/critic evidence, or a clear small fix.
+
+Use them proactively when a problem has competing constraints or several
+credible answers: product strategy, track-specific pitch framing, competitor
+response, feature cohesion, UX flows, architecture, delivery parallelism,
+marketing narratives, or a debugging deadlock. Re-run with a different method
+when the first pass only restates the problem. Do not invoke ideation to delay a
+clear fix, widen scope, or manufacture novelty.
+
+Methods available via `autoideate <method>`: TRIZ contradictions, SCAMPER
+transformation, analogy transfer, framing, brainwriting, morphological analysis,
+hybrid synthesis, perspective pass, why-tree, and heuristics.
+
+Procedure:
+
+1. Write one precise problem statement. No invented constraints.
+   For hackathon work, state the target track, 20-second judge outcome, product
+   truth boundary, and what must remain shared across track presentations.
+2. For TRIZ work, default to the LLM-backed AutoIdeate path:
+   `autoideate triz --problem "<problem>" --format json
+   --output "<outside-repo>.json"`. Default model is Devin/GLM-5.2; pin with
+   `AUTOTRIZ_DEVIN_MODEL=glm-5-2`. Use this for contradiction framing,
+   cross-domain analogies, and concrete candidate solutions.
+3. Use the deterministic local matrix only as a reproducibility check or when
+   the LLM-backed run is unavailable: `autotriz analyze --provider offline
+   --problem "<problem>" --output "<outside-repo>.markdown" --stdout=false`.
+   Do not select the Devin provider from inside Devin.
+4. For repository-aware work use bounded read-only context:
+   `--repo <repo> --repo-source scan`. Use `--agents 1` for traceable
+   contradiction analysis; multi-agent ideation only when the user requests
+   parallel ideation, and then bounded specialists only.
+
+Output discipline:
+
+- Never place raw competitor research, generated reports, secrets, URLs/keys,
+  or unverifiable claims in the tracked product repo. Save reports in the
+  external research workspace; distill only neutral requirements or decisions
+  into `ROADMAP.md` or docs.
+- Treat every generated concept as a hypothesis. Validate feasibility, safety,
+  legality and regulatory constraints, cost, novelty, product cohesion, and
+  observable evidence before any implementation.
+- When ideation materially changes a design, record in the worker handoff: the
+  selected principle or method, rejected alternatives, and the validation test.
+
+Massive-parallelism pattern derived from TRIZ: segment work into isolated
+vertical slices; share one evidence/receipt spine for universality; place
+feedback at merge-ready critic checkpoints; reduce parallelism near shared UI
+integration points.
+
 ## UI and visual evidence gate
 
 Visual work is not complete from DOM tests alone.

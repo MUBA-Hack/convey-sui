@@ -76,6 +76,9 @@ export const IntentReviewLocalSchema = z.strictObject({
     "not_configured",
     "provider_error",
     "candidate_rejected",
+    // User supplied structured controls, so deterministic parse is the
+    // intended path — not a Gonka failure or misconfiguration.
+    "structured_input",
   ]),
   purpose: z.string().min(1).max(120).nullable(),
   maximumFamilyLimitMinor: MinorAmountString.nullable(),

@@ -190,4 +190,42 @@ describe("POST /api/remittance/protected-transfer/plan", () => {
     const res = await postPlan({ quote: tampered, deadlinePreset: "tomorrow", reviewNote: "Rent" });
     expect(await res.json()).toEqual({ kind: "rejected", reason: "unverified" });
   });
+
+  it("round-trips an optional custody manifest digest through the plan response", async () => {
+    const quote = await getQuote(GOLDEN_EN);
+    const digest = "0x" + "aa".repeat(32);
+    const res = await postPlan({
+      quote,
+      deadlinePreset: "tomorrow",
+      reviewNote: "Rent",
+      custodyManifestDigest: digest,
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("protected_transfer_execution_plan");
+    expect(body.custodyManifestDigest).toBe(digest);
+  });
+
+  it("omits custodyManifestDigest from the plan when the request omits it", async () => {
+    const quote = await getQuote(GOLDEN_EN);
+    const res = await postPlan({
+      quote,
+      deadlinePreset: "tomorrow",
+      reviewNote: "Rent",
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).not.toHaveProperty("custodyManifestDigest");
+  });
+
+  it("rejects a malformed custody manifest digest with exact invalid_envelope", async () => {
+    const quote = await getQuote(GOLDEN_EN);
+    const res = await postPlan({
+      quote,
+      deadlinePreset: "tomorrow",
+      reviewNote: "Rent",
+      custodyManifestDigest: "0xdeadbeef",
+    });
+    expect(await res.json()).toEqual({ kind: "rejected", reason: "invalid_envelope" });
+  });
 });
