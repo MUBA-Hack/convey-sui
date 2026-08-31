@@ -15,6 +15,11 @@ import {
   type ProtectedTransferCreatedReceiptResult,
   type VerifiedProtectedTransferCreatedReceipt,
 } from "@/lib/remittance/protected-transfer-created-receipt";
+import type { ProtectedTransferTerminalLifecycleResult } from "@/lib/remittance/protected-transfer-terminal-lifecycle";
+import {
+  type ProtectedTransferTerminalReceiptResult,
+  type VerifiedProtectedTransferTerminalReceipt,
+} from "@/lib/remittance/protected-transfer-terminal-receipt";
 import { formatMyrGrouped } from "@/lib/remittance/money";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
 import type { SettlementCheckState } from "./remittance-settlement-status";
@@ -28,6 +33,12 @@ export type CreatedCheckState =
   | { status: "error" };
 
 export const CHECKING_CREATED: CreatedCheckState = { status: "checking" };
+
+export type TerminalLifecycleState =
+  | { kind: "checking" }
+  | ProtectedTransferTerminalLifecycleResult;
+
+export const CHECKING_TERMINAL: TerminalLifecycleState = { kind: "checking" };
 
 // Shared state model — defined here so the orchestrator (proof-verifier.tsx)
 // can import it without a circular dependency. One authoritative state model:
@@ -52,6 +63,12 @@ export type EvidenceView =
       kind: "protected-transfer-created";
       result: ProtectedTransferCreatedReceiptResult;
       createdVerify: CreatedCheckState;
+    }
+  | {
+      kind: "protected-transfer-terminal";
+      result: ProtectedTransferTerminalReceiptResult;
+      lifecycle: TerminalLifecycleState;
+      payload: string | null;
     }
   | {
       kind: "remittance-unsettled";
@@ -128,6 +145,12 @@ export function ProofAdvancedDetails({
           <ProtectedTransferCreatedTechnical
             result={view.result}
             createdVerify={view.createdVerify}
+          />
+        ) : null}
+        {view.kind === "protected-transfer-terminal" && view.result.ok ? (
+          <ProtectedTransferTerminalTechnical
+            result={view.result}
+            lifecycle={view.lifecycle}
           />
         ) : null}
       </div>
@@ -427,6 +450,87 @@ function ProtectedTransferCreatedTechnical({
       <p className="text-xs text-black">{createdCheckLabel(createdVerify)}</p>
 
       <ClaimBox>{result.claim}</ClaimBox>
+    </div>
+  );
+}
+
+function terminalLifecycleLabel(state: TerminalLifecycleState): string {
+  if (state.kind === "checking") return "Checking the current lifecycle on Sui testnet";
+  if (state.kind === "verified") {
+    return state.terminal.action === "release"
+      ? "Released event matched on Sui testnet"
+      : "Refunded event matched on Sui testnet";
+  }
+  if (state.kind === "pending") return "Escrow remains open after a live check";
+  if (state.kind === "unavailable") return "Independent lifecycle check unavailable";
+  return `Lifecycle evidence needs review (${state.reason.replaceAll("_", " ")})`;
+}
+
+function ProtectedTransferTerminalTechnical({
+  result,
+  lifecycle,
+}: {
+  result: VerifiedProtectedTransferTerminalReceipt;
+  lifecycle: TerminalLifecycleState;
+}) {
+  const transfer = result.document.transfer;
+  return (
+    <div data-testid="protected-transfer-terminal-technical" className="space-y-4">
+      <SectionLabel>Canonical fields</SectionLabel>
+      <dl className="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs">
+        <dt className="text-neutral-500">Recorded outcome</dt>
+        <dd className="font-mono text-black">{transfer.action}</dd>
+        <dt className="text-neutral-500">Network</dt>
+        <dd className="font-mono text-black">testnet</dd>
+        <dt className="text-neutral-500">Escrow object</dt>
+        <dd className="break-all font-mono text-black">{transfer.escrowObjectId}</dd>
+        <dt className="text-neutral-500">Payer address</dt>
+        <dd className="break-all font-mono text-black">{transfer.payerAddress}</dd>
+        <dt className="text-neutral-500">Beneficiary address</dt>
+        <dd className="break-all font-mono text-black">{transfer.beneficiaryAddress}</dd>
+        <dt className="text-neutral-500">Reviewer address</dt>
+        <dd className="break-all font-mono text-black">{transfer.reviewerAddress}</dd>
+        <dt className="text-neutral-500">Actor address</dt>
+        <dd className="break-all font-mono text-black">{transfer.actorAddress}</dd>
+        <dt className="text-neutral-500">Package</dt>
+        <dd className="break-all font-mono text-black">{transfer.packageId}</dd>
+        <dt className="text-neutral-500">Coin type</dt>
+        <dd className="break-all font-mono text-black">{transfer.coinType}</dd>
+        <dt className="text-neutral-500">USDC micro</dt>
+        <dd className="font-mono text-black">{transfer.amountMicro}</dd>
+        <dt className="text-neutral-500">Deadline</dt>
+        <dd className="font-mono text-black">{new Date(transfer.deadlineMs).toISOString()}</dd>
+        <dt className="text-neutral-500">Evidence commitment</dt>
+        <dd className="break-all font-mono text-black">{transfer.evidenceCommitmentHex}</dd>
+        <dt className="text-neutral-500">Terminal digest</dt>
+        <dd className="break-all font-mono text-black">{transfer.digest}</dd>
+        <dt className="text-neutral-500">Terminal checked at</dt>
+        <dd className="font-mono text-black">{transfer.terminalCheckedAt}</dd>
+        <dt className="text-neutral-500">Exported at</dt>
+        <dd className="font-mono text-black">{result.document.exportedAt}</dd>
+      </dl>
+
+      <SectionLabel>Independent lifecycle check</SectionLabel>
+      <p className="text-xs text-black">{terminalLifecycleLabel(lifecycle)}</p>
+      {lifecycle.kind === "pending" ? (
+        <dl className="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs">
+          <dt className="text-neutral-500">Live held balance</dt>
+          <dd className="font-mono text-black">{lifecycle.open.heldBalanceMicro} micro USDC</dd>
+          <dt className="text-neutral-500">Open state checked at</dt>
+          <dd className="font-mono text-black">{lifecycle.open.checkedAt}</dd>
+        </dl>
+      ) : null}
+      <ClaimBox>
+        {lifecycle.kind === "verified"
+          ? "Fresh Created and terminal checks matched this receipt. This confirms the on-chain escrow outcome, not a bank or cash payout."
+          : lifecycle.kind === "pending"
+            ? "A live check found the escrow still open. The terminal outcome carried in this receipt is not presented as current."
+            : lifecycle.kind === "unavailable"
+              ? "The live lifecycle could not be checked. Carried receipt fields remain available without a current outcome claim."
+              : lifecycle.kind === "rejected"
+                ? "Fresh lifecycle evidence did not match this receipt. No terminal outcome is claimed."
+                : "Fresh Created and terminal checks are in progress. Carried receipt fields do not confirm the current outcome on their own."}
+      </ClaimBox>
     </div>
   );
 }

@@ -339,6 +339,17 @@ describe("buildProtectedTransfer — address validation", () => {
       buildProtectedTransfer(baseInput({ plan: { authorization: auth({ recipientAddress: "nope" }) } })),
     ).toThrow(/schema/i);
   });
+
+  it.each([
+    ["zero payer", { sender: "0x" + "0".repeat(64) }],
+    ["zero beneficiary", { plan: { authorization: auth({ recipientAddress: "0x" + "0".repeat(64) }) } }],
+    ["zero reviewer", { plan: { reviewerAddress: "0x" + "0".repeat(64) } }],
+    ["payer equals beneficiary", { sender: ADDR_A }],
+    ["payer equals reviewer", { sender: REVIEWER }],
+    ["beneficiary equals reviewer", { plan: { reviewerAddress: ADDR_A } }],
+  ])("rejects %s", (_label, overrides) => {
+    expect(() => buildProtectedTransfer(baseInput(overrides as never))).toThrow(/zero|distinct/i);
+  });
 });
 
 describe("buildProtectedTransfer — authorization validation", () => {

@@ -28,6 +28,14 @@ import {
   PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM,
   verifyProtectedTransferCreatedReceipt,
 } from "@/lib/remittance/protected-transfer-created-receipt";
+import { resolveProtectedTransferTerminalLifecycle } from "@/lib/remittance/protected-transfer-terminal-lifecycle";
+import {
+  decodeProtectedTransferTerminalReceiptPayload,
+  encodeProtectedTransferTerminalReceiptPayload,
+  PROTECTED_TRANSFER_TERMINAL_RECEIPT_KIND,
+  PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM,
+  verifyProtectedTransferTerminalReceipt,
+} from "@/lib/remittance/protected-transfer-terminal-receipt";
 import { decodeHandoff } from "@/lib/remittance/offline-handoff";
 import {
   formatMyrGrouped,
@@ -39,6 +47,7 @@ import { RemittanceMoneySlab } from "@/components/remittance/remittance-money-sl
 import { copyReceiptUrl, exportReceiptJson } from "@/lib/remittance/receipt-share";
 import {
   CHECKING_CREATED,
+  CHECKING_TERMINAL,
   EMPTY_VIEW,
   ProofAdvancedDetails,
   type CreatedCheckState,
@@ -57,6 +66,10 @@ import {
   protectedTransferCreatedPageCopy,
 } from "./protected-transfer-created-receipt";
 import { ProofRejectionCard } from "./proof-rejection-card";
+import {
+  ProtectedTransferTerminalReceipt,
+  protectedTransferTerminalPageCopy,
+} from "./protected-transfer-terminal-receipt";
 
 const CHECKING_SETTLEMENT: SettlementCheckState = { status: "checking" };
 
@@ -74,6 +87,9 @@ const DEFAULT_RECEIPT_PAGE_COPY: ReceiptPageCopy = {
 };
 
 function remittancePageCopy(view: EvidenceView): ReceiptPageCopy {
+  if (view.kind === "protected-transfer-terminal") {
+    return protectedTransferTerminalPageCopy(view.result, view.lifecycle);
+  }
   if (view.kind === "protected-transfer-created") {
     return protectedTransferCreatedPageCopy(view.result, view.createdVerify);
   }
@@ -139,22 +155,36 @@ export function ProofVerifier() {
   const [urlLoaded, setUrlLoaded] = useState(false);
   const [settlementRetry, setSettlementRetry] = useState(0);
   const [createdRetry, setCreatedRetry] = useState(0);
+  const [terminalRetry, setTerminalRetry] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const verifySeq = useRef(0);
   const settlementVerifySeq = useRef(0);
   const createdVerifySeq = useRef(0);
+  const terminalVerifySeq = useRef(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const remittancePayload = params.get("r");
     const commercePayload = params.get("p");
     const createdPayload = params.get(PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM);
-    if (!remittancePayload && !commercePayload && !createdPayload) return;
+    const terminalPayload = params.get(PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM);
+    if (!remittancePayload && !commercePayload && !createdPayload && !terminalPayload) return;
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
       try {
-        if (remittancePayload) {
+        if (terminalPayload) {
+          const doc = decodeProtectedTransferTerminalReceiptPayload(terminalPayload);
+          const json = JSON.stringify(doc, null, 2);
+          setRaw(json);
+          setView({
+            kind: "protected-transfer-terminal",
+            result: verifyProtectedTransferTerminalReceipt(doc),
+            lifecycle: CHECKING_TERMINAL,
+            payload: terminalPayload,
+          });
+          setUrlLoaded(true);
+        } else if (remittancePayload) {
           const doc = decodeRemittanceReceiptPayload(remittancePayload);
           const json = JSON.stringify(doc, null, 2);
           setRaw(json);
@@ -184,7 +214,14 @@ export function ProofVerifier() {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Shared proof payload is invalid.";
-        if (remittancePayload) {
+        if (terminalPayload) {
+          setView({
+            kind: "protected-transfer-terminal",
+            result: { ok: false, errors: [message] },
+            lifecycle: { kind: "rejected", reason: "invalid_receipt" },
+            payload: terminalPayload,
+          });
+        } else if (remittancePayload) {
           setView({
             kind: "remittance",
             result: { ok: false, errors: [message] },
@@ -341,6 +378,30 @@ export function ProofVerifier() {
     };
   }, [activeCreatedReceipt, createdRetry]);
 
+  const activeTerminalPayload =
+    view.kind === "protected-transfer-terminal" && view.result.ok
+      ? view.payload ?? encodeProtectedTransferTerminalReceiptPayload(view.result.document)
+      : null;
+  useEffect(() => {
+    if (!activeTerminalPayload) return;
+    const seq = ++terminalVerifySeq.current;
+    let active = true;
+    void (async () => {
+      const next = await resolveProtectedTransferTerminalLifecycle({
+        payload: activeTerminalPayload,
+      });
+      if (!active || terminalVerifySeq.current !== seq) return;
+      setView((current) =>
+        current.kind === "protected-transfer-terminal" && current.result.ok
+          ? { ...current, lifecycle: next }
+          : current,
+      );
+    })();
+    return () => {
+      active = false;
+    };
+  }, [activeTerminalPayload, terminalRetry]);
+
   const handleRawChange = (value: string) => {
     setRaw(value);
     setView(EMPTY_VIEW);
@@ -349,6 +410,23 @@ export function ProofVerifier() {
 
   const handleVerify = () => {
     setUrlLoaded(false);
+    try {
+      const candidate = JSON.parse(raw) as { kind?: unknown };
+      if (candidate?.kind === PROTECTED_TRANSFER_TERMINAL_RECEIPT_KIND) {
+        const result = verifyProtectedTransferTerminalReceipt(candidate);
+        setView({
+          kind: "protected-transfer-terminal",
+          result,
+          lifecycle: result.ok
+            ? CHECKING_TERMINAL
+            : { kind: "rejected", reason: "invalid_receipt" },
+          payload: result.ok
+            ? encodeProtectedTransferTerminalReceiptPayload(result.document)
+            : null,
+        });
+        return;
+      }
+    } catch {}
     const kind = sniffProofKind(raw);
     if (kind === "remittance-receipt") {
       setView({
@@ -453,6 +531,35 @@ export function ProofVerifier() {
     exportReceiptJson(view.result.document, "convey-protected-transfer-created.json");
   };
 
+  const handleTerminalShare = async () => {
+    if (
+      view.kind !== "protected-transfer-terminal" ||
+      !view.result.ok ||
+      view.lifecycle.kind !== "verified"
+    ) return;
+    const payload = encodeProtectedTransferTerminalReceiptPayload(view.result.document);
+    const ok = await copyReceiptUrl(payload, PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM);
+    setCopied(ok);
+  };
+
+  const handleTerminalExport = () => {
+    if (
+      view.kind !== "protected-transfer-terminal" ||
+      !view.result.ok ||
+      view.lifecycle.kind !== "verified"
+    ) return;
+    exportReceiptJson(view.result.document, "convey-protected-transfer-outcome.json");
+  };
+
+  const handleRetryTerminal = () => {
+    setView((current) =>
+      current.kind === "protected-transfer-terminal" && current.result.ok
+        ? { ...current, lifecycle: CHECKING_TERMINAL }
+        : current,
+    );
+    setTerminalRetry((value) => value + 1);
+  };
+
   const handleRetryCreated = () => {
     setView((current) =>
       current.kind === "protected-transfer-created" && current.result.ok
@@ -536,6 +643,17 @@ export function ProofVerifier() {
             onShare={handleCreatedShare}
             onExport={handleCreatedExport}
             onRetry={handleRetryCreated}
+            onReviewDetails={handleReviewDetails}
+          />
+        ) : view.kind === "protected-transfer-terminal" ? (
+          <ProtectedTransferTerminalReceipt
+            result={view.result}
+            lifecycle={view.lifecycle}
+            urlLoaded={urlLoaded}
+            copied={copied}
+            onShare={handleTerminalShare}
+            onExport={handleTerminalExport}
+            onRetry={handleRetryTerminal}
             onReviewDetails={handleReviewDetails}
           />
         ) : (

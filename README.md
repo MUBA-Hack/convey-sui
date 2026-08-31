@@ -80,7 +80,7 @@ hedge the MYR→PHP rate or protect Ana's payout.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Tested single-milestone Protected Transfer Move package, pinned TypeScript transaction core, bounded plan and `Created`-verification endpoints, and an in-Pay verified-Created receipt path that can reopen in Receipts | Testnet publication/configuration, a reproducible real `Created` artifact, reviewer release/refund UI, terminal-event receipts, and captured release/refund evidence |
+| Tested single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, and `/proof?t=` terminal receipt lifecycle with strict Created, terminal-event, and open-state checks | Testnet publication/configuration, reproducible real Created/terminal artifacts, captured release/refund evidence, and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
@@ -154,7 +154,7 @@ fields alone are not proof. Receipts can export or share the remittance receipt
 only after its independent Sui check confirms the exact settlement. It keeps
 **Awaiting family payout** separate and does not prove bank or cash payout.
 
-### Protected Transfer — verified creation receipt integrated; terminal lifecycle incomplete
+### Protected Transfer — creation, terminal actions, and receipt verification
 
 An executable quote in Pay now offers **Send directly** or **Hold for family
 review**. The direct-transfer path is unchanged. The hold path collects one of
@@ -169,8 +169,19 @@ confirmation pending** while a separate server-only check reads Sui testnet. A
 returned digest alone never upgrades the state. Only an exact `Created` event
 match changes the result to **Held for family review** and enables **Open
 receipt**. A missing, unavailable, malformed, or mismatched check remains
-pending rather than claiming creation. **Released**, **Refunded**, and family
-payout remain separate, unimplemented states.
+pending rather than claiming creation. The client-safe terminal core builds the
+pinned release/refund calls, and the fixed-testnet adapters strictly verify
+`Released`/`Refunded` events and exact open object state. Receipts now opens a
+strict terminal receipt through `/proof?t=...`, repeats the Created and terminal
+checks, and performs the open-state check when no matching terminal event is
+found. Only an exact live open-state match can show **Your money is still
+protected**; exact terminal evidence shows **Money released** or **Money
+refunded**. Rejected and unavailable checks remain explicit, and share/export
+stays locked unless the terminal lifecycle is verified. A fresh-verified Created
+receipt also exposes exactly one eligible action: release for the connected
+reviewer at or before the deadline, or refund for the connected payer after the
+deadline. Wrong role, wrong network, absent wallet, or an unverified Created
+receipt exposes no terminal action.
 
 The repository includes a tested Sui Move package for one narrow escrow policy:
 the payer locks one coin, an assigned reviewer can release the full balance to
@@ -195,21 +206,37 @@ accepts a client-selected RPC, package, or reviewer. After an exact match, Pay
 binds that response to the execution plan and transaction metadata in a strict,
 portable Created receipt. Receipts parses the carried document, repeats the
 same independent Created-event check, and unlocks share/export only after the
-fresh check verifies. The Move and TypeScript suites cover authority, deadline
-boundaries, terminal behavior, event payloads, canonical binding, transport and
-input bounds, receipt tampering, and transaction structure.
+fresh check verifies. The eligible terminal action builds the pinned Move call,
+asks the connected wallet to sign and submit, strictly verifies the returned
+digest and terminal event, builds the bound terminal receipt only after that
+match, then navigates to `/proof?t=...`. Wallet rejection, unknown submission,
+rejected evidence, and unavailable verification remain distinct non-success
+states. Once the wallet returns a valid submitted digest, the action stays
+locked against resubmission and keeps a Sui explorer link. `not_found` or
+`unavailable` can retry strict verification only; they never sign or submit
+again. Rejected, mismatched, or unbindable evidence stays **Review needed**.
+Terminal receipts additionally bind the original Created
+receipt, terminal event, action, actor, escrow, parties, amount, deadline, and
+commitment before the live lifecycle checks run. The Move and TypeScript suites
+cover authority, deadline boundaries, terminal behavior, event payloads,
+canonical binding, transport and input bounds, receipt tampering, transaction
+structure, and result-first receipt states. The Move package passes all 20 Move
+tests with Sui CLI v1.78.1.
 
-This is an integrated creation path, not a verified shipped lifecycle. The
-package has not yet been published from this repository, and both endpoints
-are unconfigured by default, so the hold path fails closed unless a real package
-ID, reviewer address, and bounded reviewer name are configured. The integrated
-receipt proves only that the configured package emitted an exact matching
-`Created` event for the submitted transaction. There is no reviewer release or
-payer refund UI, no `Released` or `Refunded` verifier, and no captured real-chain
-lifecycle artifact. A Created response does not prove package publication
-history, upgrade policy, immutability, later escrow state, or fiat payout. The
-evidence commitment is immutable metadata on the escrow; it does not prove that
-the underlying claim is true.
+This is an integrated creation and terminal action path plus read-only terminal
+receipt lifecycle. The package has not yet been
+published from this repository, and the protected endpoints are
+unconfigured by default, so the hold path fails closed unless a real package
+ID, reviewer address, and
+bounded reviewer name are configured. The Created receipt proves only that the
+configured package emitted an exact matching `Created` event for the submitted
+transaction. A verified terminal receipt proves an exact matching terminal
+event; a pending result proves current open state only after the strict object
+check. The implemented bridge does not prove package publication history,
+upgrade policy, immutability, production policy, a captured live artifact, or
+fiat payout. The evidence commitment is
+immutable metadata on the escrow; it does not prove that the underlying claim
+is true.
 
 ### GonkaRouter remittance interpretation
 
@@ -360,13 +387,13 @@ distinct from the signed-quote remittance handoff wrapper.
 ### Receipts — portable transfer evidence
 
 `/proof` accepts pasted JSON, an imported file, or a self-contained URL-safe
-payload produced by a native-SUI commerce settlement card or a confirmed Sui
-testnet-USDC remittance settlement. It discriminates the receipt kind
-(commerce, remittance settlement, or an unconfirmed remittance quote) before
-any validation runs, then checks each kind with its own strict rules.
+payload produced by a native-SUI commerce settlement card, a confirmed Sui
+testnet-USDC remittance settlement, a Protected Transfer Created receipt, or a
+Protected Transfer terminal receipt. It discriminates commerce, remittance,
+quote, Created, and terminal documents before validation, then checks each kind
+with its own strict rules. Terminal links use `/proof?t=...`.
 
-- Strict schema and exact-key validation for both commerce and remittance
-  receipts.
+- Strict schema and exact-key validation for every supported receipt family.
 - Canonical positive MIST amount and Sui merchant address checks (commerce).
 - Mode-consistent digest, label, and explorer URL rules (commerce).
 - Demo proof cannot carry an explorer URL; real-form proof must carry a
@@ -399,12 +426,21 @@ any validation runs, then checks each kind with its own strict rules.
 - Remittance status is result-first: **Checking**, **Confirmed on Sui**,
   **Receipt doesn’t match Sui**, **Transaction not found on Sui testnet**, or
   **Sui check unavailable**. Share and export appear only in the verified state.
+- Protected Transfer Created receipts repeat the exact fixed-testnet `Created`
+  check before showing a confirmed hold or enabling share/export.
+- Protected Transfer terminal receipts first enforce strict local binding, then
+  repeat both Created and terminal event checks. A missing terminal event leads
+  to a separate exact open-object check; only its verified `open` result can
+  show **Your money is still protected**. Verified release/refund, pending,
+  rejected, and unavailable remain distinct. Share/export requires a verified
+  terminal lifecycle.
 - Copy, download, share-link, and a clearly non-chain sample receipt.
 
 #### Evidence ladder
 
-Receipts presents evidence in a strict, ordered ladder. Each rung is labelled
-honestly; a lower rung is never worded as a higher one.
+For remittance settlement receipts, Receipts presents evidence in a strict,
+ordered ladder. Each rung is labelled honestly; a lower rung is never worded as
+a higher one.
 
 | Rung | What is actually checked | Where | Honest label |
 | --- | --- | --- | --- |
@@ -518,7 +554,7 @@ market result is claimed.
 | `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Treasury** | Map an explicit ETH/BTC treasury goal to a deterministic protective-put preflight or educational read-only mapping | Server-side read-only Base SDK calls; one signer-free `previewFillOrder`; no approval, fill, or trade execution |
-| `/proof` — **Receipts** | Open or import a native-SUI commerce receipt, confirmed remittance settlement receipt, or Protected Transfer Created receipt | Customer result first; strict local binding plus the matching read-only Sui testnet check; no release, refund, or payout proof |
+| `/proof` — **Receipts** | Open or import a native-SUI commerce receipt, confirmed remittance settlement receipt, Protected Transfer Created receipt, or terminal outcome receipt | Customer result first; strict local binding plus the matching read-only Sui testnet/lifecycle checks; no action authority or payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
@@ -528,6 +564,8 @@ market result is claimed.
 | `POST /api/remittance/settlement/verify` | Independently check one strict remittance receipt against Sui testnet | Fixed server-side testnet/RPC/USDC; 16 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact success/digest/recipient/amount match; strict safe response union; `no-store`; no signer, submission, client-selected endpoint, or payout authority |
 | `POST /api/remittance/protected-transfer/plan` | Issue a bounded Protected Transfer execution plan over a verified quote | Accepts only an attested quote, one of three deadline presets, and a review note; 16 KiB shared streamed body cap; server-only configured candidate package/reviewer; `no-store`; unsigned/unattested response-channel provenance; no RPC, signer, submission, or deployment proof; unconfigured by default |
 | `POST /api/remittance/protected-transfer/created/verify` | Check one submitted Protected Transfer digest for an exact `Created` event | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact package, digest, event, payer, beneficiary, reviewer, asset, amount, deadline, and commitment binding; strict safe response union; `no-store`; no terminal-state or payout proof |
+| `POST /api/remittance/protected-transfer/terminal/verify` | Check one submitted Protected Transfer digest for an exact `Released` or `Refunded` event | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; at most one read-only `getTransaction`; exact action, package, actor, escrow, parties, asset, amount, deadline, and commitment binding; strict safe response union; `no-store`; no action authority or payout proof |
+| `POST /api/remittance/protected-transfer/terminal/open` | Check whether the exact Created escrow remains open | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; one bounded read-only object lookup; exact shared type, parties, amount, deadline, commitment, and full balance binding; strict safe response union; `no-store`; absence is never treated as open |
 | `POST /api/strategy` | Strict goal parse plus deterministic protective-put preflight or educational read-only mapping | No approval, signature, fill, or trade; one signer-free `previewFillOrder` |
 
 ## Architecture
@@ -582,11 +620,19 @@ flowchart TB
   end
 
   subgraph ReceiptsArea["Receipts"]
-    ReceiptReview["Settlement or Created receipt inspection"]
+    ReceiptReview["Settlement, Created, or terminal receipt inspection"]
     ReceiptEvidence["Local binding and quote re-check"]
-    SuiCheck["Independent Sui settlement check"]
+    SuiCheck["Matching settlement or Created/terminal checks"]
+    OpenCheck["Exact open-object check when terminal event is absent"]
+    TerminalAction["Eligible reviewer release or payer refund"]
+    TerminalWallet["Eligible wallet signs terminal action"]
+    TerminalOutcome["Exact terminal-event verification"]
+    TerminalResult["Bound terminal receipt"]
     PayoutState["Family payout remains separate"]
     ReceiptReview --> ReceiptEvidence --> SuiCheck --> PayoutState
+    SuiCheck -->|terminal not found| OpenCheck --> PayoutState
+    SuiCheck -->|Created verified + role and deadline eligible| TerminalAction --> TerminalWallet --> TerminalOutcome --> TerminalResult
+    TerminalResult --> ReceiptEvidence
   end
 
   Customer --> Pay
@@ -597,14 +643,17 @@ flowchart TB
   HoldReceipt --> ReceiptReview
 ```
 
-Only Pay and a verified cross-device handoff can reach wallet approval. Pay's
-direct path can produce the independently checked settlement receipt. Its
-family-review path stays pending until the exact Created-event check succeeds,
-then produces a portable Created receipt. Treasury runs a deterministic
-protective-put preflight with one signer-free preview and never obtains wallet
-authority; Receipts is read-only. Receipts re-checks the appropriate Sui
-evidence before enabling share/export and never turns a Created receipt into a
-release, refund, or payout claim.
+Pay, a verified cross-device handoff, and the eligible Protected Transfer
+receipt action can reach wallet approval. Pay's direct path can produce the
+independently checked settlement receipt. Its family-review path stays pending
+until the exact Created-event check succeeds, then produces a portable Created
+receipt. That verified receipt exposes release only to the connected reviewer
+through the deadline, or refund only to the connected payer after it. Treasury
+runs a deterministic protective-put preflight with one signer-free preview and
+never obtains wallet authority. Receipt inspection is read-only except for this
+explicit, role/deadline-gated wallet action. A Created receipt alone never
+becomes a release, refund, or payout claim; terminal outcomes require strict
+verification and the separately bound terminal receipt.
 
 ### Trust and authority boundary
 
@@ -618,10 +667,15 @@ flowchart LR
   Verify["Connected quote verify"]
   ProtectedPlan["Strict protected plan API"]
   ProtectedBuild["Pinned create escrow builder"]
+  TerminalBuild["Pinned release or refund builder"]
   Wallet["Customer wallet"]
   Sui["Sui testnet"]
   CreatedVerifyAPI["Strict Created verify API"]
   CreatedReceipt["Bound Created receipt"]
+  TerminalReceipt["Bound terminal receipt"]
+  TerminalLifecycle["Receipt lifecycle resolver"]
+  TerminalVerifyAPI["Strict terminal verify API"]
+  OpenVerifyAPI["Strict open-state API"]
   CarriedReceipt["Carried remittance receipt"]
   SettlementVerifyAPI["Strict settlement verify API"]
   SuiRead["Read-only Sui testnet lookup"]
@@ -634,6 +688,12 @@ flowchart LR
   Hmac --> ProtectedPlan --> ProtectedBuild --> Wallet
   Wallet --> CreatedVerifyAPI --> SuiRead
   CreatedVerifyAPI --> CreatedReceipt
+  CreatedReceipt -->|eligible role and deadline| TerminalBuild --> Wallet
+  Wallet --> TerminalVerifyAPI --> TerminalReceipt
+  TerminalReceipt --> TerminalLifecycle
+  TerminalLifecycle --> CreatedVerifyAPI
+  TerminalLifecycle --> TerminalVerifyAPI --> SuiRead
+  TerminalLifecycle -->|terminal not found| OpenVerifyAPI --> SuiRead
   CarriedReceipt --> SettlementVerifyAPI --> SuiRead
 ```
 
@@ -645,7 +705,13 @@ the attested quote and returns a strict unsigned plan; the client builds only
 the pinned `create_escrow` call before wallet approval. Neither that response
 nor a returned digest proves creation. The fixed-testnet verifier must match the
 successful transaction and exact BCS Created fields before Pay creates the
-portable receipt; Receipts repeats that check before sharing or export. A
+portable receipt; Receipts repeats that check before sharing or export. For a
+fresh-verified Created receipt, deterministic role, network, and deadline gates
+select release or refund; the connected wallet remains the only signer. A
+successful submission must match strict terminal verification before the bound
+receipt is built and opened at `/proof?t=...`. Receipts then re-checks Created
+and exact `Released`/`Refunded` evidence, checking exact open object state only
+when the terminal event is not found. A
 rejected or absent Gonka candidate falls back to deterministic parsing with
 honest local provenance. Neither receipt path proves family bank or cash payout.
 Family Steward remains outside the authorization chain: it receives only a
@@ -907,7 +973,9 @@ and kind discrimination, the camera scanner, QR integrity/replay/expiry/storage
 behavior, commerce and remittance portable proof validation, receipt
 export/share gating, the remittance receipt settlement-to-quote cross-binding
 and historical evidence mode, the pure Sui settlement and Created-event
-evaluators, strict Created-receipt binding and tamper rejection, bounded route
+evaluators, strict Created-receipt binding and tamper rejection, Protected
+Transfer terminal transaction/event/open-state evaluators, terminal receipt
+lifecycle binding and tamper rejection, bounded route
 bodies, one-lookup and timeout behavior, safe response/no-leak contracts,
 strict active-receipt client binding, stale/abort/retry handling, settlement
 no-call cases, strategy goal parsing, shield policy and 200-order bound, signer-free preview binding, route fail-closed behavior, the remittance-context
@@ -922,7 +990,7 @@ experience.
 | Model invents a recipient, destination, or amount | Frozen public manifest plus deterministic rebind against original text and corridor | Catalog/manifest is currently small and static |
 | Provider failure is mistaken for AI success | Request/model provenance; safe fallback enum; visible route label | No live Gonka evidence without a configured key and successful call |
 | AI message warning changes payment authority | Advisory-only result; deterministic quote, path, wallet, and chain checks remain authoritative | A review can only suggest questions or foreground the existing hold option |
-| Server steals wallet authority | No server-side Sui signer; wallet signs client-side | Payer must hold testnet gas |
+| Server steals wallet authority | No server-side Sui signer; wallet signs client-side | Acting payer or reviewer must hold testnet gas |
 | Failed or mismatched chain evidence looks successful | Fixed-testnet settlement check requires exact digest, successful transaction, pinned-USDC canonical-recipient balance change, and exact micro amount; strict client binding gates actions | Public testnet RPC can be unavailable; no reproducible live real-digest artifact has been captured; fiat payout remains unverified |
 | Demo looks like settlement | `DEMO-` digest, explicit label, no explorer URL | Demo proves UI flow only |
 | QR payload is modified | Canonical blake2b256 checksum and strict bounds (commerce envelope) | Checksum is not a payer signature |
@@ -1035,7 +1103,7 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, and an in-Pay Protected Transfer creation path with exact Created verification and a portable receipt | Protected Transfer publication/configuration, a reproducible real Created artifact, terminal release/refund verification and controls, a real direct-USDC digest artifact, live FX, fiat funding, and payout integration remain unproven |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, and Protected Transfer creation, role/deadline-gated terminal wallet actions, plus strict `/proof?t=` lifecycle verification | Protected Transfer publication/configuration, reproducible real Created/terminal artifacts, a real direct-USDC digest artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
 | Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward two-model advisory message review with server-resolved exact evidence; bounded protected-plan issuance and commerce intent candidate path | Successful live two-model council artifact, protected lifecycle evidence, and live Gonka + Sui evidence remain required |
 | Thetanuts Best Product Built on SDK | Pinned SDK, Base mainnet read adapter, bounded 200-order inspection, deterministic maker-sell put selection, signer-free `previewFillOrder`, and a strict `live`/`no_match`/`unavailable` public state | Base signer, allowance, real OptionBook/OptionFactory fill, and a captured successful live recommendation artifact |
 | Thetanuts AI x Options | Natural-language risk-goal interface with strict deterministic parse plus SDK order read and signer-free preview | Mapping is deterministic, not model-routed; no options trade is submitted; no successful live artifact captured |
@@ -1057,11 +1125,14 @@ app/
   api/remittance/settlement/verify/route.ts read-only Sui settlement evidence
   api/remittance/protected-transfer/plan/route.ts bounded Protected Transfer plan issuance
   api/remittance/protected-transfer/created/verify/route.ts Created-event evidence adapter
+  api/remittance/protected-transfer/terminal/verify/route.ts Released/Refunded evidence adapter
+  api/remittance/protected-transfer/terminal/open/route.ts open escrow-state adapter
   api/strategy/route.ts        strict goal parse + protective-put preflight or educational mapping
   manifest.ts                  installable PWA manifest
 components/
   commerce/                    chat, voice, checkout, ferry, scanner, receipt and proof UI
     remittance-settlement-status.tsx strict result-first Sui and payout states
+    protected-transfer-terminal-action.tsx role/deadline-gated wallet action and receipt bridge
   remittance/                  quote, review, direct payment, family-review creation, handoff and receipt UI
   strategy/                    strategy desk UI
   pwa/                         service-worker registration
@@ -1083,6 +1154,9 @@ lib/
     protected-transfer-created.ts pure exact Created-event evaluator and response schema
     protected-transfer-created.server.ts fixed-testnet Created-event read adapter
     protected-transfer-created-receipt.ts strict portable Created receipt and binding
+    protected-transfer-terminal.ts terminal transaction and event evidence core
+    protected-transfer-terminal-receipt.ts terminal receipt binding and payload
+    protected-transfer-terminal-lifecycle.ts current lifecycle re-check adapter
   strategy/                    deterministic goal parse, protective-put preflight policy, signer-free SDK adapter
   protocol/                    shared hashing utilities
 move/
@@ -1105,6 +1179,8 @@ tests/
     protected-transfer-created-verify-route.test.ts bounded Created-event route and safe-response tests
     protected-transfer-created-receipt.test.ts Created receipt binding, tamper and payload tests
     proof-verifier-created-receipt.test.tsx Created receipt truth-copy and action-gating tests
+    protected-transfer-terminal-lifecycle.test.ts Created/terminal/open lifecycle resolution tests
+    proof-verifier-terminal-receipt.test.tsx terminal receipt states, retry, and action-gating tests
   strategy/                    goal parse, shield policy, SDK adapter, preview binding, route, and UI tests
 ```
 
@@ -1116,10 +1192,11 @@ tests/
   unavailable, so no successful council artifact is claimed.
 - Capture a reproducible capped Sui testnet payment with a real explorer digest
   and preserve the independent verifier result as release evidence.
-- Publish the Protected Transfer package, configure both protected endpoints,
-  capture a real independently verified Created receipt, add reviewer release
-  and payer refund workflows, and capture independently verified terminal
-  lifecycle evidence. The direct-transfer path remains separate and unchanged.
+- Publish the Protected Transfer package, configure the protected endpoints,
+  capture a real independently verified Created receipt, exercise the existing
+  reviewer release and payer refund bridge with eligible wallets, and preserve
+  independently verified terminal lifecycle evidence. The direct-transfer path
+  remains separate and unchanged.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
 - Add a Base signer, allowance, and fill flow only behind a separate options

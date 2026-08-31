@@ -232,6 +232,9 @@ export interface BuildProtectedTransferResult {
   metadata: ProtectedTransferMetadata;
 }
 
+/** Canonical Sui zero address (64 zero hex digits). */
+const SUI_ZERO_ADDRESS = "0x" + "0".repeat(64);
+
 /** Canonicalize and validate a Sui address/object ID. Throws on invalid input. */
 function canonicalizeAddress(value: string, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -242,6 +245,38 @@ function canonicalizeAddress(value: string, label: string): string {
     throw new Error(`Invalid ${label}: not a valid Sui address.`);
   }
   return normalized;
+}
+
+/**
+ * Shared zero/distinct-role invariant for a Protected Transfer party set.
+ * Mirrors the Move `create_escrow` guards (`EZeroBeneficiary`,
+ * `EZeroReviewer`, `ECollidingRoles`). The payer is the wallet sender and is
+ * checked against the beneficiary and reviewer here so the builder and the
+ * plan parser share one policy owner. Throws on any violation.
+ */
+export function assertProtectedTransferRolesDistinct(input: {
+  payer: string;
+  beneficiary: string;
+  reviewer: string;
+}): void {
+  if (input.payer === SUI_ZERO_ADDRESS) {
+    throw new Error("Payer must not be the zero address.");
+  }
+  if (input.beneficiary === SUI_ZERO_ADDRESS) {
+    throw new Error("Beneficiary must not be the zero address.");
+  }
+  if (input.reviewer === SUI_ZERO_ADDRESS) {
+    throw new Error("Reviewer must not be the zero address.");
+  }
+  if (input.payer === input.beneficiary) {
+    throw new Error("Payer and beneficiary must be distinct.");
+  }
+  if (input.payer === input.reviewer) {
+    throw new Error("Payer and reviewer must be distinct.");
+  }
+  if (input.beneficiary === input.reviewer) {
+    throw new Error("Beneficiary and reviewer must be distinct.");
+  }
 }
 
 /** Validate the USDC micro amount and return it as a bounded bigint.
@@ -413,6 +448,20 @@ export function parseProtectedTransferExecutionPlan(
   validateAuthorizationFreshness(auth.issuedAt, auth.expiresAt, nowMs);
   const normalizedNote = validateReviewNote(plan.reviewNote);
 
+  // Zero/distinct role invariants mirror the Move `create_escrow` guards.
+  // The payer is the wallet sender, resolved only at build time, so the plan
+  // parser owns beneficiary/reviewer zero and beneficiary!=reviewer here; the
+  // builder owns the payer-distinct checks against the canonical sender.
+  if (canonicalBeneficiary === SUI_ZERO_ADDRESS) {
+    throw new Error("Beneficiary must not be the zero address.");
+  }
+  if (canonicalReviewer === SUI_ZERO_ADDRESS) {
+    throw new Error("Reviewer must not be the zero address.");
+  }
+  if (canonicalBeneficiary === canonicalReviewer) {
+    throw new Error("Beneficiary and reviewer must be distinct.");
+  }
+
   // Build the normalized plan from already strict-parsed fields plus
   // canonicalizers. The authorization is rebuilt with the canonical
   // beneficiary; every other authorization field is carried verbatim.
@@ -459,6 +508,15 @@ export function buildProtectedTransfer(
   const canonicalBeneficiary = auth.recipientAddress;
   const canonicalPackage = plan.packageId;
   const canonicalReviewer = plan.reviewerAddress;
+
+  // Payer-distinct invariants mirror the Move `create_escrow` guards. The
+  // plan parser already enforced beneficiary/reviewer zero and distinctness;
+  // the builder owns the payer (sender) distinctness against both.
+  assertProtectedTransferRolesDistinct({
+    payer: canonicalSender,
+    beneficiary: canonicalBeneficiary,
+    reviewer: canonicalReviewer,
+  });
 
   // The parser already enforced the amount invariants; a direct BigInt parse
   // is sufficient for the coin intent.

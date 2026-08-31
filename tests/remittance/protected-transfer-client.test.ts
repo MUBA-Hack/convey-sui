@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   requestProtectedTransferPlan,
+  requestProtectedTransferOpen,
+  requestProtectedTransferTerminalVerification,
   type ProtectedTransferPlanClientInput,
 } from "@/lib/remittance/protected-transfer-client";
 import {
@@ -13,6 +15,10 @@ const NOW = 1_700_000_000_000;
 const PACKAGE = "0x" + "44".repeat(32);
 const REVIEWER = "0x" + "33".repeat(32);
 const ACCOUNT = "0x" + "22".repeat(32);
+const PAYER = "0x" + "11".repeat(32);
+const ESCROW = "0x" + "55".repeat(32);
+const DIGEST = "DnKz7eQwFR1i6Sd2L3pJ8mVoHgYsAaBcXcVbNbMzK9eR";
+const COMMITMENT = "0x" + "ab".repeat(32);
 
 function makeRequest(): ProtectedTransferPlanRequest {
   return {
@@ -158,5 +164,64 @@ describe("requestProtectedTransferPlan", () => {
     await expect(
       requestProtectedTransferPlan({ request: makeRequest(), fetchImpl }),
     ).rejects.toThrow(/strict schema/i);
+  });
+});
+
+describe("terminal client adapters", () => {
+  const terminalRequest = {
+    action: "release" as const,
+    digest: DIGEST,
+    packageId: PACKAGE,
+    escrowObjectId: ESCROW,
+    payerAddress: PAYER,
+    beneficiaryAddress: ACCOUNT,
+    reviewerAddress: REVIEWER,
+    amountMicro: "109000000",
+    deadlineMs: NOW + 60_000,
+    evidenceCommitmentHex: COMMITMENT,
+  };
+  const openRequest = {
+    packageId: PACKAGE,
+    escrowObjectId: ESCROW,
+    payerAddress: PAYER,
+    beneficiaryAddress: ACCOUNT,
+    reviewerAddress: REVIEWER,
+    amountMicro: "109000000",
+    deadlineMs: NOW + 60_000,
+    evidenceCommitmentHex: COMMITMENT,
+  };
+
+  it("posts terminal verification and returns a strict response", async () => {
+    const response = { kind: "not_found", reason: "transaction_not_found" } as const;
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(response)));
+    await expect(requestProtectedTransferTerminalVerification({ request: terminalRequest, fetchImpl }))
+      .resolves.toEqual({ response });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/remittance/protected-transfer/terminal/verify",
+      expect.objectContaining({ method: "POST", headers: { "content-type": "application/json" } }),
+    );
+  });
+
+  it("rejects a malformed terminal verification response", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ kind: "verified" })));
+    await expect(requestProtectedTransferTerminalVerification({ request: terminalRequest, fetchImpl }))
+      .rejects.toThrow(/strict schema/i);
+  });
+
+  it("posts open-state lookup and returns a strict response", async () => {
+    const response = { kind: "terminal_unknown", reason: "object_absent" } as const;
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(response)));
+    await expect(requestProtectedTransferOpen({ request: openRequest, fetchImpl }))
+      .resolves.toEqual({ response });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/remittance/protected-transfer/terminal/open",
+      expect.objectContaining({ method: "POST", headers: { "content-type": "application/json" } }),
+    );
+  });
+
+  it("rejects a malformed open-state response", async () => {
+    const fetchImpl = vi.fn(async () => new Response("not-json"));
+    await expect(requestProtectedTransferOpen({ request: openRequest, fetchImpl }))
+      .rejects.toThrow(/not valid json/i);
   });
 });

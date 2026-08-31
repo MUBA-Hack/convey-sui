@@ -22,6 +22,12 @@ const EUnauthorizedRefund: u64 = 4;
 const EReleaseAfterDeadline: u64 = 5;
 /// Refund attempted at or before the deadline.
 const ERefundBeforeDeadline: u64 = 6;
+/// Beneficiary is the zero address.
+const EZeroBeneficiary: u64 = 7;
+/// Reviewer is the zero address.
+const EZeroReviewer: u64 = 8;
+/// Payer, beneficiary, and reviewer must be pairwise distinct.
+const ECollidingRoles: u64 = 9;
 
 /// Single-milestone escrow: payer locks one `Coin<T>`, reviewer releases to
 /// beneficiary before/at deadline, payer refunds after deadline. Terminal
@@ -126,8 +132,13 @@ public fun create_escrow<T>(
     assert!(amount > 0, EZeroFunding);
     assert!(clock::timestamp_ms(clock) < deadline, EDeadlineNotInFuture);
     assert!(evidence_commitment.length() == 32, EInvalidEvidenceCommitment);
+    assert!(beneficiary != @0x0, EZeroBeneficiary);
+    assert!(reviewer != @0x0, EZeroReviewer);
 
     let payer = tx_context::sender(ctx);
+    assert!(payer != beneficiary, ECollidingRoles);
+    assert!(payer != reviewer, ECollidingRoles);
+    assert!(beneficiary != reviewer, ECollidingRoles);
     let balance = coin::into_balance(coin);
     let escrow = ProtectedTransfer<T> {
         id: object::new(ctx),

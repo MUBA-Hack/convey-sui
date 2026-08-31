@@ -11,6 +11,7 @@ import {
 } from "@/lib/remittance/protected-transfer-created-receipt";
 import type { CreatedCheckState } from "./proof-advanced-details";
 import { ProofRejectionCard } from "./proof-rejection-card";
+import { ProtectedTransferTerminalAction } from "./protected-transfer-terminal-action";
 
 export interface ProtectedTransferCreatedPageCopy {
   eyebrow: string;
@@ -288,6 +289,12 @@ export function ProtectedTransferCreatedReceipt({
       </div>
 
       <ReceiptDetails receipt={result} />
+      {createdVerified ? (
+        <ProtectedTransferTerminalAction
+          receipt={result}
+          createdVerified
+        />
+      ) : null}
       {createdVerified ? (
         <CreatedReceiptActions
           copied={copied}

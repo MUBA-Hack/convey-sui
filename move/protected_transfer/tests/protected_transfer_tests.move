@@ -16,7 +16,7 @@ const REVIEWER: address = @0xCAFE;
 const ATTACKER: address = @0xBADE;
 
 /// Test-only sentinel abort code that can never collide with any production
-/// abort code (production codes are 0..=6). Every expected-failure test ends
+/// abort code (production codes are 0..=9). Every expected-failure test ends
 /// with `abort E_TEST_SENTINEL_ABORT` instead of `abort 0`: if a production
 /// guard is accidentally removed, the production call succeeds and the sentinel
 /// fires with a code that does not match the `expected_failure` declaration,
@@ -457,4 +457,79 @@ fun test_refunded_event_payload() {
     coin::burn_for_testing(coin);
 
     scenario.end();
+}
+
+// === 14. zero beneficiary rejects with the named code ===
+
+#[test, expected_failure(abort_code = ::protected_transfer::protected_transfer::EZeroBeneficiary)]
+fun test_zero_beneficiary_rejects() {
+    let mut scenario = test_scenario::begin(PAYER);
+    scenario.create_system_objects();
+
+    let clock = scenario.take_shared<clock::Clock>();
+    let coin = coin::mint_for_testing<TEST_COIN>(100, scenario.ctx());
+    protected_transfer::create_escrow<TEST_COIN>(
+        coin, @0x0, REVIEWER, COMMITMENT_32, 2_000, &clock, scenario.ctx(),
+    );
+    abort E_TEST_SENTINEL_ABORT
+}
+
+// === 15. zero reviewer rejects with the named code ===
+
+#[test, expected_failure(abort_code = ::protected_transfer::protected_transfer::EZeroReviewer)]
+fun test_zero_reviewer_rejects() {
+    let mut scenario = test_scenario::begin(PAYER);
+    scenario.create_system_objects();
+
+    let clock = scenario.take_shared<clock::Clock>();
+    let coin = coin::mint_for_testing<TEST_COIN>(100, scenario.ctx());
+    protected_transfer::create_escrow<TEST_COIN>(
+        coin, BENEFICIARY, @0x0, COMMITMENT_32, 2_000, &clock, scenario.ctx(),
+    );
+    abort E_TEST_SENTINEL_ABORT
+}
+
+// === 16. payer == beneficiary rejects with the named code ===
+
+#[test, expected_failure(abort_code = ::protected_transfer::protected_transfer::ECollidingRoles)]
+fun test_payer_equals_beneficiary_rejects() {
+    let mut scenario = test_scenario::begin(PAYER);
+    scenario.create_system_objects();
+
+    let clock = scenario.take_shared<clock::Clock>();
+    let coin = coin::mint_for_testing<TEST_COIN>(100, scenario.ctx());
+    protected_transfer::create_escrow<TEST_COIN>(
+        coin, PAYER, REVIEWER, COMMITMENT_32, 2_000, &clock, scenario.ctx(),
+    );
+    abort E_TEST_SENTINEL_ABORT
+}
+
+// === 17. payer == reviewer rejects with the named code ===
+
+#[test, expected_failure(abort_code = ::protected_transfer::protected_transfer::ECollidingRoles)]
+fun test_payer_equals_reviewer_rejects() {
+    let mut scenario = test_scenario::begin(PAYER);
+    scenario.create_system_objects();
+
+    let clock = scenario.take_shared<clock::Clock>();
+    let coin = coin::mint_for_testing<TEST_COIN>(100, scenario.ctx());
+    protected_transfer::create_escrow<TEST_COIN>(
+        coin, BENEFICIARY, PAYER, COMMITMENT_32, 2_000, &clock, scenario.ctx(),
+    );
+    abort E_TEST_SENTINEL_ABORT
+}
+
+// === 18. beneficiary == reviewer rejects with the named code ===
+
+#[test, expected_failure(abort_code = ::protected_transfer::protected_transfer::ECollidingRoles)]
+fun test_beneficiary_equals_reviewer_rejects() {
+    let mut scenario = test_scenario::begin(PAYER);
+    scenario.create_system_objects();
+
+    let clock = scenario.take_shared<clock::Clock>();
+    let coin = coin::mint_for_testing<TEST_COIN>(100, scenario.ctx());
+    protected_transfer::create_escrow<TEST_COIN>(
+        coin, REVIEWER, REVIEWER, COMMITMENT_32, 2_000, &clock, scenario.ctx(),
+    );
+    abort E_TEST_SENTINEL_ABORT
 }
