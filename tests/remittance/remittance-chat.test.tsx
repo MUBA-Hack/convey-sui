@@ -738,6 +738,25 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(send.className).toContain("h-11");
   });
 
+  it("quick amount chips are at least 44px high touch targets", () => {
+    render(<RemittanceChat />);
+    // The quick amount chips (250/500/750) live on the money sheet header.
+    const chips = ["250", "500", "750"].map((amt) =>
+      screen.getByRole("button", { name: (n) => n.trim() === amt }),
+    );
+    expect(chips.length).toBeGreaterThanOrEqual(1);
+    for (const chip of chips) {
+      // 44px minimum touch target (min-h-11 = 2.75rem = 44px).
+      expect(chip.className).toMatch(/min-h-11|min-h-\[44px\]|h-11/);
+    }
+  });
+
+  it("the family-limit action is at least 44px high", () => {
+    render(<RemittanceChat />);
+    const familyLimit = screen.getByTestId("use-golden-remittance");
+    expect(familyLimit.className).toMatch(/min-h-11|min-h-\[44px\]|h-11/);
+  });
+
   it("mobile composer is a single 44px line — no stepper, scroll arrows, or wrapped placeholder", () => {
     render(<RemittanceChat />);
     // The composer lives behind the Type a request disclosure.
@@ -983,10 +1002,11 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(heading).toHaveTextContent(/Send money home/i);
     const hero = screen.getByTestId("remittance-hero");
     expect(hero.className).toContain("rounded-2xl");
-    // The hero's wrapper centers the instrument at ~1040px on desktop.
-    const wrapper = hero.parentElement;
-    expect(wrapper?.className).toContain("lg:max-w-[1040px]");
-    expect(wrapper?.className).toContain("mx-auto");
+    // The entry composition is a centered ~1290px stage (heading column +
+    // content up to ~1080px), not a left-heavy prototype ending mid-fold.
+    const stage = hero.closest(".flex.w-full.flex-1");
+    expect(stage?.className).toContain("max-w-[1290px]");
+    expect(stage?.className).toContain("mx-auto");
   });
 });
 
@@ -1448,20 +1468,68 @@ describe("RemittanceChat — blocker matrix: one primary next action per blocker
 // ---------------------------------------------------------------------------
 
 describe("RemittanceChat — desktop workspace, two groups, and mobile order", () => {
-  it("entry layout top-aligns below lg, centers on desktop, and does not force desktop min-height", () => {
+  it("entry composition is a centered ~1290px grid: heading column + content, top-aligned, no doc panel", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
-    const flex = section.querySelector(".flex.w-full.flex-1");
-    expect(flex).not.toBeNull();
-    expect(flex?.className).not.toMatch(/grid-cols/);
-    expect(flex?.className).toContain("items-start");
-    expect(flex?.className).toContain("lg:items-center");
-    expect(flex?.className).not.toMatch(/lg:min-h-/);
+    const stage = section.querySelector(".flex.w-full.flex-1");
+    expect(stage).not.toBeNull();
+    // Centered ~1290px composition (not a left-heavy prototype ending mid-fold).
+    expect(stage?.className).toContain("max-w-[1290px]");
+    expect(stage?.className).toContain("mx-auto");
+    // Mobile stays flex-column; desktop becomes a heading-column + content grid.
+    expect(stage?.className).toContain("flex-col");
+    expect(stage?.className).toContain("lg:grid");
+    expect(stage?.className).toContain("lg:grid-cols-[180px_minmax(0,1fr)]");
+    // Top-aligned on every breakpoint — never vertically centered.
+    expect(stage?.className).toContain("items-start");
+    expect(stage?.className).not.toMatch(/lg:items-center/);
+    expect(stage?.className).not.toMatch(/lg:min-h-/);
     const hero = screen.getByTestId("remittance-hero");
     expect(hero.className).not.toMatch(/lg:min-h-/);
-    // The instrument wrapper centers at ~1040px on desktop.
-    const wrapper = flex?.querySelector(".mx-auto") as HTMLElement | null;
-    expect(wrapper?.className).toContain("lg:max-w-[1040px]");
+    // No documentation panel / supporting aside — the 3-part story (headline /
+    // transfer instrument / corridor) lives inside the grid, not a side rail.
+    expect(screen.queryByTestId("remittance-entry-summary")).not.toBeInTheDocument();
+  });
+
+  it("entry stage is flex-col below lg so the heading stacks above the instrument at 390px", () => {
+    render(<RemittanceChat />);
+    const section = screen.getByTestId("remittance-chat");
+    const stage = section.querySelector(".flex.w-full.flex-1");
+    expect(stage).not.toBeNull();
+    // Mobile: column so the heading sits above the money card, not beside it.
+    expect(stage?.className).toContain("flex-col");
+    expect(stage?.className).toContain("items-start");
+    // The heading is the first direct child of the stage; the content column
+    // that contains the hero follows it. In a column flex container DOM order
+    // is visual order, so at 390px the heading renders above the card.
+    const heading = section.querySelector('[data-testid="remittance-entry-heading"]');
+    const hero = section.querySelector('[data-testid="remittance-hero"]');
+    expect(heading).not.toBeNull();
+    expect(hero).not.toBeNull();
+    const stageEl = stage as HTMLElement | null;
+    const children = Array.from(stageEl?.children ?? []);
+    expect(children[0]).toBe(heading);
+    // The hero lives inside the second direct child (the content column).
+    const contentCol = children.find((c) => (c as HTMLElement).contains(hero!));
+    expect(contentCol).toBeDefined();
+    expect(children.indexOf(contentCol!)).toBeGreaterThan(0);
+    // The hero card itself stays block (full-width) below lg and only becomes
+    // a flex column at lg, so it can fill the ~358px mobile gutter.
+    expect(hero?.className).toContain("lg:flex");
+    expect(hero?.className).not.toMatch(/(^|\s)flex(?!-)/);
+  });
+
+  it("the corridor is a compact line in the content column, not a bordered documentation panel", () => {
+    render(<RemittanceChat />);
+    const corridor = screen.getByTestId("remittance-corridor");
+    expect(corridor.tagName).toBe("P");
+    expect(corridor.textContent ?? "").toMatch(/Malaysia.*Philippines/i);
+    // Compact line, never a bordered card / aside documentation panel.
+    expect(corridor.className).not.toMatch(/border|rounded|aside|card/i);
+    // The corridor sits inside the content column alongside the instrument.
+    const hero = screen.getByTestId("remittance-hero");
+    const contentCol = hero.parentElement;
+    expect(contentCol?.contains(corridor)).toBe(true);
   });
 
   it("entry CTA reads Get quote and never Send", () => {
@@ -1563,5 +1631,201 @@ describe("RemittanceChat — desktop workspace, two groups, and mobile order", (
       within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
     expect(within(preview).queryByTestId("edit-transfer")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RemittanceChat — interpretation mode routing
+// ---------------------------------------------------------------------------
+
+describe("RemittanceChat — interpretation mode routing", () => {
+  it("the structured See quote CTA posts interpretationMode:deterministic", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
+        "/api/remittance/quote",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]![1] as RequestInit;
+    const body = JSON.parse(init.body as string);
+    expect(body.text).toMatch(/Send RM500 to Ana in Manila/i);
+    expect(body.interpretationMode).toBe("deterministic");
+  });
+
+  it("the freeform composer posts interpretationMode:gonka explicitly", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("type-request-toggle"));
+    fireEvent.change(screen.getByLabelText(/Remittance command/i), {
+      target: { value: "Hantar RM750 kepada Ana di Manila" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
+        "/api/remittance/quote",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]![1] as RequestInit;
+    const body = JSON.parse(init.body as string);
+    expect(body.text).toMatch(/Hantar RM750 kepada Ana di Manila/i);
+    expect(body.interpretationMode).toBe("gonka");
+  });
+
+  it("the golden example prompt posts interpretationMode:gonka explicitly", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("use-golden-remittance"));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
+        "/api/remittance/quote",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]![1] as RequestInit;
+    const body = JSON.parse(init.body as string);
+    expect(body.interpretationMode).toBe("gonka");
+  });
+
+  it("retry re-sends with the original interpretation mode (gonka for freeform)", async () => {
+    vi.mocked(globalThis.fetch).mockRejectedValue(new Error("network down"));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("type-request-toggle"));
+    fireEvent.change(screen.getByLabelText(/Remittance command/i), {
+      target: { value: "Hantar RM750 kepada Ana di Manila" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1),
+    );
+    const firstInit = vi.mocked(globalThis.fetch).mock.calls[0]![1] as RequestInit;
+    const firstBody = JSON.parse(firstInit.body as string);
+    expect(firstBody.interpretationMode).toBe("gonka");
+    // Retry must preserve the original gonka mode, not drop it.
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(2),
+    );
+    const retryInit = vi.mocked(globalThis.fetch).mock.calls[1]![1] as RequestInit;
+    const retryBody = JSON.parse(retryInit.body as string);
+    expect(retryBody.text).toBe(firstBody.text);
+    expect(retryBody.interpretationMode).toBe("gonka");
+  });
+
+  it("retry re-sends with the original interpretation mode (deterministic for hero)", async () => {
+    vi.mocked(globalThis.fetch).mockRejectedValue(new Error("network down"));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1),
+    );
+    const firstInit = vi.mocked(globalThis.fetch).mock.calls[0]![1] as RequestInit;
+    const firstBody = JSON.parse(firstInit.body as string);
+    expect(firstBody.interpretationMode).toBe("deterministic");
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() =>
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(2),
+    );
+    const retryInit = vi.mocked(globalThis.fetch).mock.calls[1]![1] as RequestInit;
+    const retryBody = JSON.parse(retryInit.body as string);
+    expect(retryBody.text).toBe(firstBody.text);
+    expect(retryBody.interpretationMode).toBe("deterministic");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RemittanceChat — in-place quote-loading state
+//
+// The quote-loading screenshot must be visually distinct from the loaded
+// ticket: while loading, the destination slot shows a "Locking your rate…"
+// skeleton in the same seat the populated ticket will occupy, suppresses
+// populated amounts / fee / rate / countdown, and exposes one accessible
+// status. The resolved quote is preserved once the fetch settles.
+// ---------------------------------------------------------------------------
+
+describe("RemittanceChat — in-place quote-loading state", () => {
+  it("while loading, shows the in-place skeleton and suppresses populated quote amounts/countdown", async () => {
+    // A fetch that never resolves keeps `loading` true so the skeleton is
+    // the only stage visible.
+    vi.mocked(globalThis.fetch).mockReturnValue(new Promise<Response>(() => {}));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("remittance-quote-loading")).toBeInTheDocument(),
+    );
+
+    // The populated preview and every populated quote field are absent.
+    expect(screen.queryByTestId("remittance-quote-preview")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quote-you-pay")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quote-family-receives")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quote-fee")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quote-rate")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quote-expiry")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quote-money-slab")).not.toBeInTheDocument();
+
+    // The entry money sheet is hidden while loading — only one stage at a time.
+    expect(screen.queryByTestId("remittance-hero")).not.toBeInTheDocument();
+  });
+
+  it("the quote-loading state exposes one accessible status and marks the region busy", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(new Promise<Response>(() => {}));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+
+    const skeleton = await waitFor(() =>
+      screen.getByTestId("remittance-quote-loading"),
+    );
+    // The visible status line is also the AT status (role=status, polite).
+    const status = screen.getByTestId("quote-loading-status");
+    expect(status).toHaveTextContent(/Locking your rate/i);
+    expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    // The container is marked busy for AT.
+    expect(skeleton).toHaveAttribute("aria-busy", "true");
+    // No detached sr-only "Preparing quote" strip remains alongside the
+    // visible skeleton — one status region, not two.
+    expect(screen.queryByText("Preparing quote")).not.toBeInTheDocument();
+  });
+
+  it("after loading resolves, the populated quote preview replaces the skeleton and preserves the resolved quote", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(jsonResponse(QUOTE));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+
+    // The populated ticket lands in the same slot the skeleton occupied.
+    const preview = await waitFor(() =>
+      screen.getByTestId("remittance-quote-preview"),
+    );
+    expect(screen.queryByTestId("remittance-quote-loading")).not.toBeInTheDocument();
+
+    // Populated amounts, fee, rate, and the countdown are now present and
+    // carry the resolved quote's values (not neutral bars).
+    expect(within(preview).getByTestId("quote-you-pay").textContent).toMatch(/500/);
+    expect(within(preview).getByTestId("quote-family-receives").textContent).toMatch(/PHP/);
+    expect(within(preview).getByTestId("quote-fee")).toBeInTheDocument();
+    expect(within(preview).getByTestId("quote-rate")).toBeInTheDocument();
+    expect(within(preview).getByTestId("quote-expiry")).toBeInTheDocument();
+  });
+
+  it("the loading skeleton mirrors the resolved ticket's two-group workspace grid for layout stability", async () => {
+    vi.mocked(globalThis.fetch).mockReturnValue(new Promise<Response>(() => {}));
+    render(<RemittanceChat />);
+    fireEvent.click(screen.getByTestId("see-quote"));
+
+    const skeleton = await waitFor(() =>
+      screen.getByTestId("remittance-quote-loading"),
+    );
+    // Same outer sheet + same two-group grid as RemittanceQuotePreview so the
+    // handoff is a content swap, not a layout jump.
+    expect(skeleton.className).toContain("cv-money-sheet");
+    const grid = skeleton.querySelector('[data-testid="quote-workspace-grid"]');
+    expect(grid).not.toBeNull();
+    expect(grid?.className).toContain("lg:grid-cols-[minmax(0,56fr)_minmax(0,44fr)]");
   });
 });

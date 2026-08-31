@@ -198,10 +198,15 @@ const MEDICINE_PICKUP_TEMPLATE = makeTemplate({
     "Payment receipt captured",
   ]),
   allowedDeadlinePresets: Object.freeze([
-    "tomorrow",
     "three_days",
   ]) as readonly ProtectedTransferDeadlinePreset[],
-  defaultDeadlinePreset: "tomorrow",
+  // Safety: a 24h (tomorrow) hold issued before 09:00 PHT can expire before
+  // the next-day pickup window even opens (pickup is 09:00–17:00 PHT the
+  // following Manila day). three_days (72h) outlasts the next-day pickup
+  // close for any quote issuance time, so it is the only medicine preset
+  // offered. tomorrow is intentionally excluded unless runtime validation
+  // proves the deadline outlasts pickup close.
+  defaultDeadlinePreset: "three_days",
   requiredCapabilities: Object.freeze([
     "mapped_recipient",
     "verified_quote",

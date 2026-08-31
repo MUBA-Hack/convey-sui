@@ -14,6 +14,7 @@ import { useVoiceInput } from "@/components/commerce/use-voice-input";
 import {
   parseAmountToMinor,
   buildCommand,
+  buildQuoteViewModel,
   estimatePhpPayout,
   estimateMyrFee,
 } from "@/lib/remittance/quote-form";
@@ -23,7 +24,9 @@ import {
   type QuotePreviewStatus,
 } from "./remittance-quote-preview";
 import { RemittanceMoneySlab } from "./remittance-money-slab";
+import { RemittanceQuoteLoading } from "./remittance-quote-loading";
 import { RemittanceCheckoutDialog } from "./remittance-checkout-dialog";
+import { SheetDisclosure } from "./sheet-disclosure";
 import type { RemittanceSettlement, RemittanceTerminalState } from "./remittance-payment-action";
 
 /**
@@ -109,7 +112,14 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSentText, setLastSentText] = useState<string | null>(null);
+  // Track the last sent request (text + interpretation mode) so Retry can
+  // re-send with the ORIGINAL mode: a freeform/voice/example retry stays gonka,
+  // a structured hero retry stays deterministic. Mode is never inferred from
+  // omission on retry.
+  const [lastSent, setLastSent] = useState<{
+    text: string;
+    mode: "gonka" | "deterministic";
+  } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogQuote, setDialogQuote] = useState<QuoteEnvelope | null>(null);
   const [dialogSessionId, setDialogSessionId] = useState<string | null>(null);
@@ -147,8 +157,14 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
     return () => stopVoice();
   }, [stopVoice]);
 
+  // Interpretation mode routing: the structured hero CTA sends
+  // `deterministic` (the user supplied structured controls, so the
+  // deterministic parse is the intended path, not a Gonka failure). Every
+  // freeform path — typed composer, voice final, and example prompts — sends
+  // `gonka` explicitly so the request never depends on omission-dependent
+  // defaulting. Retry re-sends the captured original mode.
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, mode: "gonka" | "deterministic" = "gonka") => {
       const trimmed = text.trim();
       if (!trimmed) return;
       // Fail closed: a terminal quote session is locked. Keep its settlement
@@ -158,7 +174,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       }
       setInput("");
       setError(null);
-      setLastSentText(trimmed);
+      setLastSent({ text: trimmed, mode });
       // Supersede any prior non-terminal session so exactly one quote card
       // can hold active actions. A clarification or retry that follows never
       // resurrects stale quote actions.
@@ -168,7 +184,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
         const res = await fetch("/api/remittance/quote", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: trimmed }),
+          body: JSON.stringify({ text: trimmed, interpretationMode: mode }),
         });
         if (!res.ok) {
           let detail = `HTTP ${res.status}`;
@@ -225,7 +241,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       return;
     }
     setAmountError(null);
-    void send(buildCommand(amount, HERO_RECIPIENT, HERO_CITY.toLowerCase()));
+    void send(buildCommand(amount, HERO_RECIPIENT, HERO_CITY.toLowerCase()), "deterministic");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -235,7 +251,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
   };
 
   const handleRetry = () => {
-    if (lastSentText) void send(lastSentText);
+    if (lastSent) void send(lastSent.text, lastSent.mode);
   };
 
   const setQuoteStatus = (status: QuotePreviewStatus) => {
@@ -311,7 +327,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
   // clarification is a transient status line under the money sheet.
   const sessionQuote = session.kind === "quote" ? session : null;
   const sessionClarification = session.kind === "clarification" ? session : null;
-  const showMoneySheet = session.kind !== "quote";
+  const showMoneySheet = session.kind !== "quote" && !loading;
   const blocker: QuoteBlocker = sessionQuote
     ? resolveQuoteBlocker({
         account: account?.address ?? null,
@@ -326,15 +342,14 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       data-testid="remittance-chat"
       data-palette="monochrome"
       aria-label="Send abroad"
-      className="cv-shell mx-auto flex w-full max-w-[1320px] flex-col px-4 pt-5 md:px-6 md:pt-8"
-      style={{ minHeight: "calc(100svh - 60px)" }}
+      className="cv-shell mx-auto flex w-full max-w-[1320px] flex-col px-4 pt-4 md:px-6 md:pt-6"
+      style={{ minHeight: "calc(100svh - 96px)" }}
     >
       {showMoneySheet && (
-        <div className="flex w-full flex-1 items-start lg:items-center">
-          <div className="mx-auto w-full max-w-[800px] lg:max-w-[1040px]">
+        <div className="mx-auto flex w-full max-w-[1290px] flex-1 flex-col items-start lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:grid-rows-1 lg:items-start lg:gap-8">
             <header
               data-testid="remittance-entry-heading"
-              className="mb-4 flex flex-col gap-2 px-1 lg:mb-5"
+              className="mb-4 flex flex-col gap-2 px-1 lg:mb-0 lg:pt-2"
             >
               <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
                 International transfer
@@ -343,6 +358,14 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                 Send money home.
               </h1>
             </header>
+          {/* Centered ~1290px composition: a ~180px heading column + a content
+              column (transfer instrument + corridor) up to ~1080px. Mobile
+              stays flex-column so the heading stacks above the instrument with
+              no horizontal overflow. The stage starts near the top (never
+              vertically centered) and carries no documentation side panel —
+              the 3-part story (headline / transfer instrument / corridor) lives
+              inside the grid. */}
+          <div className="w-full lg:flex lg:flex-col lg:self-stretch">
           <div
             data-testid="remittance-hero"
             className="cv-money-sheet cv-enter overflow-hidden rounded-2xl lg:flex lg:flex-col"
@@ -375,7 +398,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                       setAmountFocused(false);
                       setAmountError(null);
                     }}
-                    className={`min-h-8 rounded-full border px-2.5 text-[10px] font-semibold transition ${amount === quickAmount ? "border-black bg-black text-white" : "border-black/15 text-neutral-600 hover:border-black/40 hover:text-black"}`}
+                    className={`min-h-11 rounded-full border px-3 text-[11px] font-semibold transition ${amount === quickAmount ? "border-black bg-black text-white" : "border-black/15 text-neutral-600 hover:border-black/40 hover:text-black"}`}
                   >
                     {quickAmount}
                   </button>
@@ -439,16 +462,22 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                 data-testid="see-quote"
                 data-example-prompt="true"
                 onClick={handleSeeQuote}
-                className="cv-btn-solid inline-flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-xs font-semibold uppercase tracking-[0.14em]"
+                disabled={loading}
+                aria-busy={loading}
+                className="cv-btn-solid inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold uppercase tracking-[0.14em] disabled:opacity-60"
               >
-                Get quote · {amount.trim() ? `RM${amount.trim()} ` : ""}to Ana
+                {loading && (
+                  <span aria-hidden className="cv-tick inline-block h-2 w-2 rounded-full bg-white" />
+                )}
+                {loading ? "Preparing quote…" : `Get quote · ${amount.trim() ? `RM${amount.trim()} ` : ""}to Ana`}
               </button>
               <button
                 type="button"
                 data-testid="use-golden-remittance"
                 data-example-prompt="true"
                 onClick={() => void send(GOLDEN_REMITTANCE_PROMPT)}
-                className="mt-2 inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 text-[11px] font-medium text-neutral-500 transition-colors hover:text-black"
+                disabled={loading}
+                className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 text-[11px] font-medium text-neutral-500 transition-colors hover:text-black disabled:pointer-events-none disabled:opacity-40"
               >
                 <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-black/30" />
                 Try a family limit request
@@ -461,10 +490,17 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                 data-testid="type-request-toggle"
                 aria-expanded={typeOpen}
                 onClick={() => setTypeOpen((v) => !v)}
-                className="inline-flex min-h-[44px] flex-1 items-center gap-2 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:text-neutral-900"
+                className="inline-flex min-h-[44px] flex-1 items-center justify-between gap-2 rounded-lg px-1 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
               >
-                <span>Speak or type a transfer</span>
-                <span className="text-neutral-400">{typeOpen ? "−" : "+"}</span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span>Speak or type a transfer</span>
+                  {!typeOpen && (
+                    <span className="truncate text-[10px] font-normal normal-case tracking-normal text-neutral-400">
+                      e.g. “Send RM500 to Ana in Manila”
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-neutral-400" aria-hidden>{typeOpen ? "−" : "+"}</span>
               </button>
               <button
                 type="button"
@@ -507,6 +543,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                   aria-label="Send"
                   data-hit-target="true"
                   disabled={!canSend}
+                  aria-busy={loading}
                   className="cv-btn-solid inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40"
                 >
                   <Send2 size={18} />
@@ -548,7 +585,32 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               </p>
             )}
           </div>
+          {/* Corridor — the third part of the 3-part story, as a compact line
+              in the content column. Not a bordered documentation panel: no
+              card, no aside, no dl. Honest, monochrome, no fake claims or
+              implementation language. */}
+          <p
+            data-testid="remittance-corridor"
+            className="mt-3 px-1 text-[12px] leading-relaxed text-neutral-600 lg:mt-auto"
+          >
+            Malaysia → Philippines · Settle in USDC on Sui. One wallet approval, a portable receipt when Sui confirms — bank payout is separate, not yet available.
+          </p>
+          </div>
         </div>
+      )}
+
+      {/* In-place quote-loading state — occupies the same destination slot
+          as the resolved settlement sheet so the handoff from "Locking your
+          rate…" to the populated ticket is a content swap, not a layout jump.
+          The entry money sheet is hidden while loading so only one stage is
+          visible at a time. Populated amounts, fee, rate, and the countdown
+          are suppressed by construction; the skeleton holds neutral bars and
+          one live status line. */}
+      {loading && !sessionQuote && (
+        <div className="cv-enter flex w-full flex-1 items-start lg:items-center">
+          <div className="mx-auto w-full max-w-[760px] lg:max-w-[1040px]">
+            <RemittanceQuoteLoading />
+          </div>
         </div>
       )}
 
@@ -583,6 +645,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
             onCancel={() => setQuoteStatus("cancelled")}
             onReopen={() => setQuoteStatus("pending")}
             onSubmitQuote={(command) => void send(command)}
+            settled={Boolean(sessionQuote.settlement)}
           />
           {sessionQuote.settlement && (
             <div
@@ -635,6 +698,59 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
                   <dd className="font-semibold">Awaiting payout partner</dd>
                 </div>
               </dl>
+              {/* Consolidated Transfer details — the single technical detail
+                  surface for a resolved transfer. The preview's own
+                  "Transfer details" disclosure is suppressed once this
+                  settlement card mounts, so mobile never shows a duplicate /
+                  orphan strip at the page bottom. Same honest fields: rail,
+                  USDC, converted amount, payout method, recipient address,
+                  reference. */}
+              <SheetDisclosure
+                label="Transfer details"
+                triggerTestId="settlement-transfer-details"
+                className="mt-3 rounded-lg border border-black/10"
+              >
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <dt className="text-neutral-500">Amount converted</dt>
+                  <dd
+                    data-testid="quote-converted"
+                    className="font-sans tabular-nums text-neutral-700"
+                  >
+                    RM{buildQuoteViewModel(sessionQuote.quote).converted}
+                  </dd>
+                  <dt className="text-neutral-500">Payout method</dt>
+                  <dd
+                    data-testid="quote-payout-method"
+                    className="text-neutral-700"
+                  >
+                    {sessionQuote.quote.payoutMethod}
+                  </dd>
+                  <dt className="text-neutral-500">Settlement rail</dt>
+                  <dd data-testid="quote-rail" className="text-neutral-700">
+                    {sessionQuote.quote.settlementRail}
+                  </dd>
+                  <dt className="text-neutral-500">Wallet transfer</dt>
+                  <dd
+                    data-testid="quote-usdc"
+                    className="font-mono tabular-nums text-neutral-700"
+                  >
+                    {buildQuoteViewModel(sessionQuote.quote).usdcAmount} testnet USDC
+                  </dd>
+                  <dt className="text-neutral-500">Recipient address</dt>
+                  <dd
+                    className="font-mono text-neutral-700"
+                    title={sessionQuote.quote.recipientAddress ?? ""}
+                  >
+                    {sessionQuote.quote.recipientAddress
+                      ? `${sessionQuote.quote.recipientAddress.slice(0, 6)}…${sessionQuote.quote.recipientAddress.slice(-4)}`
+                      : "—"}
+                  </dd>
+                  <dt className="text-neutral-500">Reference</dt>
+                  <dd data-testid="quote-reference" className="font-mono">
+                    {sessionQuote.quote.beneficiaryRef}
+                  </dd>
+                </dl>
+              </SheetDisclosure>
             </div>
           )}
           </div>
@@ -651,18 +767,11 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
         </p>
       )}
 
-      {loading && (
-        <div
-          role="status"
-          aria-label="Loading"
-          className="cv-enter mt-3 rounded-lg border border-black/10 bg-white px-4 py-3 text-sm"
-        >
-          <span className="inline-flex items-center gap-2">
-            <span className="cv-tick inline-block h-2 w-2 rounded-full bg-black" />
-            Preparing quote…
-          </span>
-        </div>
-      )}
+      {/* Screen-reader progress now lives on the in-place quote-loading
+          skeleton (role=status, "Locking your rate…"), which is the single
+          sighted + AT status during a fresh load. The composer/See-quote
+          buttons keep their own aria-busy. No detached sr-only strip is
+          needed alongside the visible skeleton — one status, one region. */}
 
       {error && (
         <div

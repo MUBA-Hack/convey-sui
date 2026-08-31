@@ -159,8 +159,11 @@ Workers do not commit or push unless the integration owner explicitly assigns
 that responsibility. Never rewrite history, reset the worktree, or discard files
 to make a lane appear clean.
 
-UI construction and visual criticism use Grok 4.6 gauntlets only. Non-UI work
-may use other workers.
+UI construction may use the assigned implementation worker. Visual criticism
+uses the global OpenCode `visual-product-critic` agent on
+`opencode-go/glm-5.3-flash`; it is image-aware, read-only, and loads `caveman`
+plus `ultimate-frontend`. The integration owner performs one final visual pass
+only after that external critic loop passes.
 
 ## NASA-style implementation discipline
 
@@ -201,14 +204,15 @@ Procedure:
    For hackathon work, state the target track, 20-second judge outcome, product
    truth boundary, and what must remain shared across track presentations.
 2. For TRIZ work, default to the LLM-backed AutoIdeate path:
-   `autoideate triz --problem "<problem>" --format json
-   --output "<outside-repo>.json"`. Default model is Devin/GLM-5.2; pin with
+   `autoideate triz --provider devin --agents 1 --problem "<problem>"
+   --format json --output "<outside-repo>.json"`. Pin the LLM with
    `AUTOTRIZ_DEVIN_MODEL=glm-5-2`. Use this for contradiction framing,
    cross-domain analogies, and concrete candidate solutions.
 3. Use the deterministic local matrix only as a reproducibility check or when
    the LLM-backed run is unavailable: `autotriz analyze --provider offline
    --problem "<problem>" --output "<outside-repo>.markdown" --stdout=false`.
-   Do not select the Devin provider from inside Devin.
+   Do not select the Devin provider from inside Devin, and do not make offline
+   matrix runs the default for ideation.
 4. For repository-aware work use bounded read-only context:
    `--repo <repo> --repo-source scan`. Use `--agents 1` for traceable
    contradiction analysis; multi-agent ideation only when the user requests
@@ -248,6 +252,16 @@ Visual work is not complete from DOM tests alone.
 7. When a visible product surface changes, refresh its tracked README desktop
    and mobile screenshots in the same integration diff. Teammates should never
    have to infer the current UI from stale images.
+
+For the visual critic, attach real PNG evidence after the production build:
+
+`opencode run "<blind comparison prompt>" --agent visual-product-critic -f <desktop.png> -f <mobile.png> ...`
+
+The model must report that it loaded `caveman` and `ultimate-frontend`, and it
+must accurately read visible UI text before its verdict is trusted. Give it
+complete pages, primary flow states, and timed transition frames; never ask it
+to judge a prose description. If OpenCode or image input fails, the integration
+owner temporarily resumes the critic role rather than skipping the visual gate.
 
 Competitor evidence and comparisons stay outside this tracked repository. Convert
 research into neutral product requirements before it enters code or documentation.

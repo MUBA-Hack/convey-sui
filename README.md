@@ -162,12 +162,17 @@ only after its independent Sui check confirms the exact settlement. It keeps
 ### Protected Transfer — creation, terminal actions, and receipt verification
 
 An executable quote in Pay now offers **Send directly** or **Hold for family
-review**. The direct-transfer path is unchanged. The hold path collects one of
-three bounded review deadlines plus a short review note, requires a connected
-Sui testnet wallet, requests the strict execution plan from the server, builds
-the pinned `create_escrow` transaction client-side, and asks that wallet to sign
-and submit it. A submission lock prevents duplicate plan or wallet requests for
-the same attempt.
+review**. The direct-transfer path is unchanged. The standard hold path collects
+one of three bounded review deadlines plus a short review note. Selecting the
+**Medicine pickup** purpose progressively reveals three fictional reference
+pharmacy names, a friendly pharmacy order number, and the next Manila pickup
+window (09:00–17:00 PHT); that purpose is restricted to the `three_days` hold
+preset so the hold remains live through the pickup window. The beneficiary
+reference stays threaded from the quote and is never entered in the panel.
+Every hold requires a connected Sui testnet wallet, requests the strict
+execution plan from the server, builds the pinned `create_escrow` transaction
+client-side, and asks that wallet to sign and submit it. A submission lock
+prevents duplicate plan or wallet requests for the same attempt.
 
 After submission, the family-review surface stays at **Hold submitted —
 confirmation pending** while a separate server-only check reads Sui testnet. A
@@ -198,10 +203,12 @@ The accompanying client-safe TypeScript core validates a strict atomic
 execution plan, pins testnet USDC, the Move module/function, and the standard
 Sui Clock, derives a deterministic 32-byte evidence commitment, and constructs
 the exact `create_escrow` transaction. A server-only plan endpoint accepts only
-an attested quote, one of three deadline presets, and a review note; it reuses
-the shared quote verifier, resolves candidate package/reviewer coordinates from
-server-only configuration, applies a 16 KiB streamed request cap, includes a
-bounded configured reviewer name, and returns a strict `no-store` response. A
+an attested quote, a template-allowed deadline preset, and a review note; the
+general family-support template allows the three bounded presets while
+`medicine_pickup` allows only `three_days`. It reuses the shared quote verifier,
+resolves candidate package/reviewer coordinates from server-only configuration,
+applies a 16 KiB streamed request cap, includes a bounded configured reviewer
+name, and returns a strict `no-store` response. A
 separate server-only `POST /api/remittance/protected-transfer/created/verify`
 adapter performs one fixed Sui testnet read and checks exactly one BCS
 `Created` event against the expected digest, package, payer, beneficiary,
@@ -231,13 +238,17 @@ tests with Sui CLI v1.78.1.
 #### Medicine pickup — privacy-minimal order commitment
 
 The `medicine_pickup` Family Mission reuses Protected Transfer instead of
-creating a separate payment product. A replaceable pharmacy-network boundary
-ships with a deterministic fictional reference provider for local development.
-The client-safe order adapter resolves one site, hashes the beneficiary and
-order references separately, and commits one strict `pharmacy_order` manifest
-plus its validity window. Its manifest digest can be bound into the same
-Protected Transfer evidence commitment and Created receipt without changing the
-Move call or introducing a second source of payment authority.
+creating a separate payment product. The hold form progressively reveals a
+replaceable pharmacy-network boundary with three deterministic fictional
+reference sites, accepts only a bounded pharmacy order number, and derives the
+next Manila 09:00–17:00 PHT pickup window from the quote's `issuedAt`. The
+beneficiary reference is threaded from the quote rather than exposed as a
+second input. The client-safe order adapter resolves one site, hashes the
+beneficiary and order references separately, and commits one strict
+`pharmacy_order` manifest plus its validity window. Its manifest digest can be
+bound into the same Protected Transfer evidence commitment and Created receipt
+without changing the Move call or introducing a second source of payment
+authority.
 
 This is an initial order commitment only. It does not prove pharmacy
 partnership, medicine authenticity, prescription validity, pickup, settlement,

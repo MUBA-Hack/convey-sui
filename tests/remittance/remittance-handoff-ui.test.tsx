@@ -116,20 +116,31 @@ function renderPreview(
   );
 }
 
-describe("RemittanceQuotePreview — carry and separate treasury planning", () => {
-  it("an eligible quote exposes cross-device carry and separate treasury planning", () => {
+describe("RemittanceQuotePreview — carry and no treasury cross-sell", () => {
+  it("an eligible quote exposes cross-device carry and no treasury cross-sell", () => {
     renderPreview(baseQuote(), "none");
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
-    expect(screen.getByTestId("preview-eth-hedge")).toBeInTheDocument();
+    // Treasury cross-sell is intentionally absent from the remittance quote so
+    // the wallet/continue action stays the single dominant next step.
+    expect(screen.queryByTestId("preview-eth-hedge")).not.toBeInTheDocument();
   });
 
-  it("the treasury-planning link is derived from the actual quote", () => {
+  it("the carry secondary action is at least 44px high but visually subordinate", () => {
     renderPreview(baseQuote(), "none");
-    const link = screen.getByTestId("preview-eth-hedge");
-    expect(link.getAttribute("href")).toContain("source=remittance");
-    expect(link.getAttribute("href")).toContain("amountMyr=500");
-    expect(link.getAttribute("href")).toContain("recipient=Ana");
-    expect(link.getAttribute("href")).toContain("city=Manila");
+    const carry = screen.getByTestId("carry-to-device");
+    // 44px minimum touch target.
+    expect(carry.className).toMatch(/min-h-11|min-h-\[44px\]|h-11/);
+    // Visually subordinate: never the solid primary button treatment.
+    expect(carry.className).not.toMatch(/cv-btn-solid/);
+  });
+
+  it("the dismiss secondary action is at least 44px high but visually subordinate", () => {
+    renderPreview(baseQuote(), "none");
+    const dismiss = screen.getByRole("button", { name: /^Dismiss$/i });
+    // 44px minimum touch target.
+    expect(dismiss.className).toMatch(/min-h-11|min-h-\[44px\]|h-11/);
+    // Visually subordinate: quiet text button, never the solid primary.
+    expect(dismiss.className).not.toMatch(/cv-btn-solid/);
   });
 
   it("opening Carry renders a full-viewport handoff step with QR, actions, and honest copy", () => {
@@ -172,7 +183,6 @@ describe("RemittanceQuotePreview — carry and separate treasury planning", () =
     expect(screen.getByTestId("review-transfer")).toBeInTheDocument();
     expect(screen.getByTestId("edit-transfer")).toBeInTheDocument();
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
-    expect(screen.getByTestId("preview-eth-hedge")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("carry-to-device"));
     // The quote review surface is replaced by the dedicated handoff step.
@@ -180,9 +190,8 @@ describe("RemittanceQuotePreview — carry and separate treasury planning", () =
     // No underlying review/action controls remain in the accessible tree.
     expect(screen.queryByTestId("review-transfer")).not.toBeInTheDocument();
     expect(screen.queryByTestId("edit-transfer")).not.toBeInTheDocument();
-    // No second Carry link, no ETH hedge, no Dismiss.
+    // No second Carry link, no Dismiss.
     expect(screen.queryAllByTestId("carry-to-device")).toHaveLength(0);
-    expect(screen.queryByTestId("preview-eth-hedge")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Dismiss$/i })).not.toBeInTheDocument();
   });
 
@@ -206,7 +215,6 @@ describe("RemittanceQuotePreview — carry and separate treasury planning", () =
     expect(screen.getByTestId("review-transfer")).toBeInTheDocument();
     expect(screen.getByTestId("edit-transfer")).toBeInTheDocument();
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
-    expect(screen.getByTestId("preview-eth-hedge")).toBeInTheDocument();
   });
 
   it("locks body scrolling while Carry is open and restores it on close", () => {
@@ -267,10 +275,9 @@ describe("RemittanceQuotePreview — carry and separate treasury planning", () =
     expect(screen.queryByTestId("preview-eth-hedge")).not.toBeInTheDocument();
   });
 
-  it("a wallet-blocked eligible quote still exposes carry + ETH hedge", () => {
+  it("a wallet-blocked eligible quote still exposes carry", () => {
     // Eligible (mapped + attested) but blocked only by wallet absence.
     renderPreview(baseQuote(), "wallet");
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
-    expect(screen.getByTestId("preview-eth-hedge")).toBeInTheDocument();
   });
 });

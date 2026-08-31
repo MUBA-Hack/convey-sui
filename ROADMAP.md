@@ -62,6 +62,16 @@ FX, fiat funding, or bank disbursement in this path.
   carries two-model/request provenance and stable evidence/artifact digests,
   but is advisory only: the assigned human reviewer and connected wallet remain
   the release authority. No successful live council artifact is claimed.
+- **Medicine pickup is implemented as a bounded Protected Transfer mission.**
+  Selecting the purpose progressively reveals three fictional reference
+  pharmacy names and a bounded pharmacy order-number field. The client derives
+  the next Manila 09:00–17:00 PHT pickup window from the quote's `issuedAt`,
+  threads the beneficiary reference from the quote, and binds a strict
+  `pharmacy_order` manifest digest into the existing escrow evidence commitment.
+  Its deadline policy exposes only `three_days`, while the general
+  family-support mission retains the three bounded presets. This is an initial
+  order commitment only: it does not prove partnership, prescription validity,
+  medicine authenticity, pickup, settlement, or release approval.
 - **Signed-quote cross-device QR carry, camera scan, and connected verify/review
   are implemented.** A discriminated handoff wrapper carries the existing strict
   QuoteEnvelope; the camera scanner uses `@zxing/browser` and feeds both

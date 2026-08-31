@@ -1,34 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Edit2 } from "@/components/icons";
-import { formatMyr, type QuoteEnvelope } from "@/lib/remittance/quote";
-import { titleCaseCity } from "@/lib/remittance/quote-form";
+import type { QuoteEnvelope } from "@/lib/remittance/quote";
 import type { ProtectedTransferDeadlinePreset } from "@/lib/remittance/protected-transfer";
-import { FamilyReviewSelection, type SendPath } from "./family-review-path";
+import {
+  getProtectedTransferTemplate,
+} from "@/lib/remittance/protected-transfer-template";
+import { FamilyReviewSelection, type SendPath, type HoldPurpose } from "./family-review-path";
 import { FamilyReviewSummary } from "./family-review-summary";
 import {
   FamilyReviewStatus,
   useFamilyReviewSubmit,
 } from "./family-review-action";
 
-function buildEthHedgeHref(quote: QuoteEnvelope): string {
-  const params = new URLSearchParams({
-    source: "remittance",
-    amountMyr: formatMyr(quote.youPayMinor),
-    recipient: quote.recipient,
-    city: titleCaseCity(quote.destinationCity),
-  });
-  return `/strategy?${params.toString()}`;
-}
-
 export function SecondaryQuoteActions({
-  quote,
   onCarry,
   disabled = false,
 }: {
-  quote: QuoteEnvelope;
   onCarry: () => void;
   disabled?: boolean;
 }) {
@@ -37,19 +26,12 @@ export function SecondaryQuoteActions({
       <button
         type="button"
         data-testid="carry-to-device"
-        className="inline-flex min-h-9 items-center text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline disabled:pointer-events-none disabled:opacity-50"
+        className="inline-flex min-h-11 items-center px-1 text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline disabled:pointer-events-none disabled:opacity-50"
         onClick={onCarry}
         disabled={disabled}
       >
         Carry to another device
       </button>
-      <Link
-        href={buildEthHedgeHref(quote)}
-        data-testid="preview-eth-hedge"
-        className="inline-flex min-h-9 items-center text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline"
-      >
-        Explore separate ETH treasury protection
-      </Link>
     </div>
   );
 }
@@ -100,6 +82,7 @@ function HoldPrimary({
   deadlinePreset,
   note,
   onNoteInvalid,
+  custodyManifestDigest,
   onEdit,
   onDismiss,
   editable,
@@ -111,6 +94,7 @@ function HoldPrimary({
   deadlinePreset: ProtectedTransferDeadlinePreset;
   note: string;
   onNoteInvalid: (message: string | null) => void;
+  custodyManifestDigest?: string | null;
   onEdit: () => void;
   onDismiss: () => void;
   editable: boolean;
@@ -123,6 +107,13 @@ function HoldPrimary({
     deadlinePreset,
     note,
     onNoteInvalid,
+    // Only forward a real digest to the submit hook; null/undefined both
+    // mean "no digest" at the request boundary so the canonical encoding
+    // stays unchanged. The button-disable guard below handles the
+    // medicine-required-but-missing case.
+    ...(custodyManifestDigest === undefined || custodyManifestDigest === null
+      ? {}
+      : { custodyManifestDigest }),
   });
   useEffect(() => {
     onLockChange(hold.locked);
@@ -141,6 +132,14 @@ function HoldPrimary({
     phase.kind === "error" ||
     phase.kind === "unknown";
 
+  // When a custody manifest digest is required (medicine pickup) but none is
+  // present yet, the hold cannot be prepared. The submit hook still owns the
+  // note validation; this guard only blocks the button until a valid medicine
+  // commitment exists.
+  const custodyMissing =
+    custodyManifestDigest !== undefined && custodyManifestDigest === null;
+  const prepareDisabled = hold.locked || custodyMissing;
+
   return (
     <>
       <FamilyReviewStatus phase={hold.phase} />
@@ -154,7 +153,7 @@ function HoldPrimary({
           data-hit-target="true"
           className="cv-btn-solid inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
           onClick={() => void hold.submit()}
-          disabled={hold.locked}
+          disabled={prepareDisabled}
           aria-busy={hold.busy}
         >
           {phase.kind === "planning" ? "Preparing hold…" : "Hold for family review"}
@@ -179,7 +178,7 @@ function HoldPrimary({
         disabled={hold.locked}
       />
       {handoffEligible && (
-        <SecondaryQuoteActions quote={quote} onCarry={onCarry} disabled={hold.locked} />
+        <SecondaryQuoteActions onCarry={onCarry} disabled={hold.locked} />
       )}
     </>
   );
@@ -205,11 +204,38 @@ export function ExecutableQuoteActions({
   editable: boolean;
 }) {
   const [path, setPath] = useState<SendPath>("direct");
+  const [purpose, setPurpose] = useState<HoldPurpose>("family_support");
+  // null = no commitment yet; string = valid digest; undefined = purpose does
+  // not require one (family_support default). The hold CTA is disabled while
+  // the medicine panel is open and no valid digest has been emitted.
+  const [custodyDigest, setCustodyDigest] = useState<string | null | undefined>(
+    undefined,
+  );
   const [deadlinePreset, setDeadlinePreset] =
     useState<ProtectedTransferDeadlinePreset>("tomorrow");
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
   const [holdLocked, setHoldLocked] = useState(false);
+
+  // When the purpose changes, reset the custody digest to match: medicine
+  // requires a fresh commitment (null until the panel emits one); any other
+  // purpose clears the requirement (undefined). Also reset the deadline to the
+  // template default so the constrained preset set always shows a valid
+  // selection.
+  const handlePurposeChange = (next: HoldPurpose) => {
+    setPurpose(next);
+    setCustodyDigest(next === "medicine_pickup" ? null : undefined);
+    const template = getProtectedTransferTemplate(next);
+    if (template) setDeadlinePreset(template.defaultDeadlinePreset);
+  };
+
+  // The custody digest forwarded to the hold hook: only medicine_pickup
+  // supplies one; every other purpose forwards undefined so the canonical
+  // encoding and plan request stay byte-for-byte unchanged. When medicine is
+  // chosen but no valid commitment exists yet, null is forwarded so the hold
+  // CTA stays disabled until the panel emits a valid digest.
+  const forwardedCustodyDigest =
+    purpose === "medicine_pickup" ? custodyDigest : undefined;
 
   return (
     <div className="border-t border-black/8 p-4">
@@ -225,6 +251,11 @@ export function ExecutableQuoteActions({
           setNote(value);
           setNoteError(null);
         }}
+        purpose={purpose}
+        onPurposeChange={handlePurposeChange}
+        onCustodyManifestDigestChange={(digest) => setCustodyDigest(digest)}
+        beneficiaryRef={quote.beneficiaryRef}
+        quoteIssuedAt={quote.issuedAt}
       />
       {path === "hold" ? (
         <HoldPrimary
@@ -238,6 +269,7 @@ export function ExecutableQuoteActions({
                 : message,
             );
           }}
+          custodyManifestDigest={forwardedCustodyDigest}
           onEdit={onEdit}
           onDismiss={onDismiss}
           editable={editable}
@@ -262,7 +294,7 @@ export function ExecutableQuoteActions({
             onDismiss={onDismiss}
             disabled={false}
           />
-          {handoffEligible && <SecondaryQuoteActions quote={quote} onCarry={onCarry} />}
+          {handoffEligible && <SecondaryQuoteActions onCarry={onCarry} />}
         </>
       )}
     </div>

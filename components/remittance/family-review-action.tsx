@@ -74,6 +74,14 @@ export interface FamilyReviewActionProps {
   deadlinePreset: ProtectedTransferDeadlinePreset;
   note: string;
   onNoteInvalid: (message: string | null) => void;
+  /**
+   * Optional custody manifest digest (lowercase 0x + 64 hex). When present it
+   * is forwarded into the Protected Transfer plan request as
+   * `custodyManifestDigest`; the server preserves it after quote verification
+   * and the builder binds it into the outer commitment. Ordinary transfers
+   * omit it and preserve canonical behavior.
+   */
+  custodyManifestDigest?: string;
 }
 
 function validateNote(note: string): string | null {
@@ -96,6 +104,7 @@ export function useFamilyReviewSubmit({
   deadlinePreset,
   note,
   onNoteInvalid,
+  custodyManifestDigest,
 }: FamilyReviewActionProps) {
   const account = useCurrentAccount();
   const network = useCurrentNetwork();
@@ -138,6 +147,9 @@ export function useFamilyReviewSubmit({
           quote,
           deadlinePreset,
           reviewNote: note.trim(),
+          ...(custodyManifestDigest === undefined
+            ? {}
+            : { custodyManifestDigest }),
         },
       });
       if (result.response.kind === "rejected") {

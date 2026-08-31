@@ -80,6 +80,14 @@ export interface RemittanceQuotePreviewProps {
    */
   onSubmitQuote?: (command: string) => void;
   confirmLabel?: string;
+  /**
+   * When true, the parent has mounted the authoritative settlement card
+   * (digest + explorer + payout status) with its own consolidated
+   * "Transfer details" disclosure. The preview then omits its own
+   * "Transfer details" disclosure so the resolved view shows one detail
+   * surface, not an orphan/duplicate strip at the page bottom.
+   */
+  settled?: boolean;
 }
 
 // Locked lifecycle states render one shared block; data drives the copy.
@@ -112,6 +120,7 @@ export function RemittanceQuotePreview({
   onReopen,
   onSubmitQuote,
   confirmLabel,
+  settled = false,
 }: RemittanceQuotePreviewProps) {
   const vm = buildQuoteViewModel(quote);
   const editable = Boolean(onSubmitQuote);
@@ -160,7 +169,7 @@ export function RemittanceQuotePreview({
         data-testid="quote-workspace-grid"
         className="lg:grid lg:grid-cols-[minmax(0,56fr)_minmax(0,44fr)] lg:items-start lg:gap-0"
       >
-        <div data-testid="quote-left-group" className="lg:flex lg:flex-col lg:border-r lg:border-black/8">
+        <div data-testid="quote-left-group" className="lg:flex lg:flex-col lg:self-stretch lg:border-r lg:border-black/8">
           {/* Recipient contact chip — rich identity at the top of the ticket. */}
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
             <span aria-hidden className="cv-contact-portrait shrink-0">
@@ -224,6 +233,19 @@ export function RemittanceQuotePreview({
           </dl>
 
           <FamilyRulePanel quote={quote} />
+
+          {/* Corridor footer — anchors the left group's lower band so the
+              rate summary is not followed by a dead gray mid-band on desktop.
+              Existing product/corridor information only; no new claim. On
+              desktop the left group stretches to the card height and this
+              line is pushed to the bottom; on mobile it sits right under the
+              rate summary / rule panel. */}
+          <p
+            data-testid="quote-corridor"
+            className="mt-auto px-4 pb-4 pt-2 text-[11px] text-neutral-500"
+          >
+            {quote.corridor.source} → {quote.corridor.destination}
+          </p>
         </div>
 
         <div data-testid="quote-right-group" className="lg:flex lg:flex-col lg:pt-4">
@@ -302,7 +324,11 @@ export function RemittanceQuotePreview({
 
           {/* Transfer details — collapsed technical disclosure below the
               action: rail, recipient address, reference, and the wallet USDC
-              transfer. */}
+              transfer. Hidden once the parent mounts the authoritative
+              settlement card with its own consolidated disclosure, so the
+              resolved view shows one detail surface (no orphan/duplicate
+              strip at the page bottom). */}
+          {!settled && (
           <SheetDisclosure label="Transfer details" triggerTestId="transfer-details-trigger">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
               <dt className="text-neutral-500">Amount converted</dt>
@@ -339,6 +365,7 @@ export function RemittanceQuotePreview({
               </dd>
             </dl>
           </SheetDisclosure>
+          )}
         </div>
       </div>
     </div>

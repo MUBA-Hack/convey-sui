@@ -77,7 +77,7 @@ function DismissButton({ onDismiss }: { onDismiss: () => void }) {
     <button
       type="button"
       data-hit-target="true"
-      className="mt-2 inline-flex h-9 w-full items-center justify-center text-[11px] font-medium text-neutral-500 underline-offset-4 hover:text-neutral-800 hover:underline"
+      className="mt-2 inline-flex min-h-11 w-full items-center justify-center text-[11px] font-medium text-neutral-500 underline-offset-4 hover:text-neutral-800 hover:underline"
       onClick={onDismiss}
     >
       Dismiss
@@ -199,7 +199,7 @@ export function RemittanceQuoteActions({
         </button>
       )}
       <DismissButton onDismiss={onDismiss} />
-      {handoffEligible && <SecondaryQuoteActions quote={quote} onCarry={onCarry} />}
+      {handoffEligible && <SecondaryQuoteActions onCarry={onCarry} />}
     </div>
   );
 }

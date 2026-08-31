@@ -76,6 +76,33 @@ describe("protected-transfer-template registry", () => {
     expect(medicine!.requiredCapabilities).toEqual(ALL_CAPS);
   });
 
+  it("medicine_pickup defaults to three_days and never offers tomorrow", () => {
+    // Safety: a quote issued before 09:00 PHT with a 24h (tomorrow) hold can
+    // expire before next-day pickup even opens. The medicine template must
+    // default to three_days and must not offer tomorrow unless runtime
+    // validation proves the deadline outlasts pickup close.
+    const medicine = getProtectedTransferTemplate("medicine_pickup")!;
+    expect(medicine.defaultDeadlinePreset).toBe("three_days");
+    expect(medicine.allowedDeadlinePresets).not.toContain("tomorrow");
+    expect(medicine.allowedDeadlinePresets).toContain("three_days");
+  });
+
+  it("non-medicine templates preserve their existing deadline defaults", () => {
+    // Only the medicine default changes; every other purpose keeps its
+    // previously shipped default and allowed set.
+    const family = getProtectedTransferTemplate("family_support")!;
+    expect(family.defaultDeadlinePreset).toBe("seven_days");
+    expect(family.allowedDeadlinePresets).toEqual([
+      "tomorrow",
+      "three_days",
+      "seven_days",
+    ]);
+    const tuition = getProtectedTransferTemplate("tuition")!;
+    expect(tuition.defaultDeadlinePreset).toBe("seven_days");
+    const relief = getProtectedTransferTemplate("relief")!;
+    expect(relief.defaultDeadlinePreset).toBe("three_days");
+  });
+
   it("non-medicine templates do not require pharmacy_network", () => {
     for (const template of listProtectedTransferTemplates()) {
       if (template.id === "medicine_pickup") continue;
@@ -235,18 +262,30 @@ describe("prepareProtectedTransferTemplate", () => {
     expect(prepared.requiredCapabilities).not.toContain("pharmacy_network");
   });
 
-  it("prepares a medicine_pickup mission with the tomorrow preset", () => {
+  it("prepares a medicine_pickup mission with the three_days default preset", () => {
     const result = okPrepare(
       "medicine_pickup",
-      "tomorrow",
+      "three_days",
       "Pharmacy reviewer",
       "Pickup for family member",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.prepared.templateId).toBe("medicine_pickup");
-    expect(result.prepared.deadlinePreset).toBe("tomorrow");
+    expect(result.prepared.deadlinePreset).toBe("three_days");
     expect(result.prepared.requiredCapabilities).toEqual(ALL_CAPS);
+  });
+
+  it("rejects the tomorrow preset for medicine_pickup (unsafe before 09:00 PHT)", () => {
+    const result = okPrepare(
+      "medicine_pickup",
+      "tomorrow",
+      "Pharmacy reviewer",
+      "Pickup for family member",
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("deadline_not_allowed");
   });
 
   it("rejects an unknown template id", () => {
@@ -257,7 +296,7 @@ describe("prepareProtectedTransferTemplate", () => {
   });
 
   it("rejects a deadline preset not allowed by the template", () => {
-    // medicine_pickup allows only tomorrow and three_days.
+    // medicine_pickup allows only three_days.
     const result = okPrepare(
       "medicine_pickup",
       "seven_days",
