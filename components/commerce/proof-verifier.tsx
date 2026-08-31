@@ -70,6 +70,19 @@ import {
   ProtectedTransferTerminalReceipt,
   protectedTransferTerminalPageCopy,
 } from "./protected-transfer-terminal-receipt";
+import {
+  ProtectionPurchaseProof,
+  parseProtectionPurchaseCheckResponse,
+  protectionPurchasePageCopy,
+  type ProtectionPurchaseCheckState,
+} from "./protection-purchase-proof";
+import {
+  decodeProtectionPurchaseReceiptPayload,
+  encodeProtectionPurchaseReceiptPayload,
+  PROTECTION_PURCHASE_RECEIPT_KIND,
+  PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM,
+  ProtectionPurchaseReceiptSchema,
+} from "@/lib/strategy/protection-purchase-receipt";
 
 const CHECKING_SETTLEMENT: SettlementCheckState = { status: "checking" };
 
@@ -87,6 +100,16 @@ const DEFAULT_RECEIPT_PAGE_COPY: ReceiptPageCopy = {
 };
 
 function remittancePageCopy(view: EvidenceView): ReceiptPageCopy {
+  if (view.kind === "protection-purchase") {
+    if (!view.result.ok) {
+      return {
+        eyebrow: "Protection receipt · Needs review",
+        title: "This protection receipt couldn't be verified.",
+        intro: "The receipt failed its local structure checks. Review the technical details before relying on it.",
+      };
+    }
+    return protectionPurchasePageCopy(view.purchaseVerify);
+  }
   if (view.kind === "protected-transfer-terminal") {
     return protectedTransferTerminalPageCopy(view.result, view.lifecycle);
   }
@@ -156,11 +179,13 @@ export function ProofVerifier() {
   const [settlementRetry, setSettlementRetry] = useState(0);
   const [createdRetry, setCreatedRetry] = useState(0);
   const [terminalRetry, setTerminalRetry] = useState(0);
+  const [purchaseRetry, setPurchaseRetry] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const verifySeq = useRef(0);
   const settlementVerifySeq = useRef(0);
   const createdVerifySeq = useRef(0);
   const terminalVerifySeq = useRef(0);
+  const purchaseVerifySeq = useRef(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -168,12 +193,22 @@ export function ProofVerifier() {
     const commercePayload = params.get("p");
     const createdPayload = params.get(PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM);
     const terminalPayload = params.get(PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM);
-    if (!remittancePayload && !commercePayload && !createdPayload && !terminalPayload) return;
+    const purchasePayload = params.get(PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM);
+    if (!remittancePayload && !commercePayload && !createdPayload && !terminalPayload && !purchasePayload) return;
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
       try {
-        if (terminalPayload) {
+        if (purchasePayload) {
+          const doc = decodeProtectionPurchaseReceiptPayload(purchasePayload);
+          setRaw(JSON.stringify(doc, null, 2));
+          setView({
+            kind: "protection-purchase",
+            result: { ok: true, receipt: doc },
+            purchaseVerify: { kind: "checking" },
+          });
+          setUrlLoaded(true);
+        } else if (terminalPayload) {
           const doc = decodeProtectedTransferTerminalReceiptPayload(terminalPayload);
           const json = JSON.stringify(doc, null, 2);
           setRaw(json);
@@ -214,7 +249,13 @@ export function ProofVerifier() {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Shared proof payload is invalid.";
-        if (terminalPayload) {
+        if (purchasePayload) {
+          setView({
+            kind: "protection-purchase",
+            result: { ok: false, errors: [message] },
+            purchaseVerify: { kind: "rejected", reason: "invalid_request" },
+          });
+        } else if (terminalPayload) {
           setView({
             kind: "protected-transfer-terminal",
             result: { ok: false, errors: [message] },
@@ -402,6 +443,54 @@ export function ProofVerifier() {
     };
   }, [activeTerminalPayload, terminalRetry]);
 
+  const activePurchaseReceipt =
+    view.kind === "protection-purchase" && view.result.ok
+      ? view.result.receipt
+      : null;
+  useEffect(() => {
+    if (!activePurchaseReceipt) return;
+    const seq = ++purchaseVerifySeq.current;
+    const controller = new AbortController();
+    let active = true;
+    void (async () => {
+      let next: ProtectionPurchaseCheckState;
+      try {
+        const response = await fetch("/api/strategy/protection/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            txHash: activePurchaseReceipt.purchase.txHash,
+            plan: activePurchaseReceipt.plan,
+          }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          next = { kind: "unavailable", reason: "invalid_response" };
+        } else {
+          next = parseProtectionPurchaseCheckResponse(
+            await response.json(),
+            activePurchaseReceipt,
+          );
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        next = { kind: "unavailable", reason: "rpc_unavailable" };
+      }
+      if (!active || purchaseVerifySeq.current !== seq) return;
+      setView((current) =>
+        current.kind === "protection-purchase" &&
+        current.result.ok &&
+        current.result.receipt === activePurchaseReceipt
+          ? { ...current, purchaseVerify: next }
+          : current,
+      );
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [activePurchaseReceipt, purchaseRetry]);
+
   const handleRawChange = (value: string) => {
     setRaw(value);
     setView(EMPTY_VIEW);
@@ -412,6 +501,24 @@ export function ProofVerifier() {
     setUrlLoaded(false);
     try {
       const candidate = JSON.parse(raw) as { kind?: unknown };
+      if (candidate?.kind === PROTECTION_PURCHASE_RECEIPT_KIND) {
+        const parsed = ProtectionPurchaseReceiptSchema.safeParse(candidate);
+        setView({
+          kind: "protection-purchase",
+          result: parsed.success
+            ? { ok: true, receipt: parsed.data }
+            : {
+                ok: false,
+                errors: parsed.error.issues.map((issue) =>
+                  `${issue.path.join(".") || "receipt"}: ${issue.message}`,
+                ),
+              },
+          purchaseVerify: parsed.success
+            ? { kind: "checking" }
+            : { kind: "rejected", reason: "invalid_request" },
+        });
+        return;
+      }
       if (candidate?.kind === PROTECTED_TRANSFER_TERMINAL_RECEIPT_KIND) {
         const result = verifyProtectedTransferTerminalReceipt(candidate);
         setView({
@@ -551,6 +658,35 @@ export function ProofVerifier() {
     exportReceiptJson(view.result.document, "convey-protected-transfer-outcome.json");
   };
 
+  const handlePurchaseShare = async () => {
+    if (
+      view.kind !== "protection-purchase" ||
+      !view.result.ok ||
+      view.purchaseVerify.kind !== "verified"
+    ) return;
+    const payload = encodeProtectionPurchaseReceiptPayload(view.result.receipt);
+    const ok = await copyReceiptUrl(payload, PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM);
+    setCopied(ok);
+  };
+
+  const handlePurchaseExport = () => {
+    if (
+      view.kind !== "protection-purchase" ||
+      !view.result.ok ||
+      view.purchaseVerify.kind !== "verified"
+    ) return;
+    exportReceiptJson(view.result.receipt, "convey-protection-purchase-proof.json");
+  };
+
+  const handleRetryPurchase = () => {
+    setView((current) =>
+      current.kind === "protection-purchase" && current.result.ok
+        ? { ...current, purchaseVerify: { kind: "checking" } }
+        : current,
+    );
+    setPurchaseRetry((value) => value + 1);
+  };
+
   const handleRetryTerminal = () => {
     setView((current) =>
       current.kind === "protected-transfer-terminal" && current.result.ok
@@ -654,6 +790,17 @@ export function ProofVerifier() {
             onShare={handleTerminalShare}
             onExport={handleTerminalExport}
             onRetry={handleRetryTerminal}
+            onReviewDetails={handleReviewDetails}
+          />
+        ) : view.kind === "protection-purchase" ? (
+          <ProtectionPurchaseProof
+            result={view.result}
+            state={view.purchaseVerify}
+            urlLoaded={urlLoaded}
+            copied={copied}
+            onShare={handlePurchaseShare}
+            onExport={handlePurchaseExport}
+            onRetry={handleRetryPurchase}
             onReviewDetails={handleReviewDetails}
           />
         ) : (

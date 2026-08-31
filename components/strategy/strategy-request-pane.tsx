@@ -18,9 +18,9 @@ export const STRATEGY_NOTIONAL_LIMITS = {
 } as const;
 
 export const STRATEGY_PREMIUM_LIMITS = {
-  defaultValue: 50,
+  defaultValue: 3,
   min: 1,
-  max: 1_000_000,
+  max: 3,
   step: 1,
 } as const;
 
@@ -39,15 +39,15 @@ interface StrategyRequestPaneProps {
 }
 
 function strategyHeroLabel(intent: StrategyResult | null): string {
-  if (!intent) return "Premium budget";
+  if (!intent) return "Protection budget";
   if (intent.objective === "earn_premium") return `${intent.asset} income`;
   if (intent.objective === "balanced_collar") return `${intent.asset} collar`;
-  return `${intent.asset} premium budget`;
+  return `${intent.asset} protection budget`;
 }
 
 function horizonSublabel(intent: StrategyResult | null): string {
-  if (intent?.horizonDays) return `${intent.horizonDays}-day horizon · planning only`;
-  return "planning only · no purchase from this screen";
+  if (intent?.horizonDays) return `${intent.horizonDays}-day goal · nothing purchased yet`;
+  return "Nothing purchased until you review and approve";
 }
 
 export function StrategyRequestPane({
@@ -67,13 +67,13 @@ export function StrategyRequestPane({
 
   return (
     <div className="cv-money-sheet flex min-h-[28rem] min-w-0 flex-col overflow-hidden rounded-2xl lg:min-h-[36rem]">
-      <div className="px-6 pt-6 pb-4 md:px-8 md:pt-8">
+      <div className="px-6 pt-6 pb-3 md:px-8 md:pt-8">
         <p className="text-[13px] font-medium tracking-[-0.01em] text-neutral-500">
           Your goal
         </p>
-        <p className="mt-2 max-w-[34ch] text-[17px] leading-7 text-neutral-600">
-          Describe the treasury outcome you want. ETH and BTC protection stays
-          separate from family transfers.
+        <p className="mt-2 max-w-[34ch] text-[16px] leading-6 text-neutral-600">
+          Describe the outcome you want for ETH or BTC you hold. Family
+          transfers stay separate.
         </p>
       </div>
 
@@ -141,7 +141,7 @@ export function StrategyRequestPane({
         )}
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-1 flex-col px-6 pt-5 pb-6 md:px-8 md:pb-8">
+      <form onSubmit={onSubmit} className="flex flex-1 flex-col px-6 pt-4 pb-6 md:px-8 md:pb-8">
         <label htmlFor="strategy-goal" className="sr-only">
           Strategy goal
         </label>
@@ -151,9 +151,24 @@ export function StrategyRequestPane({
           onChange={(event) => onGoalChange(event.target.value)}
           maxLength={500}
           rows={3}
-          placeholder="Protect ETH downside for 30 days with a $50 premium budget"
-          className="min-h-[7.5rem] w-full resize-none rounded-2xl border border-black/10 bg-neutral-50 px-4 py-3.5 text-[17px] font-medium leading-7 outline-none transition-[border-color,background-color] placeholder:text-black/35 focus:border-black/30 focus:bg-white"
+          placeholder="Protect ETH downside for 30 days with a $3 budget"
+          className="min-h-[6.5rem] w-full resize-none rounded-2xl border border-black/10 bg-neutral-50 px-4 py-3.5 text-[17px] font-medium leading-7 outline-none transition-[border-color,background-color] motion-reduce:transition-none placeholder:text-black/35 focus:border-black/30 focus:bg-white"
         />
+
+        <button
+          type="submit"
+          disabled={pending || goal.trim().length === 0}
+          aria-busy={pending}
+          className="cv-btn-solid mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold tracking-[-0.01em] disabled:cursor-not-allowed disabled:bg-neutral-300"
+        >
+          {pending
+            ? "Finding protection…"
+            : inRemittanceContext
+              ? "Find treasury protection"
+              : protectDownside
+                ? "Find protection"
+                : "Explore this goal"}
+        </button>
 
         <div className="mt-4 flex flex-col gap-2">
           <p className="text-[13px] font-medium text-neutral-500">Other ideas</p>
@@ -168,21 +183,6 @@ export function StrategyRequestPane({
             </button>
           ))}
         </div>
-
-        <button
-          type="submit"
-          disabled={pending || goal.trim().length === 0}
-          aria-busy={pending}
-          className="cv-btn-solid mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold tracking-[-0.01em] disabled:cursor-not-allowed disabled:bg-neutral-300"
-        >
-          {pending
-            ? "Looking…"
-            : inRemittanceContext
-              ? "Map protection"
-              : protectDownside
-                ? "Find protection"
-                : "Map strategy"}
-        </button>
 
         {remittanceContext && (
           <div

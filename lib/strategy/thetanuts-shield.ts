@@ -26,11 +26,14 @@
 import "server-only";
 
 import {
-  ThetanutsClient,
   buildPriceFeedSymbolMap,
   type OrderWithSignature,
 } from "@thetanuts-finance/thetanuts-client";
-import { ethers } from "ethers";
+import { buildProtectionOrderFingerprint } from "@/lib/strategy/protection-purchase";
+import {
+  createBaseThetanutsClient,
+  requireBaseOptionBook,
+} from "@/lib/strategy/thetanuts-base.server";
 import {
   BASE_CHAIN_ID,
   buildRecommendation,
@@ -52,6 +55,7 @@ const MAX_ORDERS_INSPECTED = 200;
 
 /** Read-only SDK surface the adapter may touch. Write methods are intentionally absent. */
 export interface ShieldReader {
+  optionBook: string;
   fetchOrders(): Promise<OrderWithSignature[]>;
   previewFillOrder(
     orderWithSig: OrderWithSignature,
@@ -91,10 +95,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   });
 }
 
-function compositeId(maker: string, nonce: bigint): string {
-  return `${maker.toLowerCase()}:0x${nonce.toString(16)}`;
-}
-
 function optionTypeFrom(entry: OrderWithSignature): 0 | 1 {
   // Prefer rawApiData.isCall (authoritative); fall back to order.optionType.
   // Unknown defaults to call (0) so it fails closed rather than becoming a live put.
@@ -118,6 +118,7 @@ function strikesFrom(entry: OrderWithSignature): bigint[] {
 /** Reduce a provider order to the strict `ProviderOrder` shape and validate it. Returns null on any malformed field. */
 function toProviderOrder(
   entry: OrderWithSignature,
+  optionBook: string,
   resolveUnderlying: UnderlyingResolver,
 ): ProviderOrder | null {
   const underlying = resolveUnderlying(entry);
@@ -125,7 +126,7 @@ function toProviderOrder(
     return null;
   }
   return parseProviderOrder({
-    compositeId: compositeId(entry.makerAddress, entry.order.nonce),
+    offerFingerprint: buildProtectionOrderFingerprint(entry, optionBook),
     makerAddress: entry.makerAddress,
     isBuyer: entry.order.isBuyer,
     optionType: optionTypeFrom(entry),
@@ -184,7 +185,7 @@ export async function fetchShieldRecommendationWith(
   const paired: { raw: OrderWithSignature; provider: ProviderOrder }[] = [];
   for (const entry of rawOrders.slice(0, MAX_ORDERS_INSPECTED)) {
     try {
-      const provider = toProviderOrder(entry, resolveUnderlying);
+      const provider = toProviderOrder(entry, reader.optionBook, resolveUnderlying);
       if (provider) {
         paired.push({ raw: entry, provider });
       }
@@ -198,7 +199,7 @@ export async function fetchShieldRecommendationWith(
     return { kind: "no_match", fetchedAt, asset: safe.asset };
   }
 
-  const selected = paired.find((p) => p.provider.compositeId === selection.order.compositeId);
+  const selected = paired.find((p) => p.provider.offerFingerprint === selection.order.offerFingerprint);
   if (!selected) {
     return { kind: "unavailable", fetchedAt, reason: "Live market data is currently unavailable." };
   }
@@ -227,7 +228,12 @@ export async function fetchShieldRecommendationWith(
   if (preview.totalCollateral <= 0n || preview.totalCollateral > budgetMicro) {
     return { kind: "no_match", fetchedAt, asset: safe.asset };
   }
-  if (preview.numContracts <= 0n || preview.numContracts > rawPreview.maxContracts) {
+  const requestedContracts = budgetMicro * 100_000_000n / selected.provider.pricePerContract8d;
+  if (
+    requestedContracts <= 0n ||
+    requestedContracts > rawPreview.maxContracts ||
+    preview.numContracts !== requestedContracts
+  ) {
     return { kind: "no_match", fetchedAt, asset: safe.asset };
   }
 
@@ -263,9 +269,9 @@ export function createPriceFeedResolver(): UnderlyingResolver {
 
 /** Production reader backed by the installed Thetanuts SDK on Base mainnet. */
 export function createShieldReader(): ShieldReader {
-  const provider = new ethers.JsonRpcProvider("https://mainnet.base.org");
-  const client = new ThetanutsClient({ chainId: BASE_CHAIN_ID, provider });
+  const client = createBaseThetanutsClient();
   return {
+    optionBook: requireBaseOptionBook(client),
     fetchOrders: () => client.api.fetchOrders(),
     previewFillOrder: (order, usdcAmount, referrer) =>
       client.optionBook.previewFillOrder(order, usdcAmount, referrer),

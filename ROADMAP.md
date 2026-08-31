@@ -4,9 +4,9 @@ Convey is one Ana-centered remittance journey: a spoken or typed MYR-to-PHP
 request becomes a signed reference quote carrying a Family Rule, then a guarded
 Sui testnet-USDC wallet transfer of USDC the wallet already holds. The exact
 signed quote can be carried by QR to a connected device, camera-scanned,
-server-verified, and explicitly approved. A separate Treasury workspace can map
-an explicitly declared ETH or BTC exposure without implying that it protects
-the transfer.
+server-verified, and explicitly approved. A separate Treasury workspace can
+discover and, with explicit external Base-wallet approval, buy a tightly capped
+ETH or BTC protective put without implying that it protects the transfer.
 
 This roadmap is ordered around one coherent customer journey, not around sponsor
 logos. Each phase has a customer outcome and a proof threshold. A feature is not
@@ -61,21 +61,22 @@ FX, fiat funding, or bank disbursement in this path.
   cross-device replay authority.
 - **Buy nearby** (River Cafe native-SUI commerce) remains a separate secondary
   capability, never relabeled as the Ana remittance.
-- **Treasury Purchase Power Shield preflight is implemented (planning-only).**
-  A strict deterministic goal parser extracts ETH/BTC asset, objective, and
-  integer horizon (1..365 days) from natural-language text; a separate
-  `premiumBudgetUsd` control/API field supplies the strict exact-cent total
-  premium budget. The server-only adapter reads live Thetanuts OptionBook
-  orders on Base mainnet, inspects at most 200, deterministically selects the
-  lowest-price maker-sell put matching the asset and binding horizon, and runs
-  one signer-free `previewFillOrder` with the exact 6-decimal USDC budget. The
-  public response is a strict `live`, `no_match`, or `unavailable` state with
-  `execution: "none"`; invalid constraints, malformed orders, and preview
-  mismatches fail closed. Family Watch can summarize a declared remittance
-  obligation beside an explicitly selected treasury strategy, but there is no
-  FX hedge, MYR→PHP protection, signer, allowance, fill, or trade execution.
-  The current environment captured no successful live recommendation (provider
-  unavailable/TLS failed); no end-to-end trade is claimed.
+- **Treasury Purchase Power Shield purchase and proof are implemented.** A
+  strict deterministic goal parser extracts ETH/BTC asset, objective, and
+  integer horizon (1..365 days). The actionable path enforces an exact-cent
+  1–3 USDC premium cap, discovers and previews bounded Base-mainnet orders, and
+  requires review before an external wallet is connected. A short-lived plan
+  refetches the exact signed order, checks current allowance, and returns exact
+  approval or fill calldata. The order is refetched after approval and again
+  immediately before fill. Only the customer can approve and submit through the
+  Base wallet; the server holds no key. Durable intent/hash recovery and a
+  browser-wide lock prevent silent duplicate submission. Independent
+  verification binds the transaction, decoded signed order, signature, both
+  expiries, and exactly one matching `OrderFilled` event before `/proof?o=` is
+  created. Family Watch remains contextual only: this is not an FX hedge and
+  does not protect the MYR→PHP rate or payout. The official live order index is
+  currently unavailable, and no real transaction was submitted or captured in
+  this work.
 - **Receipts** accepts local, asset-aware native-SUI commerce and confirmed Sui
   testnet-USDC remittance receipts. Remittance receipts bind settlement
   evidence to the signed quote, independently check the digest, successful
@@ -92,6 +93,8 @@ FX, fiat funding, or bank disbursement in this path.
   when the terminal event is not found. Only that live open match can show the
   transfer as still protected. Verified, pending, rejected, and unavailable
   remain distinct; terminal share/export requires verified lifecycle evidence.
+  `/proof?o=...` locally binds a portable protection-purchase receipt and repeats
+  direct Base verification before enabling share/export.
 - **Seedless Sui onboarding (zkLogin via Enoki) is implemented.** Enoki wallet
   registration and Google sign-in are wired through dApp Kit, with the
   registered redirect URI pinned to the origin. Live session restoration,
@@ -99,8 +102,8 @@ FX, fiat funding, or bank disbursement in this path.
   the feature is not yet presented as a proven onboarding path.
 
 Fiat on/off-ramp, payout, recipient intelligence, receipt splits, a production
-signed offline envelope, real Thetanuts fill (signer/allowance/trade), and Sui Earn remain future work,
-not shipped capabilities. Protected Transfer now has a tested single-milestone
+signed offline envelope, a captured real Thetanuts fill and Sui Earn remain
+future evidence, not shipped outcomes. Protected Transfer now has a tested single-milestone
 Move package, pinned TypeScript transaction core, bounded plan and Created-event
 verification endpoints, an integrated Pay creation path, terminal action/event
 verification, and a `/proof?t=` terminal receipt lifecycle. After wallet
@@ -470,51 +473,66 @@ Use the official **Thetanuts Finance** SDK for a separate Base-mainnet workflow
 that protects a future ETH purchase or treasury exposure. This is not a Sui
 settlement feature and does not protect the MYR→PHP rate.
 
-**Status: bounded Purchase Power Shield preflight implemented (planning-only);
-real approval/signing/fill and a successful live artifact remaining.** A strict
-deterministic goal parser extracts ETH/BTC asset, objective, and integer
-horizon (1..365 days) from natural-language text; a separate `premiumBudgetUsd`
-control/API field supplies the strict exact-cent total premium budget. The
-server-only adapter reads live Thetanuts OptionBook orders on Base mainnet,
-inspects at most 200, deterministically selects the lowest-price maker-sell put
-matching the asset and binding horizon, and runs one signer-free
-`previewFillOrder` with the exact 6-decimal USDC budget. The public response is
-a strict `live`, `no_match`, or `unavailable` state with `execution: "none"`;
-invalid constraints, malformed orders, and preview mismatches fail closed. The
-linked remittance context is a conceptual ETH treasury preview only — it does
-not protect the MYR→PHP rate, guarantee Ana's payout, or execute a trade. The
-current environment captured no successful live recommendation (provider
-unavailable/TLS failed); no end-to-end trade is claimed. Real allowance,
-signer, fill, and trade evidence remain outstanding.
+**Status: bounded external-wallet purchase, independent verification, and
+portable proof implemented; live transaction evidence remaining.** Discovery
+uses a deterministic goal parse and a bounded Base-mainnet order read. The
+purchase boundary enforces a strict exact-cent 1–3 USDC cap. Preparation
+refetches the selected signed order, checks its identity and freshness, previews
+the exact cap, reads allowance, and returns exact approval or fill calldata in a
+short-lived plan. The server has no key and cannot approve or submit. The
+customer's external wallet is the only transaction authority. The linked
+remittance context remains informational only and never implies an FX hedge or
+payout protection. The official live order index is currently unavailable, so
+no real order, approval, fill, or verified receipt was captured in this work.
 
 Customer flow:
 
-1. Describe a protective-put goal in natural language (asset and horizon).
+1. Describe a protective-put goal in natural language and choose a 1–3 USDC
+   premium cap.
 2. Strict deterministic parse extracts ETH/BTC asset, objective, and integer
    horizon 1..365; fractional or oversized horizons return a safe
-   clarification. Separately set the `premiumBudgetUsd` control/API field to
-   the exact-cent total budget; the parser never extracts or implies a budget
-   from goal text.
+   clarification. The cap is a separate exact-cent field; the parser never
+   extracts or implies it from goal text.
 3. Fetch live Thetanuts OptionBook orders (one bounded call, at most 200
    inspected).
 4. Deterministically select the lowest-price maker-sell put matching the asset
    and binding horizon; reject stale, wrong-side, wrong-type, wrong-asset, or
    wrong-collateral orders to `no_match`.
-5. Run one signer-free `previewFillOrder` with the exact USDC budget; cross-check
-   maker+nonce, expiry, call/put, strikes, and per-contract price.
-6. Show premium, maximum loss (equal to premium paid), expiry, underlying asset,
-   collateral, contract count, and Base network with `execution: "none"` and
-   `approvalRequired: true` — never sign, approve, or fill.
+5. Show floor, expiry, premium cap, and Base network for explicit customer
+   review.
+6. Connect an external wallet, refetch the exact signed order, validate maker,
+   taker, signature, collateral, asset, option type, nonce, strikes, price,
+   available amount, signed-order runway, option expiry, and preview economics.
+7. Read current allowance and prepare either the exact USDC approval calldata or
+   the exact OptionBook fill calldata. Bind the wallet, chain, targets, zero
+   value, signed terms, and fill-data hash into a plan valid for at most 30
+   seconds.
+8. Require explicit wallet approval. After an approval confirms, refetch the
+   order. Immediately before fill, prepare and compare it again so stale terms
+   never reach the wallet.
+9. Persist durable intent before each wallet request and the returned hash after
+   submission under an exclusive browser lock. Reloads and other tabs recover
+   into confirmation or verification instead of sending again; an uncertain
+   lost hash stops for manual wallet review.
+10. Verify the fill directly from Base: exact transaction, decoded signed
+    `fillOrder`, signature hash, execution before signed-order and option expiry,
+    and exactly one matching `OrderFilled` event.
+11. Build `/proof?o=` only after verification. Reopening the portable receipt
+    validates local bindings and repeats the Base check. Premium, fee, and
+    referral fee remain separate fields; there is no fee-inclusive total-cost
+    claim.
 
 Exit evidence:
 
-- Live SDK order read, deterministic selection, signer-free preview, and strict
-  fail-closed tests (197 focused strategy tests currently pass).
-- An explicit Base signer and allowance flow (future).
-- A small real Base-mainnet fill with a BaseScan receipt (future).
-- A captured successful live recommendation artifact (future; not yet captured).
-- Clear separation between a deterministic preflight and the customer's trade
-  approval.
+- Bounded order read, deterministic selection, exact preview and calldata,
+  strict 1–3 USDC cap, allowance branching, live refetch, and fail-closed tests.
+- External Base-wallet approval and fill submission with no server key.
+- Durable reload/cross-tab no-double-submit recovery.
+- Direct transaction, signed-order, dual-expiry, and unique `OrderFilled`
+  verification plus portable `/proof?o=` proof.
+- A small customer-approved Base-mainnet fill and verified receipt remains an
+  evidence gate. No real transaction was submitted or captured in this work;
+  the official live order index is currently unavailable.
 
 ## Later — Sui-native savings
 
@@ -583,8 +601,8 @@ this source) and which are **future** (still required for a complete submission)
 | --- | --- | --- | --- |
 | Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, and Protected Transfer creation, role/deadline-gated terminal wallet actions, plus strict `/proof?t=` lifecycle verification | Protected Transfer publication/configuration, reproducible real Created/terminal evidence, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
 | Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; Family Steward two-model advisory message review with server-resolved exact evidence; bounded protected-plan issuance; commerce intent candidate path | Successful live two-model council artifact, protected lifecycle evidence, and live Gonka request evidence | Distinct model/request provenance, validated schema, policy gate, Family Rule binding, Sui action |
-| Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, bounded 200-order inspection, deterministic maker-sell put selection, signer-free `previewFillOrder`, strict `live`/`no_match`/`unavailable` state | Base signer, allowance, real OptionBook/OptionFactory fill, and a captured successful live recommendation artifact | Live SDK orders, signer-free preview, and a useful planning-only options workflow |
-| Thetanuts AI x Options | Natural-language risk-goal interface with strict deterministic parse plus SDK order read and signer-free preview | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
+| Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 1–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
+| Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
 | GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and advisory Family Steward review with distinct provenance, exact evidence, verification questions, and honest fallback | The 2026-08-31 two-model attempt was unavailable; captured successful council and multilingual live-request evidence remain required | Real router requests, uncertainty handling, exact evidence, social-impact user path |
 
 ## Delivery gates
@@ -623,7 +641,8 @@ complete:
   dispute process.
 - Offline commerce value limit, maximum age, nonce authority,
   merchant-loss allocation, and clock-skew tolerance.
-- Thetanuts signer, allowance policy, supported option market, and small
-  Base-mainnet trade budget.
+- Supported option-market policy, production RPC/index availability, wallet
+  support policy, and evidence procedure for the existing 1–3 USDC
+  Base-mainnet purchase cap.
 - Convey Earn stablecoin type, yield source, strategy allowlist, tranche
   parameters, oracle policy, governance, and loss-coverage disclosure.

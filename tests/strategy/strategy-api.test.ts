@@ -28,6 +28,7 @@ function post(body: unknown) {
   return POST(new Request("http://localhost/api/strategy", {
     method: "POST",
     body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
   }));
 }
 
@@ -102,7 +103,7 @@ describe("POST /api/strategy", () => {
       execution: "none",
       approvalRequired: true,
       disclosure: "Read-only protective-put preflight.",
-      orderBinding: { compositeId: "0x" + "a".repeat(40) + ":0x1" },
+      offerFingerprint: "0x" + "a".repeat(64),
     });
     const response = await post({ goal: "Protect ETH downside for 30 days", premiumBudgetUsd: 3 });
     expect(response.status).toBe(200);
@@ -181,7 +182,7 @@ describe("POST /api/strategy", () => {
       execution: "none",
       approvalRequired: true,
       disclosure: "Read-only protective-put preflight.",
-      orderBinding: { compositeId: "0x" + "a".repeat(40) + ":0x1" },
+      offerFingerprint: "0x" + "a".repeat(64),
     } as ShieldRecommendation);
     const response = await post({ goal: "Protect ETH downside for 30 days", premiumBudgetUsd: 3 });
     expect(response.status).toBe(200);

@@ -4,11 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { StrategyDesk } from "@/components/strategy/strategy-desk";
-import {
-  formatStrike,
-  formatUsdcMicro,
-  StrategyShieldCard,
-} from "@/components/strategy/strategy-shield-card";
+import { StrategyShieldCard } from "@/components/strategy/strategy-shield-card";
+import { formatStrike, formatUsdcMicro } from "@/lib/strategy/format";
 import type { ShieldRecommendation } from "@/lib/strategy/shield-recommendation";
 
 const LIVE: ShieldRecommendation = {
@@ -19,16 +16,16 @@ const LIVE: ShieldRecommendation = {
   optionType: "put",
   strikeUsd: 4000,
   pricePerContractUsd: 1.25,
-  premiumBudgetUsd: 50,
-  premiumAmountUsdc: "50000000",
-  maximumLossUsdc: "50000000",
+  premiumBudgetUsd: 3,
+  premiumAmountUsdc: "3000000",
+  maximumLossUsdc: "3000000",
   numContracts: "40",
   collateralToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
   chainId: 8453,
   execution: "none",
   approvalRequired: true,
   disclosure: "Read-only protective-put preflight.",
-  orderBinding: { compositeId: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0x1" },
+  offerFingerprint: "0x" + "a".repeat(64),
 };
 
 function shieldResponse(recommendation: ShieldRecommendation) {
@@ -71,11 +68,11 @@ describe("StrategyShieldCard copy", () => {
         onAdjust={() => {}}
       />,
     );
-    expect(html).toContain("ETH downside floor");
-    expect(html).toContain("Cost today");
-    expect(html).toContain("Maximum loss");
-    expect(html).toContain("Review protection");
-    expect(html).toContain("$50.00");
+    expect(html).toContain("Protect your ETH for 30 days");
+    expect(html).toContain("Budget limit");
+    expect(html).toContain("Ends");
+    expect(html).toContain("Review and continue");
+    expect(html).toContain("$3.00");
     expect(html).toContain("$4,000");
     expect(html).not.toContain("OFFICIAL SDK");
     expect(html).not.toContain("SERVER-ONLY");
@@ -98,6 +95,11 @@ describe("StrategyShieldCard copy", () => {
       />,
     );
     expect(noMatch).toContain("No matching ETH protection");
+    expect(noMatch).toContain("Search complete");
+    expect(noMatch).toContain("No offer fits");
+    expect(noMatch).toContain("Asset");
+    expect(noMatch).toContain("30 days");
+    expect(noMatch).toContain("Change the window or budget");
     const unavailable = renderToStaticMarkup(
       <StrategyShieldCard
         recommendation={{
@@ -112,6 +114,12 @@ describe("StrategyShieldCard copy", () => {
       />,
     );
     expect(unavailable).toContain("Protection terms unavailable");
+    expect(unavailable).toContain("Search paused");
+    expect(unavailable).toContain("Terms not ready");
+    expect(unavailable).toContain("Goal");
+    expect(unavailable).toContain("Kept");
+    expect(unavailable).toContain("Purchase");
+    expect(unavailable).toContain("None");
     expect(unavailable).toContain("Try again");
     expect(unavailable).not.toContain("Live market data is currently unavailable.");
   });
@@ -121,7 +129,7 @@ describe("StrategyDesk — shield live path", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async (_url, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { premiumBudgetUsd?: number };
-      expect(body.premiumBudgetUsd).toBe(50);
+      expect(body.premiumBudgetUsd).toBe(3);
       return shieldResponse(LIVE);
     }));
   });
@@ -137,10 +145,10 @@ describe("StrategyDesk — shield live path", () => {
     await waitFor(() =>
       expect(screen.getByTestId("shield-recommendation")).toBeInTheDocument(),
     );
-    expect(screen.getByText("ETH downside floor")).toBeInTheDocument();
-    expect(screen.getByText("Cost today")).toBeInTheDocument();
-    expect(screen.getByText("Maximum loss")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Review protection" })).toBeInTheDocument();
+    expect(screen.getByText("Protect your ETH for 30 days")).toBeInTheDocument();
+    expect(screen.getByText("Budget limit")).toBeInTheDocument();
+    expect(screen.getByText("Ends")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review and continue" })).toBeInTheDocument();
     expect(screen.queryByText("Market context")).toBeNull();
     expect(screen.queryByText(/Buy/)).toBeNull();
   });
@@ -150,12 +158,12 @@ describe("StrategyDesk — shield live path", () => {
     const form = screen.getByLabelText("Strategy goal").closest("form")!;
     await fireEvent.submit(form);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Review protection" })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: "Review and continue" })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Review protection" }));
-    expect(screen.getByText("Terms reviewed")).toBeInTheDocument();
-    expect(screen.getByText(/does not protect a family transfer rate/)).toBeInTheDocument();
-    expect(screen.getByText(/Nothing is purchased from this screen/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review and continue" }));
+    expect(screen.getByText("A floor for your ETH")).toBeInTheDocument();
+    expect(screen.getByText(/family transfers remain separate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is purchased until you approve it there/)).toBeInTheDocument();
   });
 });
 

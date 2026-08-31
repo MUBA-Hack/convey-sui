@@ -14,10 +14,12 @@ import {
 const NOW = 1_800_000_000;
 const fetchedAt = "2026-08-31T00:00:00.000Z";
 const HORIZON_30_MIN_EXPIRY = NOW + 30 * 86_400; // 1_802_592_000
+const FINGERPRINT_A = "0x" + "1".repeat(64);
+const FINGERPRINT_B = "0x" + "2".repeat(64);
 
 function ethPut(overrides: Partial<ProviderOrder> = {}): ProviderOrder {
   return {
-    compositeId: "0xmaker1:0x1",
+    offerFingerprint: FINGERPRINT_A,
     makerAddress: "0x" + "a".repeat(40),
     isBuyer: false,
     optionType: 1,
@@ -98,7 +100,7 @@ describe("selectShieldOrder", () => {
     const result = selectShieldOrder([ethPut()], constraints, NOW);
     expect(result.kind).toBe("selected");
     if (result.kind === "selected") {
-      expect(result.order.compositeId).toBe("0xmaker1:0x1");
+      expect(result.order.offerFingerprint).toBe(FINGERPRINT_A);
     }
   });
 
@@ -130,30 +132,30 @@ describe("selectShieldOrder", () => {
   });
 
   it("prefers the lowest per-contract price among multiple qualifying orders", () => {
-    const cheaper = ethPut({ compositeId: "0xcheap:0x1", pricePerContract8d: 80000000n });
-    const pricier = ethPut({ compositeId: "0xpricey:0x1", pricePerContract8d: 200000000n });
+    const cheaper = ethPut({ offerFingerprint: FINGERPRINT_A, pricePerContract8d: 80000000n });
+    const pricier = ethPut({ offerFingerprint: FINGERPRINT_B, pricePerContract8d: 200000000n });
     const result = selectShieldOrder([pricier, cheaper], constraints, NOW);
     expect(result.kind).toBe("selected");
     if (result.kind === "selected") {
-      expect(result.order.compositeId).toBe("0xcheap:0x1");
+      expect(result.order.offerFingerprint).toBe(FINGERPRINT_A);
     }
   });
 
   it("distinguishes duplicate nonces across makers by composite id", () => {
     const makerA = ethPut({
-      compositeId: "0x" + "a".repeat(40) + ":0x1",
+      offerFingerprint: FINGERPRINT_A,
       makerAddress: "0x" + "a".repeat(40),
       pricePerContract8d: 200000000n,
     });
     const makerB = ethPut({
-      compositeId: "0x" + "b".repeat(40) + ":0x1",
+      offerFingerprint: FINGERPRINT_B,
       makerAddress: "0x" + "b".repeat(40),
       pricePerContract8d: 100000000n,
     });
     const result = selectShieldOrder([makerA, makerB], constraints, NOW);
     expect(result.kind).toBe("selected");
     if (result.kind === "selected") {
-      expect(result.order.compositeId).toBe("0x" + "b".repeat(40) + ":0x1");
+      expect(result.order.offerFingerprint).toBe(FINGERPRINT_B);
     }
   });
 
@@ -275,7 +277,7 @@ describe("buildRecommendation", () => {
       execution: "none",
       approvalRequired: true,
       disclosure: expect.any(String),
-      orderBinding: { compositeId: "0xmaker1:0x1" },
+      offerFingerprint: FINGERPRINT_A,
     });
   });
 

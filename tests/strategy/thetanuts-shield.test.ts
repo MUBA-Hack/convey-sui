@@ -4,10 +4,12 @@ vi.mock("server-only", () => ({}));
 
 import type { OrderWithSignature } from "@thetanuts-finance/thetanuts-client";
 import { fetchShieldRecommendationWith, type ShieldReader } from "@/lib/strategy/thetanuts-shield";
+import { buildProtectionOrderFingerprint } from "@/lib/strategy/protection-purchase";
 import { BASE_USDC_ADDRESS, type ShieldAsset } from "@/lib/strategy/shield-recommendation";
 
-const ETH_PRICE_FEED = "0xETHpricefeed";
-const BTC_PRICE_FEED = "0xBTCpricefeed";
+const ETH_PRICE_FEED = "0x" + "1".repeat(40);
+const BTC_PRICE_FEED = "0x" + "2".repeat(40);
+const OPTION_BOOK = "0x" + "b".repeat(40);
 const NOW = 1_800_000_000;
 const HORIZON_30_MIN_EXPIRY = NOW + 30 * 86_400;
 
@@ -25,16 +27,16 @@ function rawOrder(overrides: Partial<OrderWithSignature["order"]> = {}): OrderWi
       optionType: 1,
       strikes: [400000000000n],
       collateralToken: BASE_USDC_ADDRESS,
-      underlyingToken: "0xWETH",
+      underlyingToken: "0x" + "4".repeat(40),
       ...overrides,
     },
-    signature: "secret-signature",
+    signature: "0x" + "5".repeat(130),
     availableAmount: 2000000n,
     makerAddress: "0x" + "a".repeat(40),
     rawApiData: {
       collateral: BASE_USDC_ADDRESS,
       priceFeed: ETH_PRICE_FEED,
-      implementation: "0xPUTimpl",
+      implementation: "0x" + "3".repeat(40),
       strikes: ["400000000000"],
       isCall: false,
       isLong: true,
@@ -54,8 +56,8 @@ const underlyingResolver = (order: OrderWithSignature): ShieldAsset | null => {
 
 function previewReturn(overrides: Record<string, unknown> = {}) {
   return {
-    numContracts: 5250000n,
-    maxContracts: 5250000n,
+    numContracts: 2400000n,
+    maxContracts: 5000000n,
     collateralToken: BASE_USDC_ADDRESS,
     pricePerContract: 125000000n,
     totalCollateral: 3_000_000n,
@@ -76,6 +78,7 @@ const constraints = {
 
 function makeReader(preview = vi.fn().mockReturnValue(previewReturn()), orders: OrderWithSignature[] = [rawOrder()]) {
   return {
+    optionBook: OPTION_BOOK,
     fetchOrders: vi.fn().mockResolvedValue(orders),
     previewFillOrder: preview,
   };
@@ -86,7 +89,7 @@ async function runWith(
   previewImpl: ShieldReader["previewFillOrder"],
 ) {
   return fetchShieldRecommendationWith(
-    { fetchOrders: vi.fn().mockResolvedValue(orders), previewFillOrder: previewImpl },
+    { optionBook: OPTION_BOOK, fetchOrders: vi.fn().mockResolvedValue(orders), previewFillOrder: previewImpl },
     underlyingResolver,
     constraints,
     { now: NOW, timeoutMs: 100 },
@@ -108,11 +111,11 @@ describe("fetchShieldRecommendationWith — delegation seam + trust boundaries",
       expect(result.premiumBudgetUsd).toBe(3);
       expect(result.premiumAmountUsdc).toBe("3000000");
       expect(result.maximumLossUsdc).toBe("3000000");
-      expect(result.numContracts).toBe("5250000");
+      expect(result.numContracts).toBe("2400000");
       expect(result.chainId).toBe(8453);
       expect(result.execution).toBe("none");
       expect(result.approvalRequired).toBe(true);
-      expect(result.orderBinding.compositeId).toBe("0x" + "a".repeat(40) + ":0x1");
+      expect(result.offerFingerprint).toBe(buildProtectionOrderFingerprint(rawOrder(), OPTION_BOOK));
     }
     expect(preview).toHaveBeenCalledTimes(1);
     const [, usdcAmount, referrer] = preview.mock.calls[0]!;
@@ -147,7 +150,7 @@ describe("fetchShieldRecommendationWith — delegation seam + trust boundaries",
   it("returns unavailable when fetchOrders times out, with no fabricated live claim", async () => {
     const preview = vi.fn();
     const result = await fetchShieldRecommendationWith(
-      { fetchOrders: () => new Promise<never>(() => undefined), previewFillOrder: preview },
+      { optionBook: OPTION_BOOK, fetchOrders: () => new Promise<never>(() => undefined), previewFillOrder: preview },
       underlyingResolver,
       constraints,
       { now: NOW, timeoutMs: 5 },
@@ -162,7 +165,7 @@ describe("fetchShieldRecommendationWith — delegation seam + trust boundaries",
   it("returns unavailable when fetchOrders rejects (SDK/TLS error)", async () => {
     const preview = vi.fn();
     const result = await fetchShieldRecommendationWith(
-      { fetchOrders: vi.fn().mockRejectedValue(new Error("UNABLE_TO_VERIFY_LEAF_SIGNATURE")), previewFillOrder: preview },
+      { optionBook: OPTION_BOOK, fetchOrders: vi.fn().mockRejectedValue(new Error("UNABLE_TO_VERIFY_LEAF_SIGNATURE")), previewFillOrder: preview },
       underlyingResolver,
       constraints,
       { now: NOW, timeoutMs: 100 },
@@ -206,7 +209,7 @@ describe("fetchShieldRecommendationWith — delegation seam + trust boundaries",
 
     expect(result.kind).toBe("live");
     if (result.kind === "live") {
-      expect(result.orderBinding.compositeId).toBe("0x" + "b".repeat(40) + ":0x1");
+      expect(result.offerFingerprint).toMatch(/^0x[0-9a-f]{64}$/);
       expect(result.pricePerContractUsd).toBe(1);
     }
     expect(preview).toHaveBeenCalledTimes(1);
@@ -220,7 +223,7 @@ describe("fetchShieldRecommendationWith — delegation seam + trust boundaries",
     );
     const countingResolver = vi.fn(underlyingResolver);
     await fetchShieldRecommendationWith(
-      { fetchOrders: vi.fn().mockResolvedValue(many), previewFillOrder: preview },
+      { optionBook: OPTION_BOOK, fetchOrders: vi.fn().mockResolvedValue(many), previewFillOrder: preview },
       countingResolver,
       constraints,
       { now: NOW, timeoutMs: 100 },

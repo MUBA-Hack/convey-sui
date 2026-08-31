@@ -23,6 +23,10 @@ import {
 import { formatMyrGrouped } from "@/lib/remittance/money";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
 import type { SettlementCheckState } from "./remittance-settlement-status";
+import type {
+  ProtectionPurchaseCheckState,
+  ProtectionPurchaseReceiptResult,
+} from "./protection-purchase-proof";
 
 export type CreatedCheckState =
   | { status: "checking" }
@@ -69,6 +73,11 @@ export type EvidenceView =
       result: ProtectedTransferTerminalReceiptResult;
       lifecycle: TerminalLifecycleState;
       payload: string | null;
+    }
+  | {
+      kind: "protection-purchase";
+      result: ProtectionPurchaseReceiptResult;
+      purchaseVerify: ProtectionPurchaseCheckState;
     }
   | {
       kind: "remittance-unsettled";
@@ -151,6 +160,12 @@ export function ProofAdvancedDetails({
           <ProtectedTransferTerminalTechnical
             result={view.result}
             lifecycle={view.lifecycle}
+          />
+        ) : null}
+        {view.kind === "protection-purchase" && view.result.ok ? (
+          <ProtectionPurchaseTechnical
+            receipt={view.result.receipt}
+            state={view.purchaseVerify}
           />
         ) : null}
       </div>
@@ -450,6 +465,68 @@ function ProtectedTransferCreatedTechnical({
       <p className="text-xs text-black">{createdCheckLabel(createdVerify)}</p>
 
       <ClaimBox>{result.claim}</ClaimBox>
+    </div>
+  );
+}
+
+function ProtectionPurchaseTechnical({
+  receipt,
+  state,
+}: {
+  receipt: Extract<ProtectionPurchaseReceiptResult, { ok: true }>["receipt"];
+  state: ProtectionPurchaseCheckState;
+}) {
+  const purchase = receipt.purchase;
+  return (
+    <div data-testid="protection-purchase-technical" className="space-y-4">
+      <SectionLabel>Canonical fields</SectionLabel>
+      <dl className="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs">
+        <dt className="text-neutral-500">Receipt kind</dt>
+        <dd className="break-all font-mono text-black">{receipt.kind}</dd>
+        <dt className="text-neutral-500">Network</dt>
+        <dd className="font-mono text-black">{purchase.network} · chain {purchase.chainId}</dd>
+        <dt className="text-neutral-500">Transaction hash</dt>
+        <dd className="break-all font-mono text-black">{purchase.txHash}</dd>
+        <dt className="text-neutral-500">Block</dt>
+        <dd className="font-mono text-black">{purchase.blockNumber}</dd>
+        <dt className="text-neutral-500">Buyer</dt>
+        <dd className="break-all font-mono text-black">{purchase.buyerAddress}</dd>
+        <dt className="text-neutral-500">Maker</dt>
+        <dd className="break-all font-mono text-black">{purchase.makerAddress}</dd>
+        <dt className="text-neutral-500">Option</dt>
+        <dd className="break-all font-mono text-black">{purchase.optionAddress}</dd>
+        <dt className="text-neutral-500">Plan ID</dt>
+        <dd className="break-all font-mono text-black">{receipt.plan.planId}</dd>
+        <dt className="text-neutral-500">Order fingerprint</dt>
+        <dd className="break-all font-mono text-black">{receipt.plan.orderFingerprint}</dd>
+        <dt className="text-neutral-500">Premium micro USDC</dt>
+        <dd className="font-mono text-black">{purchase.premiumAmountMicro}</dd>
+        <dt className="text-neutral-500">Fee micro USDC</dt>
+        <dd className="font-mono text-black">{purchase.feeCollectedMicro}</dd>
+        <dt className="text-neutral-500">Receipt checked at</dt>
+        <dd className="font-mono text-black">{purchase.checkedAt}</dd>
+        <dt className="text-neutral-500">Exported at</dt>
+        <dd className="font-mono text-black">{receipt.exportedAt}</dd>
+      </dl>
+
+      <SectionLabel>Independent Base check</SectionLabel>
+      <p className="text-xs text-black">
+        {state.kind === "checking"
+          ? "Fresh purchase verification is in progress."
+          : state.kind === "verified"
+            ? `Purchase event matched at block ${state.blockNumber}; checked ${state.checkedAt}.`
+            : state.kind === "pending"
+              ? "The transaction was not found by the current Base check."
+              : state.kind === "unavailable"
+                ? `The current Base check is unavailable (${state.reason.replaceAll("_", " ")}).`
+                : `The current Base check rejected this receipt (${state.reason.replaceAll("_", " ")}).`}
+      </p>
+      <ClaimBox>
+        {state.kind === "verified"
+          ? "Fresh Base evidence matched every carried purchase field. This confirms the option purchase transaction, not future payoff value."
+          : "Carried receipt fields remain locally schema-checked, but no current on-chain confirmation is claimed."
+        }
+      </ClaimBox>
     </div>
   );
 }

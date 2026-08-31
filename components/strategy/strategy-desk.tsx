@@ -18,6 +18,12 @@ import {
 import { StrategyPayoffWorkspace } from "@/components/strategy/strategy-payoff-workspace";
 import { StrategyMarketContext } from "@/components/strategy/strategy-market-context";
 import { StrategyShieldCard } from "@/components/strategy/strategy-shield-card";
+import { ProtectionReviewDialog } from "@/components/strategy/protection-review-dialog";
+import {
+  ProtectionWalletAction,
+  readProtectionPurchaseRecovery,
+  type ProtectionPurchaseRecovery,
+} from "@/components/strategy/protection-wallet-action";
 
 interface StrategyResponse {
   intent: StrategyIntent;
@@ -58,13 +64,19 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
   const [result, setResult] = useState<StrategyResponse | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reviewed, setReviewed] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [purchaseStarted, setPurchaseStarted] = useState(false);
+  const [purchaseRecovery, setPurchaseRecovery] = useState<ProtectionPurchaseRecovery | null>(null);
 
   const requestGeneration = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    const recoveryTimer = window.setTimeout(() => {
+      setPurchaseRecovery(readProtectionPurchaseRecovery());
+    }, 0);
     return () => {
+      window.clearTimeout(recoveryTimer);
       abortControllerRef.current?.abort();
     };
   }, []);
@@ -75,7 +87,8 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
     setGoal(next);
     setResult(null);
     setError(null);
-    setReviewed(false);
+    setReviewOpen(false);
+    setPurchaseStarted(false);
     abortControllerRef.current?.abort();
     requestGeneration.current += 1;
     setPending(false);
@@ -93,7 +106,8 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
     abortControllerRef.current = controller;
     const generation = (requestGeneration.current += 1);
     setResult(null);
-    setReviewed(false);
+    setReviewOpen(false);
+    setPurchaseStarted(false);
     setPending(true);
     setError(null);
     try {
@@ -160,11 +174,17 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
     focusGoal();
   }
 
+  function adjustPurchase() {
+    setReviewOpen(false);
+    setPurchaseStarted(false);
+    focusGoal();
+  }
+
   return (
     <section className="cv-shell mx-auto w-full max-w-[1320px] px-5 pb-16 pt-8 md:px-8 md:pt-12">
       <header className="mb-8 max-w-[40rem] md:mb-10">
         <p className="text-[13px] font-medium tracking-[-0.01em] text-neutral-500">
-          {inRemittanceContext ? "Separate treasury planning" : "Treasury protection"}
+          {inRemittanceContext ? "Separate treasury goal" : "Treasury protection"}
         </p>
         <h1 className="mt-3 text-[48px] font-semibold leading-[0.92] tracking-[-0.05em] text-black md:text-[64px]">
           {inRemittanceContext ? "Explore ETH treasury protection" : "Treasury"}
@@ -190,12 +210,27 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
           onSubmit={submit}
         />
         <div className="min-w-0">
-          {recommendation ? (
+          {purchaseRecovery ? (
+            <ProtectionWalletAction
+              goal={purchaseRecovery.goal}
+              premiumBudgetUsd={purchaseRecovery.premiumBudgetUsd}
+              offerFingerprint={purchaseRecovery.offerFingerprint}
+              recovery={purchaseRecovery}
+              onAdjust={adjustPurchase}
+            />
+          ) : recommendation?.kind === "live" && purchaseStarted ? (
+            <ProtectionWalletAction
+              goal={goal}
+              premiumBudgetUsd={premiumBudgetUsd}
+              offerFingerprint={recommendation.offerFingerprint}
+              onAdjust={adjustPurchase}
+            />
+          ) : recommendation ? (
             <StrategyShieldCard
               recommendation={recommendation}
               horizonDays={resolvedStrategy?.horizonDays ?? draftStrategy?.horizonDays ?? null}
-              reviewed={reviewed}
-              onReview={() => setReviewed(true)}
+              reviewed={false}
+              onReview={() => recommendation.kind === "live" && setReviewOpen(true)}
               onAdjust={retryOrAdjust}
             />
           ) : (
@@ -223,6 +258,18 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
           <FamilyWatch brief={familyWatchBrief} />
         </div>
       )}
+
+      {recommendation?.kind === "live" ? (
+        <ProtectionReviewDialog
+          recommendation={recommendation}
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          onContinue={() => {
+            setReviewOpen(false);
+            setPurchaseStarted(true);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

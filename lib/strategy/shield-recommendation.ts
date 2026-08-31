@@ -17,11 +17,10 @@
  *   `availableAmount`.
  * - Horizon is binding: a live recommendation requires a positive horizon and
  *   order expiry at/after `now + horizonDays*86400`.
- * - `maximumLossUsdc` for a long put equals the premium paid (`totalCollateral`
- *   from `previewFillOrder`, which equals the passed budget when a budget is
- *   supplied). This is exactly supported by the installed SDK source.
- * - The public `live` binds order identity via a safe composite id (maker +
- *   nonce); no signature or raw blob is ever exposed.
+ * - `premiumAmountUsdc` and `maximumLossUsdc` are conservative customer caps.
+ *   Actual premium remains unknown until a fill is verified on Base.
+ * - Public `live` binds exact signed-order content via a one-way fingerprint;
+ *   no signature or raw blob is ever exposed.
  */
 import { z } from "zod";
 
@@ -95,11 +94,10 @@ export function parseShieldConstraints(input: unknown): ShieldConstraints | null
 /**
  * Strict internal provider order — the only order shape the policy accepts.
  * Full provider identity is reduced to these decision-relevant fields by the
- * server-only adapter. `compositeId` is a safe maker+nonce identity; nonce
- * alone is not unique.
+ * server-only adapter.
  */
 export interface ProviderOrder {
-  compositeId: string;
+  offerFingerprint: string;
   makerAddress: string;
   /** Maker side: true = maker buys (taker sells), false = maker sells (taker buys). */
   isBuyer: boolean;
@@ -122,13 +120,13 @@ export interface PreviewEconomics {
   collateralToken: string;
   /** Price per contract in 8 decimals (USD). */
   pricePerContract: bigint;
-  /** Total premium paid in collateral-token smallest units (equals budget micro). */
+  /** SDK-reported budget cap in collateral-token smallest units. */
   totalCollateral: bigint;
 }
 
 const ProviderOrderSchema = z
   .object({
-    compositeId: z.string().min(1).max(128),
+    offerFingerprint: z.string().regex(/^0x[0-9a-f]{64}$/),
     makerAddress: EvmAddressSchema,
     isBuyer: z.boolean(),
     optionType: z.union([z.literal(0), z.literal(1)]),
@@ -251,7 +249,7 @@ export interface LiveRecommendation {
   execution: "none";
   approvalRequired: true;
   disclosure: string;
-  orderBinding: { compositeId: string };
+  offerFingerprint: string;
 }
 
 export type ShieldRecommendation =
@@ -274,10 +272,9 @@ function toUsd8dec(value8d: bigint): number {
 }
 
 /**
- * Build the strict public `live` recommendation. `maximumLossUsdc` equals the
- * premium paid for a long put. `pricePerContractUsd` comes from the validated
- * preview (equality-checked against the selected order in `parsePreviewEconomics`).
- * Never emits signatures, calldata, or raw blobs.
+ * Build the strict public `live` recommendation. Cost fields remain conservative
+ * caps until a transaction receipt proves actual premium. Never emits signatures,
+ * calldata, or raw blobs.
  */
 export function buildRecommendation(input: BuildRecommendationInput): LiveRecommendation {
   const { constraints, order, preview, fetchedAt } = input;
@@ -298,7 +295,7 @@ export function buildRecommendation(input: BuildRecommendationInput): LiveRecomm
     execution: "none",
     approvalRequired: true,
     disclosure: LIVE_DISCLOSURE,
-    orderBinding: { compositeId: order.compositeId },
+    offerFingerprint: order.offerFingerprint,
   };
 }
 
@@ -320,7 +317,7 @@ const LiveRecommendationSchema = z
     execution: z.literal("none"),
     approvalRequired: z.literal(true),
     disclosure: z.string().min(1),
-    orderBinding: z.object({ compositeId: z.string().min(1).max(128) }).strict(),
+    offerFingerprint: z.string().regex(/^0x[0-9a-f]{64}$/),
   })
   .strict();
 
