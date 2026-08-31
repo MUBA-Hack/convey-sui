@@ -40,7 +40,10 @@ decides whether it is safe to prepare; only the wallet can authorize value.
    rate, expected recipient amount, payout method, expiry, and Family Rule.
 4. **Pass Transfer checks.** Family Guardian checks the pinned recipient,
    corridor, quote freshness, stated purpose and limit, and whether wallet
-   approval is possible. These are pre-approval checks, not a safety guarantee.
+   approval is possible. An optional Family Steward check asks two distinct
+   Gonka models to identify exact warning text in a pasted payment message.
+   These are advisory pre-approval checks, not a safety guarantee or payment
+   authority.
 5. **Send directly, hold for review, or continue elsewhere.** The connected
    wallet approves either the exact direct transfer or the pinned
    `create_escrow` transaction after a strict protected plan. Alternatively,
@@ -61,7 +64,7 @@ a contract, or submit a trade.
 | Works in this repository | Still required for a complete production transfer |
 | --- | --- |
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
-| Integer-only reference quote, expiring server attestation, Family Rule binding, and Family Guardian pre-approval checks | Production pricing and independent recipient/payout-provider verification |
+| Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
 | Tested single-milestone Protected Transfer Move package, pinned TypeScript transaction core, bounded plan and `Created`-verification endpoints, and an in-Pay verified-Created receipt path that can reopen in Receipts | Testnet publication/configuration, a reproducible real `Created` artifact, reviewer release/refund UI, terminal-event receipts, and captured release/refund evidence |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
@@ -228,6 +231,37 @@ addresses, keys, transaction bytes, signatures, digests, or signing authority.
 configured key is not proof of a successful request; the evidence for a live
 remittance route is `intentReview.reviewer = "gonka"`, `mode: "live"`, request
 id, and matching model id on a successful POST response.
+
+### Family Steward — advisory two-model message review
+
+Family Steward is an optional check inside Family Guardian. The customer pastes
+one payment solicitation of at most 500 Unicode code points. Only that message
+and fixed signal/question allowlists reach GonkaRouter; the quote, wallet and
+recipient addresses, HMAC attestation, transaction bytes, signatures, and keys
+do not.
+
+- Two distinct server-configured model IDs review the same message at most once
+  each. A live council requires distinct response model IDs and request IDs, so
+  one response cannot be presented as two independent reviewers.
+- A model returns a bounded signal ID, the exact evidence text, and a one-based
+  occurrence selector. The server finds that occurrence in Unicode code-point
+  space and creates the displayed start/end span. Missing or out-of-range
+  evidence is rejected; the model never supplies trusted offsets.
+- Results are a strict safe union: `live_council`, `partial_review`,
+  `local_fallback`, or `rejected`. Provider failures and invalid candidates are
+  surfaced honestly; raw model output and secrets are never returned.
+- The review is advisory only. It can suggest verification questions and make
+  the existing family-review option more prominent, but it cannot call a
+  message safe or fraudulent, alter the deterministic direct/hold paths, select
+  a path, open a wallet, sign, submit, release, refund, or prove payout.
+
+The endpoint accepts a fresh, configuration-bound display quote only when
+`recipientAddress` and `attestation` are both null. A mapped executable quote
+must carry a valid attestation. This policy only decides whether the message may
+be reviewed; it never authorizes payment. The local gitignored Gonka key is
+configured, but a live two-model attempt on **2026-08-31** timed out or returned
+unavailable. No successful live Family Steward council or request artifact is
+claimed.
 
 ### Signed-quote cross-device handoff
 
@@ -441,6 +475,7 @@ is therefore not a trade-complete options integration.
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional Gonka interpretation | Server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
+| `POST /api/remittance/family-steward` | Review one pasted payment solicitation with two configured Gonka models | Fresh advisory quote gate; message-only inference; exact-evidence server span resolution; strict safe union and `no-store`; no signer, path mutation, or payment authority |
 | `POST /api/remittance/settlement/verify` | Independently check one strict remittance receipt against Sui testnet | Fixed server-side testnet/RPC/USDC; 16 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact success/digest/recipient/amount match; strict safe response union; `no-store`; no signer, submission, client-selected endpoint, or payout authority |
 | `POST /api/remittance/protected-transfer/plan` | Issue a bounded Protected Transfer execution plan over a verified quote | Accepts only an attested quote, one of three deadline presets, and a review note; 16 KiB shared streamed body cap; server-only configured candidate package/reviewer; `no-store`; unsigned/unattested response-channel provenance; no RPC, signer, submission, or deployment proof; unconfigured by default |
 | `POST /api/remittance/protected-transfer/created/verify` | Check one submitted Protected Transfer digest for an exact `Created` event | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact package, digest, event, payer, beneficiary, reviewer, asset, amount, deadline, and commitment binding; strict safe response union; `no-store`; no terminal-state or payout proof |
@@ -464,6 +499,7 @@ flowchart TB
     Interpret["Gonka interprets when configured"]
     Rebind["Deterministic rebind and policy"]
     Quote["Signed quote with Family Rule"]
+    Steward["Optional two-model message review"]
     Review["Customer reviews quote"]
     Choice{"Send directly or hold for family review"}
     DirectWallet["Wallet approves direct testnet USDC"]
@@ -473,7 +509,7 @@ flowchart TB
     HoldPending["Submitted, confirmation pending"]
     CreatedCheck["Independent Created-event check"]
     HoldReceipt["Verified Created receipt"]
-    Request --> Interpret --> Rebind --> Quote --> Review --> Choice
+    Request --> Interpret --> Rebind --> Quote --> Steward --> Review --> Choice
     Choice -->|Send directly| DirectWallet --> Receipt
     Choice -->|Hold for family review| HoldPlan --> HoldWallet --> HoldPending --> CreatedCheck --> HoldReceipt
   end
@@ -519,6 +555,7 @@ release, refund, or payout claim.
 flowchart LR
   Prompt["Customer prompt"]
   Gonka["Gonka proposal"]
+  Steward["Advisory message review"]
   Resolve["Deterministic rebind and policy"]
   Hmac["HMAC quote attestation"]
   Verify["Connected quote verify"]
@@ -535,6 +572,7 @@ flowchart LR
   Prompt --> Gonka
   Prompt --> Resolve
   Gonka --> Resolve
+  Prompt --> Steward
   Resolve --> Hmac --> Verify --> Wallet --> Sui
   Hmac --> ProtectedPlan --> ProtectedBuild --> Wallet
   Wallet --> CreatedVerifyAPI --> SuiRead
@@ -553,6 +591,8 @@ successful transaction and exact BCS Created fields before Pay creates the
 portable receipt; Receipts repeats that check before sharing or export. A
 rejected or absent Gonka candidate falls back to deterministic parsing with
 honest local provenance. Neither receipt path proves family bank or cash payout.
+Family Steward remains outside the authorization chain: it receives only a
+pasted message and can suggest questions, never change quote or wallet state.
 
 ### Cross-device signed-quote handoff
 
@@ -609,6 +649,7 @@ flowchart TB
     IntentAPI["Commerce intent API"]
     QuoteAPI["Remittance quote API"]
     VerifyAPI["Quote verify API"]
+    StewardAPI["Family Steward API"]
     SettlementVerifyAPI["Settlement verify API"]
     ProtectedPlanAPI["Protected plan API"]
     ProtectedCreatedAPI["Protected Created verify API"]
@@ -636,6 +677,7 @@ flowchart TB
   Pay -->|commerce text| IntentAPI
   Pay -->|remittance text| QuoteAPI
   Pay -->|verify before build| VerifyAPI
+  Pay -->|optional payment message| StewardAPI
   Pay -->|verified quote and hold terms| ProtectedPlanAPI
   ProtectedPlanAPI -->|strict unsigned plan| Pay
   Pay -->|verify submitted hold| ProtectedCreatedAPI
@@ -643,8 +685,10 @@ flowchart TB
   ReadOnly -->|re-check Created receipt| ProtectedCreatedAPI
   IntentAPI -->|public catalog and request| Gonka
   QuoteAPI -->|public manifest and prompt| Gonka
+  StewardAPI -->|message only, two distinct models| Gonka
   Gonka -->|untrusted candidate and evidence| IntentAPI
   Gonka -->|untrusted candidate and evidence| QuoteAPI
+  Gonka -->|exact evidence text and occurrence| StewardAPI
   SuiWallet -->|client-signed transaction| Usdc
   SuiWallet -->|client-signed create escrow| ProtectedEscrow
   SuiWallet -->|client-signed transaction| Sui
@@ -683,8 +727,8 @@ pnpm dev
 Open `http://localhost:3000`. Pay opens on the Send abroad / Family Rule
 remittance surface, where reference quotes work without secrets but remain
 **Prepared — not submitted**. Switch to **Buy nearby** for catalog purchases;
-without Gonka credentials that flow uses the deterministic **Local safety
-route**. Neither fallback proves settlement.
+when Gonka credentials are absent that flow uses the deterministic **Local
+safety route**. Neither fallback proves settlement.
 
 ### Environment variables
 
@@ -694,9 +738,11 @@ route**. Neither fallback proves settlement.
 | `NEXT_PUBLIC_MERCHANT_ADDRESS` | Browser | Empty; valid canonical Sui address enables one prerequisite for real testnet settlement |
 | `NEXT_PUBLIC_ENOKI_API_KEY` | Browser | Optional Enoki onboarding; hidden when empty |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Browser | Optional Google OAuth client ID paired with Enoki |
-| `GONKA_ROUTER_API_KEY` | Server only | Empty; required for an attempted live Gonka route (commerce or remittance) |
+| `GONKA_ROUTER_API_KEY` | Server only | Empty; required for an attempted live Gonka route, including Family Steward |
 | `GONKA_ROUTER_BASE_URL` | Server only | `https://api.gonkarouter.io/v1` |
 | `GONKA_MODEL_ID` | Server only | `deepseek-ai/DeepSeek-V4-Flash-0731` |
+| `GONKA_FAMILY_STEWARD_MODEL_A` | Server only | Empty; first Family Steward reviewer model; must be nonblank and differ from model B |
+| `GONKA_FAMILY_STEWARD_MODEL_B` | Server only | Empty; second Family Steward reviewer model; must be nonblank and differ from model A |
 | `GONKA_REQUEST_TIMEOUT_MS` | Server only | `30000` milliseconds |
 | `GONKA_MAX_RETRIES` | Server only | `1`; accepted range is 0 or 1 |
 | `REMITTANCE_MYR_PER_USDC` | Server only | Reference MYR sen per USDC; default `450` |
@@ -718,8 +764,16 @@ not chosen by a model or client request.
 For a live router run, set `GONKA_ROUTER_API_KEY`, submit a supported request,
 and inspect the assistant provenance badge or the POST response. Only a response
 with `intentReview.reviewer = "gonka"`, `mode: "live"`, request id, and matching
-model id demonstrates a live route. The current repository/environment does not
-contain that key or evidence.
+model id demonstrates a live route. This workspace is configured locally through
+the gitignored `.env.local`; the secret is intentionally not committed. A
+reproducible successful live request artifact is not checked in yet.
+
+Family Steward also requires two distinct, nonblank model IDs. Leaving either
+unset, configuring the same ID twice, or receiving unusable provider responses
+produces an honest local fallback rather than simulated consensus. The local
+gitignored key is configured, but the two-model live attempt on **2026-08-31**
+timed out or returned unavailable. No successful live Family Steward artifact
+is claimed.
 
 For real Sui testnet settlement, set a valid
 `NEXT_PUBLIC_MERCHANT_ADDRESS`, keep the network on `testnet`, connect a testnet
@@ -774,6 +828,7 @@ experience.
 | Prompt injection becomes a payment | NFKC and injection guards; strict model schema; deterministic rebind/policy; two human confirmations | Natural-language interpretation can still require clarification |
 | Model invents a recipient, destination, or amount | Frozen public manifest plus deterministic rebind against original text and corridor | Catalog/manifest is currently small and static |
 | Provider failure is mistaken for AI success | Request/model provenance; safe fallback enum; visible route label | No live Gonka evidence without a configured key and successful call |
+| AI message warning changes payment authority | Advisory-only result; deterministic quote, path, wallet, and chain checks remain authoritative | A review can only suggest questions or foreground the existing hold option |
 | Server steals wallet authority | No server-side Sui signer; wallet signs client-side | Payer must hold testnet gas |
 | Failed or mismatched chain evidence looks successful | Fixed-testnet settlement check requires exact digest, successful transaction, pinned-USDC canonical-recipient balance change, and exact micro amount; strict client binding gates actions | Public testnet RPC can be unavailable; no reproducible live real-digest artifact has been captured; fiat payout remains unverified |
 | Demo looks like settlement | `DEMO-` digest, explicit label, no explorer URL | Demo proves UI flow only |
@@ -810,15 +865,21 @@ Additional boundaries:
 2. Inspect the MYR amount, itemized reference fees, PHP estimate, exact USDC
    amount, destination, quote expiry, and the **Family Rule** row. None is a
    live FX or payout promise.
-3. Review the details and choose **Send directly** or **Hold for family
+3. Expand **Transfer checks**, choose **Check payment message**, and paste a
+   solicitation such as `Pay today and keep this secret`. Family Steward should
+   identify exact source text and verification questions. Show two provenance
+   records only after a real live council; otherwise show the partial or local
+   fallback honestly. This repository does not claim a successful live
+   two-model artifact.
+4. Review the details and choose **Send directly** or **Hold for family
    review**. Without a mapped recipient, attestation, and connected testnet
    wallet, neither executable path can submit value.
-4. For **Send directly**, approve the exact USDC transfer in the wallet. Open
+5. For **Send directly**, approve the exact USDC transfer in the wallet. Open
    the receipt and show **Checking transfer on Sui** resolving to one of the
    explicit verified, rejected, not-found, or unavailable states. Only an exact
    match shows **Confirmed on Sui** and unlocks share/export; **Awaiting family
    payout** remains separate.
-5. For **Hold for family review**, choose a review deadline and enter a short
+6. For **Hold for family review**, choose a review deadline and enter a short
    note. With the package and reviewer configured, Pay requests the strict plan,
    builds the pinned `create_escrow` transaction, and asks the connected testnet
    wallet to submit it. The surface remains at **Hold submitted — confirmation
@@ -827,7 +888,7 @@ Additional boundaries:
    repeats that check before share/export. It never claims Released, Refunded,
    or family payout. With the default empty configuration, the hold path fails
    closed and the direct path remains available.
-6. To carry the quote, choose **Carry quote** from the ticket, then on a
+7. To carry the quote, choose **Carry quote** from the ticket, then on a
    connected device open **Continue elsewhere**, tap **Scan QR**, and let the camera
    feed the payload into the same strict import discrimination. The carried
    quote opens a review card that re-runs connected verification before your
@@ -838,8 +899,9 @@ Additional boundaries:
 1. **Choose Buy nearby.** Language can propose a purchase, but cannot sign one.
 2. **Use the product.** Say or type
    `Buy two iced coffees under 8 SUI from River Cafe`. Show the typed 6 SUI
-   preview and the routing provenance. With the current empty key, call out
-   **Local safety route** honestly.
+   preview and the routing provenance. A clean checkout without local Gonka
+   credentials uses **Local safety route** honestly; a configured run must show
+   live request and model provenance before it is presented as Gonka-routed.
 3. **Show controlled settlement.** Confirm inline, review again, then
    confirm payment. In zero-setup mode, point to the `DEMO-…` receipt, explicit
    no-chain label, and absent explorer link.
@@ -876,10 +938,10 @@ complete track submission.
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
 | Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, and an in-Pay Protected Transfer creation path with exact Created verification and a portable receipt | Protected Transfer publication/configuration, a reproducible real Created artifact, terminal release/refund verification and controls, a real direct-USDC digest artifact, live FX, fiat funding, and payout integration remain unproven |
-| Sui AI x Sui | GonkaRouter remittance interpretation wired into Send abroad behind deterministic rebind/policy; bounded protected-plan issuance and in-Pay client construction from verified quotes; commerce intent candidate path | Advisory evidence review, protected lifecycle evidence, and live Gonka + Sui evidence remain required |
+| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward two-model advisory message review with server-resolved exact evidence; bounded protected-plan issuance and commerce intent candidate path | Successful live two-model council artifact, protected lifecycle evidence, and live Gonka + Sui evidence remain required |
 | Thetanuts Best Product Built on SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Read-only; no quote selection, approval, signing, or trade |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Mapping is deterministic, not model-routed, and no options trade is submitted |
-| Gonka AI for Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, visible provenance, and honest local fallback | A live key/request and captured multilingual remittance evidence remain required |
+| Gonka AI for Society | Mixed-language remittance interpretation plus advisory Family Steward review with distinct-model provenance, exact-evidence span resolution, verification questions, and honest partial/local fallback | The configured local key's 2026-08-31 two-model attempt was unavailable; a captured successful council and multilingual remittance artifact remain required |
 
 ## Project map
 
@@ -893,6 +955,7 @@ app/
   api/commerce/intent/route.ts Gonka commerce route + deterministic fallback
   api/remittance/quote/route.ts reference quote + optional Gonka interpretation + attestation
   api/remittance/quote/verify/route.ts quote verification + authorization
+  api/remittance/family-steward/route.ts bounded two-model advisory message review
   api/remittance/settlement/verify/route.ts read-only Sui settlement evidence
   api/remittance/protected-transfer/plan/route.ts bounded Protected Transfer plan issuance
   api/remittance/protected-transfer/created/verify/route.ts Created-event evidence adapter
@@ -907,9 +970,9 @@ components/
   wallet/                      Sui wallet providers and connection
 lib/
   commerce/                    catalog, intent, Gonka resolver, payment, QR, proof
-  gonka/                       shared structured-router core, commerce + remittance specs
+  gonka/                       shared structured-router core, commerce, remittance and Family Steward specs
   http/                        shared server-only bounded UTF-8 request reader
-  remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, offline handoff, settlement verification
+  remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, Family Steward policy, offline handoff, settlement verification
     server-config.ts           server-only pricing, recipients, manifest and quote key
     attestation.server.ts      server-only HMAC signing and verification
     sui-settlement-response.ts shared client-safe strict response schema
@@ -949,8 +1012,10 @@ tests/
 
 ## Known limitations and next proof points
 
-- Configure a real GonkaRouter key, capture successful request/model provenance,
-  and record a reproducible live multilingual remittance run.
+- Capture successful GonkaRouter request/model provenance and a reproducible
+  live multilingual remittance run. The local key is configured, but the
+  **2026-08-31** two-model Family Steward attempt timed out or returned
+  unavailable, so no successful council artifact is claimed.
 - Capture a reproducible capped Sui testnet payment with a real explorer digest
   and preserve the independent verifier result as release evidence.
 - Publish the Protected Transfer package, configure both protected endpoints,

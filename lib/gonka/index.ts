@@ -40,6 +40,35 @@ export {
   getGonkaErrorStatus,
 } from "./retry";
 
+export {
+  createGonkaFamilyStewardRouter,
+  createFamilyStewardManifest,
+  validateFamilyStewardCandidate,
+  familyStewardCandidateSchema,
+  familyStewardInputSchema,
+  familyStewardSolicitationTextSchema,
+  FamilyStewardSignalSchema,
+  FamilyStewardSignalIdSchema,
+  FamilyStewardQuestionIdSchema,
+  FAMILY_STEWARD_SIGNAL_IDS,
+  FAMILY_STEWARD_QUESTION_IDS,
+  FAMILY_STEWARD_MAX_CODE_POINTS,
+  FAMILY_STEWARD_MAX_TEXT_BYTES,
+  FAMILY_STEWARD_MAX_SIGNALS,
+  FAMILY_STEWARD_MAX_QUESTIONS,
+  FAMILY_STEWARD_MIN_CONFIDENCE,
+} from "./family-steward";
+
+export type {
+  FamilyStewardCandidate,
+  FamilyStewardInput,
+  FamilyStewardManifest,
+  FamilyStewardQuestionId,
+  FamilyStewardSignal,
+  FamilyStewardSignalId,
+  GonkaFamilyStewardRouter,
+} from "./family-steward";
+
 export type {
   GonkaAdapterConfig,
   GonkaAdapterDependencies,

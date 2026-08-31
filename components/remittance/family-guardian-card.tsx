@@ -10,6 +10,7 @@ import {
   type GuardianCheckStatus,
 } from "@/lib/remittance/family-guardian";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
+import { FamilyStewardCard } from "./family-steward-card";
 
 /**
  * Product-language display labels for each check status. The raw enum values
@@ -57,6 +58,12 @@ export function FamilyGuardianCard({ quote, blocker, now }: FamilyGuardianCardPr
           {report.headline}
         </p>
       </div>
+
+      {/* Optional in-flow warning-sign check. Advisory only — never modifies the
+          quote, blocker, path, wallet, or receipt. Sits above the deterministic
+          Transfer checks so a curious customer can paste the requesting message
+          without disturbing the pre-verification evidence below. */}
+      <FamilyStewardCard quote={quote} />
 
       <button
         type="button"

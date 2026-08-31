@@ -40,6 +40,17 @@ FX, fiat funding, or bank disbursement in this path.
   findings locally. Missing facts remain **Not stated** and failed checks stop
   the primary action; the panel never claims recipient identity or transfer
   safety.
+- **Family Steward advisory message review is implemented.** An optional check
+  sends only one bounded payment solicitation to two distinct configured Gonka
+  models. Models return exact evidence text plus an occurrence selector; the
+  server resolves Unicode code-point spans and preserves distinct model/request
+  provenance. The result cannot alter the quote, choose direct/hold, invoke a
+  wallet, or authorize value. Unsigned unmapped display quotes are eligible only
+  when both recipient address and attestation are null; mapped executable quotes
+  require a valid attestation. Honest partial/local fallback remains available.
+  The local key is configured, but the live two-model attempt on **2026-08-31**
+  timed out or returned unavailable, so no successful council artifact is
+  claimed.
 - **Signed-quote cross-device QR carry, camera scan, and connected verify/review
   are implemented.** A discriminated handoff wrapper carries the existing strict
   QuoteEnvelope; the camera scanner uses `@zxing/browser` and feeds both
@@ -167,12 +178,16 @@ Use **GonkaRouter** for multilingual intent extraction and accessible
 explanations across the remittance journey. Gonka is the decentralized inference
 network; GonkaRouter is the hosted router used by the product.
 
-**Status: implemented for remittance and commerce; live evidence outstanding.**
+**Status: implemented for remittance, commerce, and advisory Family Steward
+review; live evidence outstanding.**
 Both Send abroad and Buy nearby use the Gonka candidate/policy path when
 configured. The remittance candidate is untrusted and re-resolved against the
 original text and the canonical manifest by
-`resolveGonkaRemittanceCandidate`. A live key/request and captured multilingual
-evidence remain required.
+`resolveGonkaRemittanceCandidate`. This workspace has a local gitignored key;
+a successful captured multilingual request with matching live provenance remains
+required. Family Steward asks two distinct configured models to inspect only a
+bounded solicitation message. The **2026-08-31** live attempt timed out or
+returned unavailable, so this roadmap claims no successful live council.
 
 The model may propose:
 
@@ -180,19 +195,33 @@ The model may propose:
 - recipient reference and destination;
 - source or target amount and currency;
 - missing fields and ambiguity;
-- evidence-backed risk explanations.
+- bounded warning-signal IDs and exact evidence text plus a one-based occurrence
+  selector for the optional message review;
+- fixed verification-question IDs.
 
 The model may not:
 
 - invent or silently replace a recipient;
 - construct arbitrary transaction bytes;
 - bypass amount, asset, network, balance, expiry, Family Rule, or policy checks;
+- label a sender or message safe or fraudulent, change the deterministic
+  direct/hold paths, or select the hold option;
 - sign, settle, release escrow, or trade options.
+
+The server, not the model, resolves evidence spans in Unicode code-point space.
+Missing or out-of-range occurrences are rejected. A live council requires two
+different configured model IDs plus distinct response model and request IDs;
+otherwise the endpoint returns a truthful partial review, local fallback, or
+rejection. A fresh unsigned/unmapped display quote is accepted only when both
+`recipientAddress` and `attestation` are null. A mapped quote must have a valid
+attestation. This is message-review eligibility, never payment authorization.
 
 Exit evidence:
 
 - A real GonkaRouter request in the primary remittance path with model and
   request metadata.
+- A successful Family Steward council with two distinct model IDs, two distinct
+  request IDs, server-resolved exact evidence, and captured safe response.
 - Malformed-output, timeout, model-mismatch, and fallback tests.
 - At least one mixed-language remittance request that stops for clarification
   when uncertain.
@@ -487,10 +516,10 @@ this source) and which are **future** (still required for a complete submission)
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
 | Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, and a Protected Transfer path with independent Created verification plus a portable receipt | Protected Transfer publication/configuration, reproducible real Created evidence, reviewer release/refund workflow and terminal receipts, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
-| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; bounded protected-plan issuance and in-Pay client construction from verified quotes; commerce intent candidate path | Advisory evidence review, protected lifecycle evidence, and live Gonka request evidence | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
+| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; Family Steward two-model advisory message review with server-resolved exact evidence; bounded protected-plan issuance; commerce intent candidate path | Successful live two-model council artifact, protected lifecycle evidence, and live Gonka request evidence | Distinct model/request provenance, validated schema, policy gate, Family Rule binding, Sui action |
 | Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
-| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, visible provenance, honest local fallback | A live key/request and captured multilingual remittance evidence | Real router request, uncertainty handling, social-impact user path |
+| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and advisory Family Steward review with distinct provenance, exact evidence, verification questions, and honest fallback | The 2026-08-31 two-model attempt was unavailable; captured successful council and multilingual live-request evidence remain required | Real router requests, uncertainty handling, exact evidence, social-impact user path |
 
 ## Delivery gates
 
@@ -522,7 +551,8 @@ complete:
 - Bridge commercial access and supported payout geography.
 - OAuth provider, zkLogin prover/salt strategy, Enoki use, and sponsored-gas
   policy.
-- GonkaRouter production key, selected model, data policy, and latency target.
+- GonkaRouter production key policy, distinct Family Steward model pair,
+  provider availability/timeout policy, data policy, and latency target.
 - Protected Transfer policies, reviewer authority, evidence retention, and
   dispute process.
 - Offline commerce value limit, maximum age, nonce authority,
