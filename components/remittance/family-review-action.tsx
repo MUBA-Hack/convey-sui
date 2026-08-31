@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
+import type { Transaction } from "@mysten/sui/transactions";
 import {
   useCurrentAccount,
   useCurrentNetwork,
@@ -11,8 +13,21 @@ import {
   buildProtectedTransfer,
   PROTECTED_TRANSFER_REVIEW_NOTE_MAX_CODE_POINTS,
   type ProtectedTransferDeadlinePreset,
+  type ProtectedTransferExecutionPlan,
+  type ProtectedTransferMetadata,
 } from "@/lib/remittance/protected-transfer";
-import { requestProtectedTransferPlan } from "@/lib/remittance/protected-transfer-client";
+import {
+  requestProtectedTransferPlan,
+  requestProtectedTransferCreatedVerification,
+} from "@/lib/remittance/protected-transfer-client";
+import {
+  buildProtectedTransferCreatedReceipt,
+  encodeProtectedTransferCreatedReceiptPayload,
+  PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM,
+  type ProtectedTransferCreatedReceiptDocument,
+  type VerifiedProtectedTransferCreatedResponse,
+} from "@/lib/remittance/protected-transfer-created-receipt";
+import type { ProtectedTransferCreatedVerifyRequest } from "@/lib/remittance/protected-transfer-created";
 import {
   buildExplorerUrl,
   extractSuccessfulDigest,
@@ -23,11 +38,32 @@ export const NOT_CONFIGURED_COPY =
   "Family review isn't available right now. Send directly to continue.";
 const GENERIC_HOLD_ERROR = "Family review couldn't be started. Send directly to continue.";
 
+type Plan = ProtectedTransferExecutionPlan & { reviewerName?: string };
+
 type HoldPhase =
   | { kind: "idle" }
   | { kind: "planning" }
-  | { kind: "confirming" }
-  | { kind: "submitted"; digest: string }
+  | {
+      kind: "ready";
+      plan: Plan;
+      metadata: ProtectedTransferMetadata;
+      transaction: Transaction;
+    }
+  | { kind: "confirming"; plan: Plan; metadata: ProtectedTransferMetadata }
+  | {
+      kind: "submitted";
+      plan: Plan;
+      metadata: ProtectedTransferMetadata;
+      digest: string;
+    }
+  | {
+      kind: "verified";
+      plan: Plan;
+      metadata: ProtectedTransferMetadata;
+      digest: string;
+      receipt: ProtectedTransferCreatedReceiptDocument;
+      receiptPayload: string;
+    }
   | { kind: "unknown" }
   | { kind: "error"; message: string };
 
@@ -64,9 +100,19 @@ export function useFamilyReviewSubmit({
   const dAppKit = useDAppKit();
   const [phase, setPhase] = useState<HoldPhase>({ kind: "idle" });
   const lockRef = useRef(false);
+  const verifySeq = useRef(0);
 
   const busy = phase.kind === "planning" || phase.kind === "confirming";
-  const locked = busy || phase.kind === "submitted" || phase.kind === "unknown";
+  // Once planning begins the hold lane is committed: path radios, note, edit,
+  // carry, and the compact CTAs stay locked through settlement. `hold-approve`
+  // stays clickable only in the `ready` step (explicit wallet approval).
+  const locked =
+    busy ||
+    phase.kind === "ready" ||
+    phase.kind === "submitted" ||
+    phase.kind === "verified" ||
+    phase.kind === "unknown";
+  const holdApproveDisabled = phase.kind !== "ready";
 
   async function submit() {
     if (lockRef.current) return;
@@ -83,7 +129,6 @@ export function useFamilyReviewSubmit({
 
     lockRef.current = true;
     setPhase({ kind: "planning" });
-    let signingBegan = false;
 
     try {
       const result = await requestProtectedTransferPlan({
@@ -105,34 +150,78 @@ export function useFamilyReviewSubmit({
         return;
       }
 
+      const plan = result.response;
       const built = buildProtectedTransfer({
-        plan: result.response,
+        plan,
         sender: account.address,
         nowMs: Date.now(),
       });
-      signingBegan = true;
-      setPhase({ kind: "confirming" });
-      const walletResult = await dAppKit.signAndExecuteTransaction({
-        transaction: built.transaction,
-      });
+      // Step 1 ends here: plan resolved, summary shown, no wallet invocation.
+      // Step 2 (hold-approve) is an explicit, separate user action.
+      setPhase({ kind: "ready", plan, metadata: built.metadata, transaction: built.transaction });
+    } catch {
+      lockRef.current = false;
+      setPhase({ kind: "error", message: GENERIC_HOLD_ERROR });
+    }
+  }
+
+  async function approve(
+    transaction: Transaction,
+    plan: Plan,
+    metadata: ProtectedTransferMetadata,
+  ) {
+    setPhase({ kind: "confirming", plan, metadata });
+    try {
+      const walletResult = await dAppKit.signAndExecuteTransaction({ transaction });
       const digest = extractSuccessfulDigest(walletResult);
       if (!digest) {
         setPhase({ kind: "unknown" });
         return;
       }
-      setPhase({ kind: "submitted", digest });
+      setPhase({ kind: "submitted", plan, metadata, digest });
+      void verifyCreated(plan, metadata, digest);
     } catch (error) {
       if (isTypedWalletRejection(error)) {
         lockRef.current = false;
-        setPhase({ kind: "idle" });
+        setPhase({ kind: "ready", plan, metadata, transaction });
         return;
       }
-      if (signingBegan) {
-        setPhase({ kind: "unknown" });
-        return;
-      }
-      lockRef.current = false;
-      setPhase({ kind: "error", message: GENERIC_HOLD_ERROR });
+      // Any non-rejection failure after signing began is treated as unknown —
+      // the wallet may have broadcast without returning a digest we can prove.
+      setPhase({ kind: "unknown" });
+    }
+  }
+
+  async function verifyCreated(
+    plan: Plan,
+    metadata: ProtectedTransferMetadata,
+    digest: string,
+  ) {
+    const seq = ++verifySeq.current;
+    const expectation: ProtectedTransferCreatedVerifyRequest = {
+      digest,
+      payerAddress: metadata.sender,
+      beneficiaryAddress: metadata.beneficiary,
+      amountMicro: metadata.amountMicro,
+      deadlineMs: metadata.deadlineMs,
+      evidenceCommitmentHex: metadata.commitmentHex,
+    };
+    try {
+      const result = await requestProtectedTransferCreatedVerification({
+        request: expectation,
+      });
+      if (verifySeq.current !== seq) return;
+      if (result.response.kind !== "verified") return;
+      const receipt = buildProtectedTransferCreatedReceipt({
+        verification: result.response as VerifiedProtectedTransferCreatedResponse,
+        plan,
+        metadata,
+      });
+      const receiptPayload = encodeProtectedTransferCreatedReceiptPayload(receipt);
+      setPhase({ kind: "verified", plan, metadata, digest, receipt, receiptPayload });
+    } catch {
+      // A failed independent check never downgrades the submitted hold state.
+      // The hold remains pending confirmation; the customer can reopen it later.
     }
   }
 
@@ -143,11 +232,24 @@ export function useFamilyReviewSubmit({
         ? "Confirm in your wallet"
         : phase.kind === "submitted"
           ? "Hold submitted — confirmation pending"
-          : phase.kind === "unknown"
-            ? "Outcome unknown — check wallet and explorer"
-            : "Hold for family review";
+          : phase.kind === "verified"
+            ? "Held for family review"
+            : phase.kind === "unknown"
+              ? "Outcome unknown — check wallet and explorer"
+              : "Hold for family review";
 
-  return { phase, busy, locked, submit, primaryLabel };
+  return {
+    phase,
+    busy,
+    locked,
+    holdApproveDisabled,
+    submit,
+    approveFromReady: () => {
+      if (phase.kind !== "ready") return;
+      void approve(phase.transaction, phase.plan, phase.metadata);
+    },
+    primaryLabel,
+  };
 }
 
 export function FamilyReviewStatus({ phase }: { phase: HoldPhase }) {
@@ -177,6 +279,23 @@ export function FamilyReviewStatus({ phase }: { phase: HoldPhase }) {
         >
           View on Sui Explorer
         </a>
+      </div>
+    );
+  }
+  if (phase.kind === "verified") {
+    const href = `/proof?${PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM}=${phase.receiptPayload}`;
+    return (
+      <div className="mb-2 space-y-1" data-testid="family-review-status">
+        <p className="text-[11px] leading-relaxed text-neutral-700" aria-live="polite">
+          Held for {phase.plan.reviewerName ?? "family"}’s review
+        </p>
+        <Link
+          href={href}
+          data-testid="family-review-open-receipt"
+          className="inline-flex min-h-11 items-center text-[11px] font-medium text-black underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+        >
+          Open receipt
+        </Link>
       </div>
     );
   }

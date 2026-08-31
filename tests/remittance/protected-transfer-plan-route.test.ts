@@ -69,6 +69,7 @@ beforeEach(() => {
   vi.stubEnv("REMITTANCE_GONKA_MANIFEST_JSON", "");
   vi.stubEnv("PROTECTED_TRANSFER_PACKAGE_ID", PACKAGE);
   vi.stubEnv("PROTECTED_TRANSFER_REVIEWER_ADDRESS", REVIEWER);
+  vi.stubEnv("PROTECTED_TRANSFER_REVIEWER_NAME", "Convey Review Desk");
   __setGonkaRemittanceRouterFactoryForTest(null);
 });
 
@@ -122,6 +123,7 @@ describe("POST /api/remittance/protected-transfer/plan", () => {
       },
       packageId: normalizeSuiAddress("0x44"),
       reviewerAddress: normalizeSuiAddress("0x33"),
+      reviewerName: "Convey Review Desk",
       deadlineMs: NOW + PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS.tomorrow,
       reviewNote: "School supplies",
     };

@@ -11,9 +11,23 @@ import {
   type RemittanceReceiptResult,
   type VerifiedRemittanceReceipt,
 } from "@/lib/remittance/receipt-proof";
+import {
+  type ProtectedTransferCreatedReceiptResult,
+  type VerifiedProtectedTransferCreatedReceipt,
+} from "@/lib/remittance/protected-transfer-created-receipt";
 import { formatMyrGrouped } from "@/lib/remittance/money";
 import type { QuoteEnvelope } from "@/lib/remittance/quote-schema";
 import type { SettlementCheckState } from "./remittance-settlement-status";
+
+export type CreatedCheckState =
+  | { status: "checking" }
+  | { status: "verified" }
+  | { status: "not_found" }
+  | { status: "unavailable" }
+  | { status: "rejected" }
+  | { status: "error" };
+
+export const CHECKING_CREATED: CreatedCheckState = { status: "checking" };
 
 // Shared state model — defined here so the orchestrator (proof-verifier.tsx)
 // can import it without a circular dependency. One authoritative state model:
@@ -33,6 +47,11 @@ export type EvidenceView =
       result: RemittanceReceiptResult;
       quoteVerify: QuoteVerifyStatus;
       settlementVerify: SettlementCheckState;
+    }
+  | {
+      kind: "protected-transfer-created";
+      result: ProtectedTransferCreatedReceiptResult;
+      createdVerify: CreatedCheckState;
     }
   | {
       kind: "remittance-unsettled";
@@ -103,6 +122,12 @@ export function ProofAdvancedDetails({
             result={view.result}
             quoteVerify={view.quoteVerify}
             settlementVerify={view.settlementVerify}
+          />
+        ) : null}
+        {view.kind === "protected-transfer-created" && view.result.ok ? (
+          <ProtectedTransferCreatedTechnical
+            result={view.result}
+            createdVerify={view.createdVerify}
           />
         ) : null}
       </div>
@@ -324,5 +349,84 @@ function ClaimBox({ children }: { children: React.ReactNode }) {
     <p className="rounded-lg border border-black/10 bg-neutral-50 px-3 py-2.5 text-xs leading-5 text-neutral-600">
       {children}
     </p>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Protected Transfer Created technical — canonical escrow fields, the strict
+// plan binding, the independent Created-event check, and an honest claim that
+// never reaches beyond the Created event into release/refund/payout.
+// ---------------------------------------------------------------------------
+
+function createdCheckLabel(state: CreatedCheckState): string {
+  switch (state.status) {
+    case "verified":
+      return "Created event matched on Sui testnet";
+    case "not_found":
+      return "Transaction not found on Sui testnet";
+    case "unavailable":
+      return "Independent check unavailable";
+    case "rejected":
+      return "Created event did not match";
+    case "error":
+      return "Independent check failed";
+    case "checking":
+    default:
+      return "Re-checking Created event…";
+  }
+}
+
+function ProtectedTransferCreatedTechnical({
+  result,
+  createdVerify,
+}: {
+  result: VerifiedProtectedTransferCreatedReceipt;
+  createdVerify: CreatedCheckState;
+}) {
+  const doc = result.document;
+  const transfer = doc.transfer;
+  return (
+    <div data-testid="protected-transfer-created-technical" className="space-y-4">
+      <SectionLabel>Canonical fields</SectionLabel>
+      <dl className="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs">
+        <dt className="text-neutral-500">Network</dt>
+        <dd className="font-mono text-black">{doc.created.network}</dd>
+        <dt className="text-neutral-500">Escrow object</dt>
+        <dd className="break-all font-mono text-black">{transfer.escrowObjectId}</dd>
+        <dt className="text-neutral-500">Payer address</dt>
+        <dd className="break-all font-mono text-black">{transfer.payerAddress}</dd>
+        <dt className="text-neutral-500">Beneficiary address</dt>
+        <dd className="break-all font-mono text-black">{transfer.beneficiaryAddress}</dd>
+        <dt className="text-neutral-500">Reviewer</dt>
+        <dd className="break-all font-mono text-black">
+          {transfer.reviewerName} · {transfer.reviewerAddress}
+        </dd>
+        <dt className="text-neutral-500">Package</dt>
+        <dd className="break-all font-mono text-black">{transfer.packageId}</dd>
+        <dt className="text-neutral-500">Coin type</dt>
+        <dd className="break-all font-mono text-black">{transfer.coinType}</dd>
+        <dt className="text-neutral-500">USDC micro</dt>
+        <dd className="font-mono text-black">{transfer.amountMicro}</dd>
+        <dt className="text-neutral-500">Deadline</dt>
+        <dd className="font-mono text-black">{new Date(transfer.deadlineMs).toISOString()}</dd>
+        <dt className="text-neutral-500">Evidence commitment</dt>
+        <dd className="break-all font-mono text-black">{transfer.evidenceCommitmentHex}</dd>
+        <dt className="text-neutral-500">Review note</dt>
+        <dd className="text-black">{transfer.reviewNote}</dd>
+        <dt className="text-neutral-500">Digest mark</dt>
+        <dd className="break-all font-mono text-black">{transfer.digest}</dd>
+        <dt className="text-neutral-500">Explorer URL</dt>
+        <dd className="break-all font-mono text-black">{transfer.explorerUrl}</dd>
+        <dt className="text-neutral-500">Created checked at</dt>
+        <dd className="font-mono text-black">{transfer.createdCheckedAt}</dd>
+        <dt className="text-neutral-500">Exported at</dt>
+        <dd className="font-mono text-black">{doc.exportedAt}</dd>
+      </dl>
+
+      <SectionLabel>Independent Created-event check</SectionLabel>
+      <p className="text-xs text-black">{createdCheckLabel(createdVerify)}</p>
+
+      <ClaimBox>{result.claim}</ClaimBox>
+    </div>
   );
 }

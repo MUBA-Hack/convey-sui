@@ -188,6 +188,7 @@ describe("remittance receipt proof — malformed and oversized payloads", () => 
 
   it("sniffs receipt, quote, commerce, and unknown kinds without inferring success", () => {
     expect(sniffProofKind(JSON.stringify(receipt()))).toBe("remittance-receipt");
+    expect(sniffProofKind(JSON.stringify({ kind: "convey.protected-transfer-created-receipt" }))).toBe("protected-transfer-created-receipt");
     expect(sniffProofKind(JSON.stringify({ kind: "convey.remittance-quote", version: 1, quote: {} }))).toBe("remittance-quote");
     expect(sniffProofKind(JSON.stringify({ mode: "demo", digest: "x" }))).toBe("commerce");
     expect(sniffProofKind("garbage")).toBe("unknown");

@@ -49,47 +49,53 @@ export function FamilyReviewSelection({
   }, [showNote, noteError]);
 
   return (
-    <div className="mb-3 space-y-3">
-      <fieldset className="space-y-2">
-        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500">
-          How to send
-        </legend>
-        <label
-          className={`flex min-h-11 items-center gap-2.5 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+    <div className="mb-2 space-y-2">
+      <fieldset>
+        <legend className="sr-only">How to send</legend>
+        <div
+          className={`flex h-11 w-full overflow-hidden rounded-lg border border-black/12 ${disabled ? "opacity-60" : ""}`}
         >
-          <input
-            type="radio"
-            name={pathName}
-            data-testid="send-path-direct"
-            className="size-4 accent-black"
-            checked={path === "direct"}
-            disabled={disabled}
-            onChange={() => {
-              setNoteOpen(false);
-              onPathChange("direct");
-            }}
-          />
-          <span className="text-sm text-black">Send directly</span>
-        </label>
-        <label
-          className={`flex min-h-11 items-center gap-2.5 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
-        >
-          <input
-            type="radio"
-            name={pathName}
-            data-testid="send-path-hold"
-            className="size-4 accent-black"
-            checked={path === "hold"}
-            disabled={disabled}
-            onChange={() => onPathChange("hold")}
-          />
-          <span className="text-sm text-black">Hold for family review</span>
-        </label>
+          <label
+            className={`relative flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center px-2 text-center text-xs font-medium transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-black ${
+              path === "direct" ? "bg-black text-white" : "bg-white text-neutral-700"
+            } ${disabled ? "cursor-not-allowed" : ""}`}
+          >
+            <input
+              type="radio"
+              name={pathName}
+              data-testid="send-path-direct"
+              className="sr-only"
+              checked={path === "direct"}
+              disabled={disabled}
+              onChange={() => {
+                setNoteOpen(false);
+                onPathChange("direct");
+              }}
+            />
+            <span className="whitespace-nowrap">Send directly</span>
+          </label>
+          <label
+            className={`relative flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center border-l border-black/12 px-2 text-center text-xs font-medium transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-black ${
+              path === "hold" ? "bg-black text-white" : "bg-white text-neutral-700"
+            } ${disabled ? "cursor-not-allowed" : ""}`}
+          >
+            <input
+              type="radio"
+              name={pathName}
+              data-testid="send-path-hold"
+              className="sr-only"
+              checked={path === "hold"}
+              disabled={disabled}
+              onChange={() => onPathChange("hold")}
+            />
+            <span className="whitespace-nowrap">Hold for family review</span>
+          </label>
+        </div>
       </fieldset>
 
       {path === "hold" && (
-        <div className="space-y-3">
-          <p className="text-[11px] leading-relaxed text-neutral-600">
+        <div className="space-y-2">
+          <p className="text-[11px] leading-snug text-neutral-600">
             The transfer waits for someone in your family to check it. If they
             don’t, you can take it back after the deadline.
           </p>
@@ -98,7 +104,7 @@ export function FamilyReviewSelection({
             disabled={disabled}
             className="min-w-0"
           >
-            <legend className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500">
+            <legend className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
               Hold until
             </legend>
             <div className="flex h-11 w-full overflow-hidden rounded-lg border border-black/12">
@@ -110,10 +116,8 @@ export function FamilyReviewSelection({
                   <label
                     key={preset}
                     data-testid={`family-review-deadline-${preset}`}
-                    className={`flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center border-r border-black/12 text-xs font-medium last:border-r-0 ${
-                      selected
-                        ? "bg-black text-white"
-                        : "bg-white text-neutral-700"
+                    className={`relative flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center border-r border-black/12 text-xs font-medium last:border-r-0 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-[-2px] has-[:focus-visible]:outline-black ${
+                      selected ? "bg-black text-white" : "bg-white text-neutral-700"
                     } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >
                     <input
@@ -131,12 +135,17 @@ export function FamilyReviewSelection({
           </fieldset>
           {showNote ? (
             <div className="space-y-1">
-              <label
-                htmlFor={noteId}
-                className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
-              >
-                What should they check?
-              </label>
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor={noteId}
+                  className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500"
+                >
+                  What should they check?
+                </label>
+                <span className="font-mono text-[10px] tabular-nums text-neutral-400">
+                  {noteCount}/{PROTECTED_TRANSFER_REVIEW_NOTE_MAX_CODE_POINTS}
+                </span>
+              </div>
               <textarea
                 id={noteId}
                 ref={noteRef}
@@ -144,12 +153,9 @@ export function FamilyReviewSelection({
                 disabled={disabled}
                 value={note}
                 onChange={(e) => onNoteChange(e.target.value)}
-                rows={2}
+                rows={1}
                 className="min-h-11 w-full resize-none rounded-lg border border-black/12 bg-white px-3 py-2 text-sm text-black outline-none focus-visible:ring-2 focus-visible:ring-black/40"
               />
-              <p className="text-[11px] text-neutral-500">
-                {noteCount}/{PROTECTED_TRANSFER_REVIEW_NOTE_MAX_CODE_POINTS}
-              </p>
               {noteError && (
                 <p
                   data-testid="family-review-note-error"
@@ -165,7 +171,7 @@ export function FamilyReviewSelection({
               type="button"
               data-testid="family-review-add-note"
               disabled={disabled}
-              className="flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-black/12 bg-white px-3 text-left text-sm text-black outline-none hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-black/40 disabled:pointer-events-none disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-black/12 bg-white px-3 text-left text-sm text-black outline-none transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-black/40 disabled:pointer-events-none disabled:opacity-50"
               onClick={() => setNoteOpen(true)}
             >
               <span>+ Add a note</span>

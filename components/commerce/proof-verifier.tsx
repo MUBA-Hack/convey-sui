@@ -22,6 +22,12 @@ import {
   type RemittanceReceiptResult,
   type VerifiedRemittanceReceipt,
 } from "@/lib/remittance/receipt-proof";
+import {
+  decodeProtectedTransferCreatedReceiptPayload,
+  encodeProtectedTransferCreatedReceiptPayload,
+  PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM,
+  verifyProtectedTransferCreatedReceipt,
+} from "@/lib/remittance/protected-transfer-created-receipt";
 import { decodeHandoff } from "@/lib/remittance/offline-handoff";
 import {
   formatMyrGrouped,
@@ -32,8 +38,10 @@ import {
 import { RemittanceMoneySlab } from "@/components/remittance/remittance-money-slab";
 import { copyReceiptUrl, exportReceiptJson } from "@/lib/remittance/receipt-share";
 import {
+  CHECKING_CREATED,
   EMPTY_VIEW,
   ProofAdvancedDetails,
+  type CreatedCheckState,
   type EvidenceView,
   type QuoteVerifyStatus,
 } from "./proof-advanced-details";
@@ -43,6 +51,12 @@ import {
   RemittanceSettlementStatus,
   type SettlementCheckState,
 } from "./remittance-settlement-status";
+import { checkProtectedTransferCreatedReceipt } from "./protected-transfer-created-check";
+import {
+  ProtectedTransferCreatedReceipt,
+  protectedTransferCreatedPageCopy,
+} from "./protected-transfer-created-receipt";
+import { ProofRejectionCard } from "./proof-rejection-card";
 
 const CHECKING_SETTLEMENT: SettlementCheckState = { status: "checking" };
 
@@ -60,6 +74,9 @@ const DEFAULT_RECEIPT_PAGE_COPY: ReceiptPageCopy = {
 };
 
 function remittancePageCopy(view: EvidenceView): ReceiptPageCopy {
+  if (view.kind === "protected-transfer-created") {
+    return protectedTransferCreatedPageCopy(view.result, view.createdVerify);
+  }
   if (view.kind !== "remittance" || !view.result.ok) {
     return DEFAULT_RECEIPT_PAGE_COPY;
   }
@@ -121,15 +138,18 @@ export function ProofVerifier() {
   const [copied, setCopied] = useState(false);
   const [urlLoaded, setUrlLoaded] = useState(false);
   const [settlementRetry, setSettlementRetry] = useState(0);
+  const [createdRetry, setCreatedRetry] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const verifySeq = useRef(0);
   const settlementVerifySeq = useRef(0);
+  const createdVerifySeq = useRef(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const remittancePayload = params.get("r");
     const commercePayload = params.get("p");
-    if (!remittancePayload && !commercePayload) return;
+    const createdPayload = params.get(PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM);
+    if (!remittancePayload && !commercePayload && !createdPayload) return;
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
@@ -143,6 +163,16 @@ export function ProofVerifier() {
             result: verifyRemittanceReceipt(doc),
             quoteVerify: "checking",
             settlementVerify: CHECKING_SETTLEMENT,
+          });
+          setUrlLoaded(true);
+        } else if (createdPayload) {
+          const doc = decodeProtectedTransferCreatedReceiptPayload(createdPayload);
+          const json = JSON.stringify(doc, null, 2);
+          setRaw(json);
+          setView({
+            kind: "protected-transfer-created",
+            result: verifyProtectedTransferCreatedReceipt(doc),
+            createdVerify: CHECKING_CREATED,
           });
           setUrlLoaded(true);
         } else if (commercePayload) {
@@ -160,6 +190,12 @@ export function ProofVerifier() {
             result: { ok: false, errors: [message] },
             quoteVerify: "error",
             settlementVerify: CHECKING_SETTLEMENT,
+          });
+        } else if (createdPayload) {
+          setView({
+            kind: "protected-transfer-created",
+            result: { ok: false, errors: [message] },
+            createdVerify: { status: "error" },
           });
         } else {
           setView({
@@ -271,6 +307,40 @@ export function ProofVerifier() {
     };
   }, [activeReceipt, settlementRetry]);
 
+  const activeCreatedReceipt =
+    view.kind === "protected-transfer-created" && view.result.ok
+      ? view.result.document
+      : null;
+  useEffect(() => {
+    if (!activeCreatedReceipt) return;
+    const seq = ++createdVerifySeq.current;
+    const controller = new AbortController();
+    let active = true;
+    void (async () => {
+      let next: CreatedCheckState;
+      try {
+        next = await checkProtectedTransferCreatedReceipt(
+          activeCreatedReceipt,
+          controller.signal,
+        );
+      } catch {
+        return;
+      }
+      if (!active || createdVerifySeq.current !== seq) return;
+      setView((current) =>
+        current.kind === "protected-transfer-created" &&
+        current.result.ok &&
+        current.result.document === activeCreatedReceipt
+          ? { ...current, createdVerify: next }
+          : current,
+      );
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [activeCreatedReceipt, createdRetry]);
+
   const handleRawChange = (value: string) => {
     setRaw(value);
     setView(EMPTY_VIEW);
@@ -286,6 +356,14 @@ export function ProofVerifier() {
         result: verifyRemittanceReceipt(raw),
         quoteVerify: "checking",
         settlementVerify: CHECKING_SETTLEMENT,
+      });
+      return;
+    }
+    if (kind === "protected-transfer-created-receipt") {
+      setView({
+        kind: "protected-transfer-created",
+        result: verifyProtectedTransferCreatedReceipt(raw),
+        createdVerify: CHECKING_CREATED,
       });
       return;
     }
@@ -363,6 +441,27 @@ export function ProofVerifier() {
     exportReceiptJson(view.result.document, "convey-remittance-proof.json");
   };
 
+  const handleCreatedShare = async () => {
+    if (view.kind !== "protected-transfer-created" || !view.result.ok) return;
+    const payload = encodeProtectedTransferCreatedReceiptPayload(view.result.document);
+    const ok = await copyReceiptUrl(payload, PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM);
+    setCopied(ok);
+  };
+
+  const handleCreatedExport = () => {
+    if (view.kind !== "protected-transfer-created" || !view.result.ok) return;
+    exportReceiptJson(view.result.document, "convey-protected-transfer-created.json");
+  };
+
+  const handleRetryCreated = () => {
+    setView((current) =>
+      current.kind === "protected-transfer-created" && current.result.ok
+        ? { ...current, createdVerify: CHECKING_CREATED }
+        : current,
+    );
+    setCreatedRetry((value) => value + 1);
+  };
+
   const handleReviewDetails = () => {
     const trigger = document.querySelector<HTMLButtonElement>(
       '[data-testid="proof-advanced-trigger"]',
@@ -428,6 +527,17 @@ export function ProofVerifier() {
             onRetrySettlement={handleRetrySettlement}
             onReviewDetails={handleReviewDetails}
           />
+        ) : view.kind === "protected-transfer-created" ? (
+          <ProtectedTransferCreatedReceipt
+            result={view.result}
+            createdVerify={view.createdVerify}
+            urlLoaded={urlLoaded}
+            copied={copied}
+            onShare={handleCreatedShare}
+            onExport={handleCreatedExport}
+            onRetry={handleRetryCreated}
+            onReviewDetails={handleReviewDetails}
+          />
         ) : (
           <RemittanceUnsettled
             recipient={view.recipient}
@@ -482,7 +592,7 @@ function CommerceReceipt({
   onShare: () => void;
 }) {
   if (!result.ok) {
-    return <RejectionCard title="This receipt couldn't be verified." errors={result.errors} />;
+    return <ProofRejectionCard title="This receipt couldn't be verified." errors={result.errors} />;
   }
 
   const isDemo = result.kind === "demo_structure";
@@ -629,7 +739,7 @@ function RemittanceReceipt({
   onReviewDetails: () => void;
 }) {
   if (!result.ok) {
-    return <RejectionCard title="This remittance receipt couldn't be verified." errors={result.errors} />;
+    return <ProofRejectionCard title="This remittance receipt couldn't be verified." errors={result.errors} />;
   }
 
   const ok: VerifiedRemittanceReceipt = result;
@@ -776,29 +886,6 @@ function RemittanceReceipt({
           <ExportSquare size="13" variant="Linear" aria-hidden="true" />
         </a>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Rejection — the receipt could not be verified. Shown as the result; the
-// raw JSON stays available under Advanced details.
-// ---------------------------------------------------------------------------
-
-function RejectionCard({ title, errors }: { title: string; errors: string[] }) {
-  return (
-    <div role="alert" aria-live="assertive" className="rounded-2xl border border-black/15 bg-white p-6 sm:p-8">
-      <h2 className="text-2xl tracking-[-0.035em] text-black">{title}</h2>
-      <p className="mt-3 text-sm leading-6 text-neutral-600">
-        No proof claim is made because these checks failed:
-      </p>
-      <ul className="mt-5 space-y-2">
-        {errors.map((error) => (
-          <li key={error} className="rounded-lg border border-black/15 bg-neutral-50 px-3 py-2.5 font-mono text-xs leading-5 text-black">
-            {error}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

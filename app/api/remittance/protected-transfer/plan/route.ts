@@ -100,7 +100,7 @@ export async function POST(req: Request) {
   if (!configResult.ok) {
     return response(reject("not_configured"));
   }
-  const { packageId, reviewerAddress } = configResult.config;
+  const { packageId, reviewerAddress, reviewerName } = configResult.config;
 
   // Preset deadline. Deadline safety and window are owned by the shared parser.
   const duration = PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS[request.deadlinePreset];
@@ -113,6 +113,7 @@ export async function POST(req: Request) {
     authorization,
     packageId,
     reviewerAddress,
+    reviewerName,
     deadlineMs,
     reviewNote: request.reviewNote,
   };

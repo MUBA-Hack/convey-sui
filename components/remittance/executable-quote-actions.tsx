@@ -7,6 +7,7 @@ import { formatMyr, type QuoteEnvelope } from "@/lib/remittance/quote";
 import { titleCaseCity } from "@/lib/remittance/quote-form";
 import type { ProtectedTransferDeadlinePreset } from "@/lib/remittance/protected-transfer";
 import { FamilyReviewSelection, type SendPath } from "./family-review-path";
+import { FamilyReviewSummary } from "./family-review-summary";
 import {
   FamilyReviewStatus,
   useFamilyReviewSubmit,
@@ -128,20 +129,49 @@ function HoldPrimary({
     return () => onLockChange(false);
   }, [hold.locked, onLockChange]);
 
+  const phase = hold.phase;
+  const showSummary =
+    phase.kind === "ready" ||
+    phase.kind === "confirming" ||
+    phase.kind === "submitted" ||
+    phase.kind === "verified";
+  const showCompact =
+    phase.kind === "idle" ||
+    phase.kind === "planning" ||
+    phase.kind === "error" ||
+    phase.kind === "unknown";
+
   return (
     <>
       <FamilyReviewStatus phase={hold.phase} />
-      <button
-        type="button"
-        data-testid="review-transfer"
-        data-hit-target="true"
-        className="cv-btn-solid inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-        onClick={() => void hold.submit()}
-        disabled={hold.locked}
-        aria-busy={hold.busy}
-      >
-        {hold.primaryLabel}
-      </button>
+      {showSummary && (
+        <FamilyReviewSummary plan={phase.plan} metadata={phase.metadata} />
+      )}
+      {showCompact ? (
+        <button
+          type="button"
+          data-testid="hold-prepare"
+          data-hit-target="true"
+          className="cv-btn-solid inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+          onClick={() => void hold.submit()}
+          disabled={hold.locked}
+          aria-busy={hold.busy}
+        >
+          {phase.kind === "planning" ? "Preparing hold…" : "Hold for family review"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          data-testid="hold-approve"
+          data-hit-target="true"
+          className="cv-btn-solid inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
+          onClick={() => hold.approveFromReady()}
+          disabled={hold.holdApproveDisabled}
+          aria-busy={hold.busy}
+        >
+          {hold.primaryLabel}
+        </button>
+      )}
       <QuoteSecondaryRow
         editable={editable}
         onEdit={onEdit}

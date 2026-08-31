@@ -1,19 +1,17 @@
 /**
  * Server-only Protected Transfer configuration resolver.
  *
- * Resolves the two public on-chain coordinates the server authors into a
- * Protected Transfer execution plan: a configured/candidate package object ID
- * that would expose `protected_transfer::create_escrow<T>` and the canonical
- * reviewer/arbiter address. Both are server-authored inputs — the plan endpoint
- * never accepts them from a client request. The package ID is a configured
- * candidate only; this resolver does not verify that the package exists, is
- * deployed, is immutable, or has any on-chain state.
+ * Resolves server-authored Protected Transfer trust roots: a configured package
+ * object ID, canonical reviewer address, and bounded reviewer display name.
+ * The plan endpoint never accepts them from a client request. The package ID is
+ * a configured candidate only; this resolver does not verify deployment until
+ * an independent event verifier observes an exact event from that package.
  *
  * Imports `server-only` so any accidental client import fails the build. It
  * never reads a `NEXT_PUBLIC_` variable, never adds defaults or placeholders,
  * never makes an RPC call, and never claims the package exists, is deployed, or
- * is immutable. Missing, blank, malformed, zero-address, or equal
- * package/reviewer values fail closed as `not_configured`.
+ * is immutable. Missing, blank, malformed, zero-address, equal package/reviewer,
+ * or invalid reviewer-name values fail closed as `not_configured`.
  */
 
 import "server-only";
@@ -27,6 +25,7 @@ export interface ProtectedTransferConfig {
   packageId: string;
   /** Canonical reviewer/arbiter address for the escrow. */
   reviewerAddress: string;
+  reviewerName: string;
 }
 
 export type ProtectedTransferConfigResult =
@@ -34,23 +33,36 @@ export type ProtectedTransferConfigResult =
   | { ok: false; reason: "not_configured" };
 
 /**
- * Resolve and canonicalize the Protected Transfer package ID and reviewer
- * address from the server environment. Returns a discriminated result; any
+ * Resolve the Protected Transfer package ID, reviewer address, and reviewer
+ * name from the server environment. Returns a discriminated result; any
  * validation failure returns `{ ok: false, reason: "not_configured" }`.
  *
  * No secret, raw env value, or implementation detail escapes this function —
- * only canonical addresses on success or a single safe reason on failure.
+ * only canonical addresses plus bounded reviewer metadata on success, or a
+ * single safe reason on failure.
  */
 export function resolveProtectedTransferConfig(
   env: NodeJS.ProcessEnv,
 ): ProtectedTransferConfigResult {
   const rawPackage = env.PROTECTED_TRANSFER_PACKAGE_ID;
   const rawReviewer = env.PROTECTED_TRANSFER_REVIEWER_ADDRESS;
+  const rawReviewerName = env.PROTECTED_TRANSFER_REVIEWER_NAME;
 
   if (typeof rawPackage !== "string" || rawPackage.trim().length === 0) {
     return { ok: false, reason: "not_configured" };
   }
   if (typeof rawReviewer !== "string" || rawReviewer.trim().length === 0) {
+    return { ok: false, reason: "not_configured" };
+  }
+  if (typeof rawReviewerName !== "string") {
+    return { ok: false, reason: "not_configured" };
+  }
+  const reviewerName = rawReviewerName.trim();
+  if (
+    reviewerName.length === 0 ||
+    Array.from(reviewerName).length > 80 ||
+    /[\u0000-\u001f\u007f-\u009f]/u.test(reviewerName)
+  ) {
     return { ok: false, reason: "not_configured" };
   }
 
@@ -74,5 +86,5 @@ export function resolveProtectedTransferConfig(
     return { ok: false, reason: "not_configured" };
   }
 
-  return { ok: true, config: { packageId, reviewerAddress } };
+  return { ok: true, config: { packageId, reviewerAddress, reviewerName } };
 }

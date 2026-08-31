@@ -80,6 +80,7 @@ export interface ProtectedTransferExecutionPlan {
   packageId: string;
   /** Canonical reviewer/arbiter address for the escrow. */
   reviewerAddress: string;
+  reviewerName?: string;
   /** Escrow deadline in milliseconds since the Unix epoch. */
   deadlineMs: number;
   /** Free-form review note. Trimmed; control characters rejected. */
@@ -98,6 +99,13 @@ export const ProtectedTransferExecutionPlanSchema = z.strictObject({
   authorization: CanonicalAuthorizationSchema,
   packageId: PlanSuiAddressString,
   reviewerAddress: PlanSuiAddressString,
+  reviewerName: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((value) => Array.from(value).length <= 80)
+    .refine((value) => !/[\u0000-\u001f\u007f-\u009f]/u.test(value))
+    .optional(),
   deadlineMs: z.number().int().finite().safe(),
   // Structural bound only; semantic trim/empty/control-char validation stays
   // in `validateReviewNote` so the fail-closed empty boundary is preserved.
@@ -413,6 +421,7 @@ export function parseProtectedTransferExecutionPlan(
     authorization: { ...auth, recipientAddress: canonicalBeneficiary },
     packageId: canonicalPackage,
     reviewerAddress: canonicalReviewer,
+    ...(plan.reviewerName === undefined ? {} : { reviewerName: plan.reviewerName }),
     deadlineMs: plan.deadlineMs,
     reviewNote: normalizedNote,
   };

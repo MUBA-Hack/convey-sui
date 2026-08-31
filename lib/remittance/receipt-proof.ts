@@ -371,7 +371,12 @@ export function decodeRemittanceReceiptPayload(
  * verifier UI to route legacy commerce proof vs remittance receipt vs an
  * unconfirmed remittance quote handoff. Never turns an unknown into a success.
  */
-export type ProofKind = "remittance-receipt" | "remittance-quote" | "commerce" | "unknown";
+export type ProofKind =
+  | "protected-transfer-created-receipt"
+  | "remittance-receipt"
+  | "remittance-quote"
+  | "commerce"
+  | "unknown";
 
 export function sniffProofKind(raw: unknown): ProofKind {
   if (typeof raw !== "string" || raw.length === 0 || raw.length > REMITTANCE_RECEIPT_MAX_BYTES) {
@@ -387,6 +392,9 @@ export function sniffProofKind(raw: unknown): ProofKind {
     return "unknown";
   }
   const o = parsed as Record<string, unknown>;
+  if (o.kind === "convey.protected-transfer-created-receipt") {
+    return "protected-transfer-created-receipt";
+  }
   if (o.kind === REMITTANCE_RECEIPT_KIND) return "remittance-receipt";
   if (o.kind === "convey.remittance-quote") return "remittance-quote";
   // Legacy commerce proof has no `kind` field; it carries `mode` + `digest`.

@@ -66,7 +66,22 @@ vi.mock("@/lib/remittance/protected-transfer", async (importOriginal) => {
       actual.parseProtectedTransferExecutionPlan(input.plan, input.nowMs);
       return {
         transaction: { __protected: true },
-        metadata: { commitmentHex: "0x00" },
+        metadata: {
+          schemaVersion: "1",
+          packageId: PACKAGE,
+          module: "protected_transfer",
+          function: "create_escrow",
+          clockId: "0x6",
+          coinType: USDC_COIN_TYPE_TESTNET,
+          sender: ACCOUNT,
+          beneficiary: ADDR,
+          reviewer: REVIEWER,
+          amountMicro: "109000000",
+          deadlineMs: input.plan.deadlineMs,
+          reviewNote: input.plan.reviewNote,
+          commitmentHex: "0x" + "aa".repeat(32),
+          commitmentBytes: Array(32).fill(0xaa),
+        },
       };
     }),
   };
@@ -122,6 +137,8 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
   };
 }
 
+const REVIEWER_NAME = "Convey Review";
+
 function planResponse() {
   return {
     kind: "protected_transfer_execution_plan" as const,
@@ -148,6 +165,7 @@ function planResponse() {
     },
     packageId: PACKAGE,
     reviewerAddress: REVIEWER,
+    reviewerName: REVIEWER_NAME,
     deadlineMs: NOW + PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS.tomorrow,
     reviewNote: "Hold until Ana confirms",
   };
@@ -218,7 +236,7 @@ describe("family review path on executable quote review", () => {
     expect(addNote).toHaveTextContent("+ Add a note");
     expect(addNote.tagName).toBe("BUTTON");
     expect(addNote).toHaveClass("h-11", "w-full");
-    expect(screen.getByTestId("review-transfer")).toBeInTheDocument();
+    expect(screen.getByTestId("hold-prepare")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("family-review-add-note"));
     expect(screen.getByTestId("family-review-note")).toBeInTheDocument();
@@ -230,7 +248,7 @@ describe("family review path on executable quote review", () => {
     renderActions();
     fireEvent.click(screen.getByTestId("send-path-hold"));
     expect(screen.getByTestId("family-review-deadline")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("family-review-note")).toBeInTheDocument();
     expect(screen.getByTestId("family-review-note-error")).toHaveTextContent(
@@ -240,7 +258,7 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "a".repeat(121) },
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -255,7 +273,7 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "Hold until Ana confirms" },
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
@@ -278,7 +296,7 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "Hold until Ana confirms" },
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
     await waitFor(() => {
       expect(screen.getByTestId("family-review-error")).toHaveTextContent(
         "Family review isn't available right now. Send directly to continue.",
@@ -314,7 +332,7 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "Hold until Ana confirms" },
     });
-    const primary = screen.getByTestId("review-transfer");
+    const primary = screen.getByTestId("hold-prepare");
     fireEvent.click(primary);
     fireEvent.click(primary);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -324,9 +342,13 @@ describe("family review path on executable quote review", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("review-transfer")).toHaveTextContent(/Confirm in your wallet/i);
+      expect(screen.getByTestId("family-review-summary")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-approve"));
+    fireEvent.click(screen.getByTestId("hold-approve"));
+    await waitFor(() => {
+      expect(screen.getByTestId("hold-approve")).toHaveTextContent(/Confirm in your wallet/i);
+    });
     expect(wallet.signAndExecuteTransaction).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/Created|Released|Refunded|family payout/i)).not.toBeInTheDocument();
 
@@ -336,8 +358,8 @@ describe("family review path on executable quote review", () => {
     expect(screen.getByTestId("family-review-note")).toBeDisabled();
     expect(screen.getByTestId("edit-transfer")).toBeDisabled();
     expect(screen.getByTestId("carry-to-device")).toBeDisabled();
-    expect(screen.getByTestId("review-transfer")).toBeDisabled();
-    expect(screen.getByTestId("review-transfer")).toHaveTextContent(/Confirm in your wallet/i);
+    expect(screen.getByTestId("hold-approve")).toBeDisabled();
+    expect(screen.getByTestId("hold-approve")).toHaveTextContent(/Confirm in your wallet/i);
   });
 
   it("re-enables Send directly after a pre-sign rejection", async () => {
@@ -350,7 +372,7 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "Hold until Ana confirms" },
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
     await waitFor(() => {
       expect(screen.getByTestId("family-review-error")).toBeInTheDocument();
     });
@@ -377,7 +399,13 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "Hold until Ana confirms" },
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
+    await waitFor(() => {
+      expect(screen.getByTestId("family-review-summary")).toBeInTheDocument();
+    });
+    // Step 1 (hold-prepare) resolves the plan only; wallet is never invoked yet.
+    expect(wallet.signAndExecuteTransaction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("hold-approve"));
 
     await waitFor(() => {
       expect(screen.getByTestId("family-review-status")).toHaveTextContent(
@@ -404,7 +432,11 @@ describe("family review path on executable quote review", () => {
     fireEvent.change(screen.getByTestId("family-review-note"), {
       target: { value: "Hold until Ana confirms" },
     });
-    fireEvent.click(screen.getByTestId("review-transfer"));
+    fireEvent.click(screen.getByTestId("hold-prepare"));
+    await waitFor(() => {
+      expect(screen.getByTestId("family-review-summary")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("hold-approve"));
 
     await waitFor(() => {
       expect(screen.getByTestId("family-review-status")).toHaveTextContent(
@@ -413,7 +445,35 @@ describe("family review path on executable quote review", () => {
     });
     expect(screen.queryByTestId("family-review-explorer")).not.toBeInTheDocument();
     expect(screen.queryByText("View on Sui Explorer")).not.toBeInTheDocument();
-    expect(screen.getByTestId("review-transfer")).toBeDisabled();
+    // Single compact CTA in unknown phase; locked, no second hold action.
+    expect(screen.getByTestId("hold-prepare")).toBeDisabled();
+    expect(screen.queryByTestId("hold-approve")).not.toBeInTheDocument();
+  });
+
+  it("keeps hold idle to a single Hold for family review CTA and never signs on prepare", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(planResponse()), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+    renderActions();
+    fireEvent.click(screen.getByTestId("send-path-hold"));
+    // Idle: exactly one primary hold CTA, no wallet/approve action yet.
+    expect(screen.getByTestId("hold-prepare")).toHaveTextContent("Hold for family review");
+    expect(screen.queryByTestId("hold-approve")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("review-transfer")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("family-review-add-note"));
+    fireEvent.change(screen.getByTestId("family-review-note"), {
+      target: { value: "Hold until Ana confirms" },
+    });
+    fireEvent.click(screen.getByTestId("hold-prepare"));
+    await waitFor(() => {
+      expect(screen.getByTestId("family-review-summary")).toBeInTheDocument();
+    });
+    // Step 1 resolves the plan only; the wallet is never invoked by prepare.
+    expect(wallet.signAndExecuteTransaction).not.toHaveBeenCalled();
+    // Step 2 is now the only remaining action.
+    expect(screen.getByTestId("hold-approve")).toBeInTheDocument();
+    expect(screen.queryByTestId("hold-prepare")).not.toBeInTheDocument();
   });
 });
 
