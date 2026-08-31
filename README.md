@@ -8,6 +8,10 @@
 
 <p align="center"><strong>Say it. Carry it across. Settle on Sui.</strong></p>
 
+<p align="center">
+  <a href="https://convey-sui.fly.dev"><strong>Open the live app</strong></a>
+</p>
+
 Convey turns one plain-language request into one understandable family transfer.
 Say `Send RM500 to Ana in Manila for rent, maximum RM600`; Convey resolves the
 recipient and corridor, shows the complete reference cost, checks the request
@@ -968,6 +972,11 @@ submission. No real transaction was submitted or captured in this work because
 the official live order index is currently unavailable.
 
 ### Deployment and runtime boundaries
+
+The current production build is deployed on Fly.io at
+[convey-sui.fly.dev](https://convey-sui.fly.dev). The deployment uses the
+tracked `Dockerfile` and `fly.toml`; server credentials remain in Fly's
+encrypted secret store and are not embedded in the image or repository.
 
 ```mermaid
 flowchart TB
