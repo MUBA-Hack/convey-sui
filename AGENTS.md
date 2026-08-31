@@ -6,6 +6,27 @@ review, and evidence rules for parallel agents. It does not relax or override a
 rule in `CLAUDE.md`. If the two files appear to conflict, stop, cite the exact
 clauses, and let the integration owner reconcile them before editing code.
 
+## Alignment with CLAUDE.md
+
+Use this precedence order when instructions differ:
+
+1. The current user request defines the goal and authorized scope.
+2. `CLAUDE.md` defines the product, technical constraints, commands, and route
+   map.
+3. `AGENTS.md` defines how agents coordinate, review, prove, and hand off work.
+
+`AGENTS.md` may make a `CLAUDE.md` rule more operational, but it may not weaken,
+reinterpret, or silently extend it. Keep the product contract, commands, hard
+technical rules, and repository map synchronized whenever `CLAUDE.md` changes.
+Do not copy the generated `nextjs-agent-rules` block here; agents must read it
+from `CLAUDE.md` and the installed Next.js documentation directly.
+
+Before starting a lane, name the applicable `CLAUDE.md` rules in the task packet.
+Before handoff, compare the changed behavior against both files. If a change
+makes either guide stale, update the human-owned prose in the same integration
+diff; never edit generated framework instructions merely to make the files look
+identical.
+
 ## Product contract
 
 Convey is a minimal black-and-white money app built around one coherent family
@@ -50,6 +71,11 @@ and production build before a commit.
 - A real remittance testnet transfer additionally requires a mapped recipient,
   valid quote attestation, pinned asset and corridor, a fresh quote, a connected
   testnet wallet, and explicit user approval.
+- The Protected Transfer plan endpoint accepts only a verified quote, deadline
+  preset, and review note. Package/reviewer coordinates come from server-only
+  config and fail closed. The response is unsigned channel provenance—not proof
+  of publication, deployment, immutability, or on-chain state—and Pay does not
+  consume it yet.
 - A demo or prepared transaction is not settlement. A carried transaction ID
   alone is not independent chain verification. Sui settlement is not fiat payout.
 - The remittance settlement verifier is server-only, fixed to Sui testnet, and
@@ -88,6 +114,12 @@ boundaries that workers commonly miss.
   settlement verification. It enforces the 16 KiB streamed body cap, at most one lookup,
   six-second abort, `no-store`, and a safe strict response union; it never signs
   or submits a transaction.
+- `app/api/remittance/protected-transfer/plan/` — bounded, no-store execution
+  plan issuance using the shared quote verifier and server-only candidate
+  package/reviewer coordinates; no signer, RPC, submission, or deployment proof.
+- `lib/http/` — the shared server-only bounded UTF-8 request reader. Keep raw
+  byte, declared-length, stream-error, and UTF-8 policy here instead of cloning
+  it into routes.
 - `lib/commerce/` — nearby-commerce intent, payment, offline envelope, and proof
   verification.
 - `lib/remittance/` — remittance intent, quotes, transfer constraints, receipt
@@ -177,6 +209,24 @@ GLM workers must check this list before returning work:
   desktop composition, or the reverse.
 - **Large-component growth:** appending more business logic to already large UI
   files instead of extracting a typed module and focused tests.
+- **Test-suite inflation:** adding dozens of route tests that duplicate parser,
+  verifier, or domain-policy suites. Endpoint tests should prove adapter behavior;
+  the module that owns a rule should own its exhaustive cases.
+- **Double validation:** parsing or validating the same value in a route, shared
+  verifier, and builder without a distinct trust-boundary reason. Choose one
+  authoritative policy owner and keep adapters thin.
+- **Comment-contract mismatch:** comments promise “every response,” “verified,”
+  “server-issued,” or “immutable” while exceptions, unsigned payloads, missing
+  deployment evidence, or unverified configuration make the statement false.
+- **Weak assertions:** using `toBeTruthy`, substring leak checks, or self-parsing
+  an output with the implementation's own schema instead of asserting exact
+  pinned values and a strict public response shape.
+- **Unsigned provenance drift:** treating a response returned by the server as a
+  durable attestation. Response-channel provenance is not a signature and does
+  not prove package deployment, package immutability, or later on-chain state.
+- **Adapter policy duplication:** re-testing every quote, amount, expiry, HMAC,
+  and recipient failure through each new endpoint instead of keeping one
+  representative propagation test and relying on the policy owner's suite.
 - **Spec expansion:** adding unrelated features, dependencies, routes, or visual
   systems because they are convenient.
 - **Weak error handling:** unbounded retries, no timeout, optimistic fallbacks at a
@@ -227,6 +277,14 @@ the critic compares full desktop and mobile flows—including transitions—agai
 the current product bar, then returns the single largest remaining gap. The
 builder/critic loop continues until the output passes; the integration owner
 still performs the final truth, simplification, secret, and repository checks.
+
+The critic must also ask four simplification questions:
+
+1. Which module is the single owner of each policy?
+2. Which tests repeat coverage already proved at that owner?
+3. Which validation or parsing pass can be removed without weakening a trust
+   boundary?
+4. Which comment or product claim is stronger than the observable evidence?
 
 ## Handoff format
 

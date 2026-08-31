@@ -61,7 +61,7 @@ a contract, or submit a trade.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, and Family Guardian pre-approval checks | Production pricing and independent recipient/payout-provider verification |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Tested single-milestone Protected Transfer Move package plus a pinned TypeScript transaction core | Testnet publication, server-issued execution plans, Pay integration, lifecycle receipts, and captured create/release/refund evidence |
+| Tested single-milestone Protected Transfer Move package, pinned TypeScript transaction core, and bounded server plan endpoint | Testnet publication/configuration, Pay integration, lifecycle receipts, and captured create/release/refund evidence |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
@@ -146,16 +146,22 @@ the shared object so it cannot be acted on twice.
 The accompanying client-safe TypeScript core validates a strict atomic
 execution plan, pins testnet USDC, the Move module/function, and the standard
 Sui Clock, derives a deterministic 32-byte evidence commitment, and constructs
-the exact `create_escrow` transaction. The Move and TypeScript suites cover
-authority, deadline boundaries, terminal behavior, event payloads, canonical
-binding, input bounds, and transaction structure.
+the exact `create_escrow` transaction. A server-only plan endpoint accepts only
+an attested quote, one of three deadline presets, and a review note; it reuses
+the shared quote verifier, resolves candidate package/reviewer coordinates from
+server-only configuration, applies a 16 KiB streamed request cap, and returns a
+strict `no-store` response. The Move and TypeScript suites cover authority,
+deadline boundaries, terminal behavior, event payloads, canonical binding,
+transport and input bounds, and transaction structure.
 
 This is source-level implementation evidence, not a shipped payment option. The
-package has not yet been published from this repository, the Pay flow does not
-request a server-issued protected execution plan, and Receipts does not yet
-verify Created, Released, or Refunded events. The evidence commitment is
-immutable metadata on the escrow; it does not prove that the underlying claim
-is true. No screen should describe Protected Transfer as available until a real
+package has not yet been published from this repository, the plan endpoint is
+unconfigured by default, the Pay flow does not consume its unsigned response,
+and Receipts does not yet verify Created, Released, or Refunded events. The
+endpoint provides response-channel provenance only; it does not prove package
+publication, deployment, immutability, or on-chain state. The evidence
+commitment is immutable metadata on the escrow; it does not prove that the
+underlying claim is true. No screen should describe Protected Transfer as available until a real
 package ID, reviewer policy, wallet execution, and lifecycle evidence are
 configured and independently checked.
 
@@ -407,6 +413,7 @@ is therefore not a trade-complete options integration.
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional Gonka interpretation | Server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
 | `POST /api/remittance/settlement/verify` | Independently check one strict remittance receipt against Sui testnet | Fixed server-side testnet/RPC/USDC; 16 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact success/digest/recipient/amount match; strict safe response union; `no-store`; no signer, submission, client-selected endpoint, or payout authority |
+| `POST /api/remittance/protected-transfer/plan` | Issue a bounded Protected Transfer execution plan over a verified quote | Accepts only an attested quote, one of three deadline presets, and a review note; 16 KiB shared streamed body cap; server-only configured candidate package/reviewer; `no-store`; unsigned/unattested response-channel provenance; no RPC, signer, submission, or deployment proof; unconfigured by default |
 | `POST /api/strategy` | Strategy mapping plus read-only market snapshot | No approval, signature, or trade |
 
 ## Architecture
@@ -797,8 +804,8 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent read-only settlement verification, and a tested Protected Transfer Move/TypeScript core | Protected Transfer publication/lifecycle, a reproducible real USDC digest artifact, live FX, fiat funding, and payout integration remain unproven |
-| Sui AI x Sui | GonkaRouter remittance interpretation wired into Send abroad behind deterministic rebind/policy; commerce intent candidate path | Protected execution-plan API, advisory evidence review, Pay/lifecycle integration, and live Gonka + Sui evidence remain required |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent read-only settlement verification, and tested Protected Transfer Move/TypeScript/plan-endpoint cores | Protected Transfer publication/configuration/lifecycle, a reproducible real USDC digest artifact, live FX, fiat funding, and payout integration remain unproven |
+| Sui AI x Sui | GonkaRouter remittance interpretation wired into Send abroad behind deterministic rebind/policy; bounded protected-plan issuance from verified quotes; commerce intent candidate path | Advisory evidence review, Pay/lifecycle integration, and live Gonka + Sui evidence remain required |
 | Thetanuts Best Product Built on SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Read-only; no quote selection, approval, signing, or trade |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Mapping is deterministic, not model-routed, and no options trade is submitted |
 | Gonka AI for Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, visible provenance, and honest local fallback | A live key/request and captured multilingual remittance evidence remain required |
@@ -816,6 +823,7 @@ app/
   api/remittance/quote/route.ts reference quote + optional Gonka interpretation + attestation
   api/remittance/quote/verify/route.ts quote verification + authorization
   api/remittance/settlement/verify/route.ts read-only Sui settlement evidence
+  api/remittance/protected-transfer/plan/route.ts bounded Protected Transfer plan issuance
   api/strategy/route.ts        mapping + read-only market snapshot
   manifest.ts                  installable PWA manifest
 components/
@@ -828,6 +836,7 @@ components/
 lib/
   commerce/                    catalog, intent, Gonka resolver, payment, QR, proof
   gonka/                       shared structured-router core, commerce + remittance specs
+  http/                        shared server-only bounded UTF-8 request reader
   remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, offline handoff, settlement verification
     server-config.ts           server-only pricing, recipients, manifest and quote key
     attestation.server.ts      server-only HMAC signing and verification
@@ -835,6 +844,8 @@ lib/
     sui-settlement-verification.ts pure exact-match evaluator
     sui-settlement-verification.test.ts pure digest/asset/recipient/amount evaluator tests
     sui-settlement.server.ts   fixed-testnet read-only RPC adapter and timeout
+    protected-transfer.ts      pure client-safe plan schema, parser/normalizer, and create_escrow transaction builder
+    protected-transfer-config.server.ts server-only candidate package/reviewer resolver
   strategy/                    deterministic mapping, remittance context, read-only SDK adapter
   protocol/                    shared hashing utilities
 move/
@@ -847,9 +858,13 @@ public/
 tests/
   commerce/                    product, safety, scanner, handoff, proof, PWA and responsive tests
   gonka/                       adapter, schema, retry, and remittance-router tests
+  http/                        shared bounded UTF-8 request reader transport tests
+    read-bounded-utf8-body.server.test.ts byte cap, declared/actual equality, read/cancel, and UTF-8 tests
   remittance/                  quote API, resolver, handoff, settlement route/evaluator, and UI lifecycle tests
     settlement-verify-route.test.ts bounded route, one-read, timeout, and safe-response tests
     proof-verifier-remittance.test.ts strict UI binding, stale/retry, and action-gating tests
+    protected-transfer-plan-route.test.ts bounded plan route adapter propagation tests
+    protected-transfer-config.server.test.ts server-only config fail-closed table
   strategy/                    mapping, API, SDK, remittance-context and UI tests
 ```
 
@@ -859,10 +874,10 @@ tests/
   and record a reproducible live multilingual remittance run.
 - Capture a reproducible capped Sui testnet payment with a real explorer digest
   and preserve the independent verifier result as release evidence.
-- Publish the Protected Transfer package, bind package/reviewer/deadline/note in
-  one server-issued execution plan, connect it to Pay without changing the
-  direct-transfer path, and capture independently verified create plus terminal
-  lifecycle evidence.
+- Publish the Protected Transfer package, configure the existing bounded plan
+  endpoint with its package/reviewer coordinates, connect it to Pay without
+  changing the direct-transfer path, and capture independently verified create
+  plus terminal lifecycle evidence.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
 - Add a Base signer only behind a separate options confirmation flow, then

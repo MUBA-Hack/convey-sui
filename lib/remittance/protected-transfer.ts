@@ -15,13 +15,16 @@
  * PROVENANCE BOUNDARY (read before integrating):
  * This pure builder validates the STRUCTURE of a Protected Transfer execution
  * plan and the PINNED client constants (module/function/Clock/coin/cap/hash/
- * version). It CANNOT prove the plan's PROVENANCE. The plan is the future
- * server-verified unit: product code must only call `buildProtectedTransfer`
- * with a plan returned by the protected authorization API, never with a plan
- * assembled from loose caller inputs. This builder must never be exposed as a
+ * version). It CANNOT prove the plan's PROVENANCE. When the server plan
+ * endpoint is configured, product code must only call `buildProtectedTransfer`
+ * with a plan returned by that endpoint, never with a plan assembled from loose
+ * caller inputs. The endpoint's plan is response-channel provenance only —
+ * unsigned and unattested — and this builder cannot prove package deployment,
+ * immutability, or on-chain state. This builder must never be exposed as a
  * loose local feature toggle, and the plan must never be described as signed,
  * attested, verified, safe, deployed, or immutable on the strength of this
- * module alone — those are evidence claims owned by later layers.
+ * module or the plan endpoint alone — those are evidence claims owned by later
+ * layers.
  */
 
 import { Transaction } from "@mysten/sui/transactions";
@@ -34,6 +37,7 @@ import { z } from "zod";
 import { MAX_USDC_MICRO, USDC_COIN_TYPE_TESTNET, U64_MAX } from "./constants";
 import {
   CanonicalAuthorizationSchema,
+  VerifyRejectedSchema,
   type CanonicalAuthorization,
 } from "./quote-schema";
 import { blake2b256, toHex } from "../protocol/hash";
@@ -65,14 +69,14 @@ const PlanSuiAddressString = z
 /**
  * Atomic Protected Transfer execution plan — the single strict unit that binds a
  * verified direct authorization together with the protection terms (package,
- * reviewer, deadline, review note) it is executed against. The plan is the
- * future server-verified unit; this builder validates its structure and pinned
+ * reviewer, deadline, review note) it is executed against. The server plan
+ * endpoint authors this unit; this builder validates its structure and pinned
  * client constants only — see the PROVENANCE BOUNDARY at the top of this file.
  */
 export interface ProtectedTransferExecutionPlan {
   kind: "protected_transfer_execution_plan";
   authorization: CanonicalAuthorization;
-  /** Object ID of the published package exposing `protected_transfer`. */
+  /** Configured/candidate package object ID that would expose `protected_transfer`; existence/deployment is unverified. */
   packageId: string;
   /** Canonical reviewer/arbiter address for the escrow. */
   reviewerAddress: string;
@@ -101,12 +105,81 @@ export const ProtectedTransferExecutionPlanSchema = z.strictObject({
   reviewNote: z.string().max(500),
 });
 
+/**
+ * Server-issued deadline presets. The client may only name a preset; the
+ * server resolves the exact duration and computes `deadlineMs`. All three
+ * durations sit inside the core 1h–30d deadline window.
+ */
+export const PROTECTED_TRANSFER_DEADLINE_PRESETS = [
+  "tomorrow",
+  "three_days",
+  "seven_days",
+] as const;
+export type ProtectedTransferDeadlinePreset =
+  (typeof PROTECTED_TRANSFER_DEADLINE_PRESETS)[number];
+export const ProtectedTransferDeadlinePresetSchema = z.enum(
+  PROTECTED_TRANSFER_DEADLINE_PRESETS,
+);
+/** Frozen preset → duration map. Readonly and runtime-frozen. */
+export const PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS: Readonly<
+  Record<ProtectedTransferDeadlinePreset, number>
+> = Object.freeze({
+  tomorrow: 24 * 60 * 60 * 1000,
+  three_days: 72 * 60 * 60 * 1000,
+  seven_days: 168 * 60 * 60 * 1000,
+});
+
+/**
+ * Maximum raw request body size accepted by the plan endpoint, in bytes. The
+ * quote envelope plus preset and note fit well under this; oversized bodies are
+ * rejected before buffering completes. Matches the settlement verifier cap.
+ */
+export const PROTECTED_TRANSFER_PLAN_MAX_BYTES = 16 * 1024;
+
+/**
+ * Strict top-level request surface for `POST /api/remittance/protected-transfer/plan`.
+ * Owns only the three allowed field names, the preset enum, and the note size
+ * guard. The quote envelope is NOT re-validated here — the shared
+ * `verifyRemittanceQuote` policy remains the authoritative quote parser, so the
+ * quote is parsed exactly once. `z.unknown()` accepts any JSON value including
+ * `undefined`, so an explicit presence refinement rejects a missing quote at
+ * the request surface while keeping quote parsing authoritative in the
+ * verifier. `strictObject` rejects any extra top-level field. No package ID,
+ * reviewer address, deadline timestamp, module, function, Clock, coin type,
+ * cap, hash, version, sender, transaction bytes, or signer input is accepted.
+ */
+export const ProtectedTransferPlanRequestSchema = z
+  .strictObject({
+    quote: z.unknown().refine((v) => v !== undefined, {
+      message: "quote is required",
+    }),
+    deadlinePreset: ProtectedTransferDeadlinePresetSchema,
+    reviewNote: z.string().max(500),
+  });
+export type ProtectedTransferPlanRequest = z.infer<
+  typeof ProtectedTransferPlanRequestSchema
+>;
+
+/**
+ * Strict response schema for the plan endpoint: either a fully normalized
+ * execution plan or a safe rejection. Reuses `VerifyRejectedSchema` so the
+ * endpoint shares the existing safe rejection vocabulary — no second error
+ * vocabulary is introduced.
+ */
+export const ProtectedTransferPlanResponseSchema = z.discriminatedUnion("kind", [
+  ProtectedTransferExecutionPlanSchema,
+  VerifyRejectedSchema,
+]);
+export type ProtectedTransferPlanResponse = z.infer<
+  typeof ProtectedTransferPlanResponseSchema
+>;
+
 /** Public input. The surface is intentionally narrow: the caller supplies one
  * atomic plan, the sender, and the current time. No module/function/clock/
  * coin-type/cap/algorithm/version overrides are possible, and package/reviewer/
  * deadline/note may appear only inside the parsed plan. */
 export interface BuildProtectedTransferInput {
-  /** Strict atomic execution plan (the future server-verified unit). */
+  /** Strict atomic execution plan authored by the server plan endpoint. */
   plan: ProtectedTransferExecutionPlan;
   /** Sender (escrow funder) address. Canonicalized before use. */
   sender: string;
@@ -288,15 +361,74 @@ function canonicalAuthorizationEncoding(
 }
 
 /**
+ * Pure plan parser/normalizer — the single shared entry point that strict-parses
+ * a candidate execution plan, canonicalizes package/reviewer/beneficiary,
+ * normalizes the review note, and enforces amount/freshness/deadline invariants.
+ *
+ * Used by both `buildProtectedTransfer` (transaction construction) and the
+ * server-only plan endpoint. Returns a typed plan built from already
+ * strict-parsed fields plus the canonicalizers; the input was strict-parsed up
+ * front, so no second schema parse is needed.
+ *
+ * Throws on any validation failure. Callers at security boundaries (the plan
+ * route) catch and fail closed as `invalid_envelope`. This is a pure function:
+ * no React, fetch, env, secret, HMAC, RPC, signing, or submission.
+ */
+export function parseProtectedTransferExecutionPlan(
+  input: unknown,
+  nowMs: number,
+): ProtectedTransferExecutionPlan {
+  // Strict runtime schema parses the complete plan first. Rejects malformed
+  // input, missing fields, extra fields, and a wrong kind through the schema
+  // rather than leaking a TypeError deeper in the parser.
+  const parsed = ProtectedTransferExecutionPlanSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error("Protected Transfer plan failed the strict execution-plan schema.");
+  }
+  const plan = parsed.data;
+
+  const auth = plan.authorization;
+  if (auth.coinType !== USDC_COIN_TYPE_TESTNET) {
+    throw new Error("Authorization coin type must be pinned testnet USDC.");
+  }
+
+  // Canonicalize every bound address before any window/freshness check so a
+  // non-canonical-but-valid textual form produces an identical normalized plan.
+  const canonicalBeneficiary = canonicalizeAddress(auth.recipientAddress, "beneficiary");
+  const canonicalPackage = canonicalizeAddress(plan.packageId, "packageId");
+  const canonicalReviewer = canonicalizeAddress(plan.reviewerAddress, "reviewerAddress");
+
+  // Enforce amount, deadline window, authorization freshness, and note
+  // semantics against the caller-supplied current time.
+  validateAmountMicro(auth.usdcMicro);
+  validateDeadline(nowMs, plan.deadlineMs);
+  validateAuthorizationFreshness(auth.issuedAt, auth.expiresAt, nowMs);
+  const normalizedNote = validateReviewNote(plan.reviewNote);
+
+  // Build the normalized plan from already strict-parsed fields plus
+  // canonicalizers. The authorization is rebuilt with the canonical
+  // beneficiary; every other authorization field is carried verbatim.
+  return {
+    kind: "protected_transfer_execution_plan",
+    authorization: { ...auth, recipientAddress: canonicalBeneficiary },
+    packageId: canonicalPackage,
+    reviewerAddress: canonicalReviewer,
+    deadlineMs: plan.deadlineMs,
+    reviewNote: normalizedNote,
+  };
+}
+
+/**
  * Build one Protected Transfer transaction and its immutable commitment metadata.
  *
- * Parses the complete execution plan through the strict schema FIRST, then
- * canonicalizes and validates every bound term. Package, reviewer, deadline, and
- * review note may appear only inside that parsed plan. The commitment is a
- * 32-byte blake2b256 digest over the UTF-8 bytes of a canonical fixed-order JSON
- * encoding that binds the schema version, fixed module/function/Clock, pinned
- * coin type, canonical addresses, deadline, normalized review note, and every
- * strict authorization field.
+ * Delegates plan parsing/normalization to `parseProtectedTransferExecutionPlan`
+ * (the shared strict entry point), then only canonicalizes the sender and builds
+ * the commitment/PTB. Package, reviewer, deadline, and review note may appear
+ * only inside the parsed plan. The commitment is a 32-byte blake2b256 digest
+ * over the UTF-8 bytes of a canonical fixed-order JSON encoding that binds the
+ * schema version, fixed module/function/Clock, pinned coin type, canonical
+ * addresses, deadline, normalized review note, and every strict authorization
+ * field.
  *
  * This does not deploy, settle, release, or pay out anything. A built
  * transaction is not settlement, and the plan is not signed, attested, verified,
@@ -309,35 +441,20 @@ export function buildProtectedTransfer(
     throw new Error("Protected Transfer input is required.");
   }
 
-  // Strict runtime schema: parse the complete plan first. Rejects malformed
-  // input, missing fields, extra fields, and a wrong kind through the schema
-  // rather than leaking a TypeError deeper in the builder. The nested
-  // `z.literal` schemas fix `plan.kind` and `auth.kind`, so no redundant kind
-  // re-check is needed here.
-  let plan: ProtectedTransferExecutionPlan;
-  try {
-    plan = ProtectedTransferExecutionPlanSchema.parse(input.plan);
-  } catch {
-    throw new Error("Protected Transfer plan failed the strict execution-plan schema.");
-  }
-
+  // Shared strict plan parser/normalizer is the single validation entry point.
+  const plan = parseProtectedTransferExecutionPlan(input.plan, input.nowMs);
   const auth = plan.authorization;
-  if (auth.coinType !== USDC_COIN_TYPE_TESTNET) {
-    throw new Error("Authorization coin type must be pinned testnet USDC.");
-  }
 
+  // The builder owns only sender canonicalization and the commitment/PTB.
   const canonicalSender = canonicalizeAddress(input.sender, "sender");
-  const canonicalBeneficiary = canonicalizeAddress(
-    auth.recipientAddress,
-    "beneficiary",
-  );
-  const canonicalPackage = canonicalizeAddress(plan.packageId, "packageId");
-  const canonicalReviewer = canonicalizeAddress(plan.reviewerAddress, "reviewerAddress");
+  const canonicalBeneficiary = auth.recipientAddress;
+  const canonicalPackage = plan.packageId;
+  const canonicalReviewer = plan.reviewerAddress;
 
-  const micro = validateAmountMicro(auth.usdcMicro);
-  validateDeadline(input.nowMs, plan.deadlineMs);
-  validateAuthorizationFreshness(auth.issuedAt, auth.expiresAt, input.nowMs);
-  const normalizedNote = validateReviewNote(plan.reviewNote);
+  // The parser already enforced the amount invariants; a direct BigInt parse
+  // is sufficient for the coin intent.
+  const micro = BigInt(auth.usdcMicro);
+  const normalizedNote = plan.reviewNote;
 
   // Canonical fixed-order JSON encoding. No object spread; every key explicit.
   const encoding = {
@@ -366,7 +483,6 @@ export function buildProtectedTransfer(
 
   const transaction = new Transaction();
   transaction.setSender(canonicalSender);
-  // Pinned testnet USDC coin with the exact authorized balance.
   const coin = transaction.coin({
     type: USDC_COIN_TYPE_TESTNET,
     balance: micro,

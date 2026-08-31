@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readBoundedUtf8Body } from "@/lib/http/read-bounded-utf8-body.server";
 import {
   REMITTANCE_RECEIPT_MAX_BYTES,
   RemittanceReceiptSchema,
@@ -18,45 +19,11 @@ function response(body: SuiSettlementVerificationResponse) {
   });
 }
 
-async function readBoundedBody(req: Request): Promise<string | null> {
-  const contentLength = req.headers.get("content-length");
-  if (contentLength) {
-    const declaredBytes = Number(contentLength);
-    if (!Number.isSafeInteger(declaredBytes) || declaredBytes > REMITTANCE_RECEIPT_MAX_BYTES) {
-      return null;
-    }
-  }
-  if (!req.body) return null;
-
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > REMITTANCE_RECEIPT_MAX_BYTES) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-
-  const body = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(body);
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: Request) {
-  const raw = await readBoundedBody(req);
+  // Shared transport reader owns Content-Length grammar, byte cap, declared/
+  // actual equality, read/cancel rejection, and fatal UTF-8. A null transport
+  // result fails closed as invalid_receipt.
+  const raw = await readBoundedUtf8Body(req, REMITTANCE_RECEIPT_MAX_BYTES);
   if (raw === null) {
     return response({ kind: "rejected", reason: "invalid_receipt" });
   }

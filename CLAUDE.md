@@ -31,6 +31,10 @@ pnpm dev           # app on :3000
   valid quote attestation, pinned asset and corridor, a fresh quote, a connected
   testnet wallet, and explicit approval. Prepared or carried states are not
   settlement.
+- The Protected Transfer plan endpoint accepts only a verified quote, deadline
+  preset, and review note. Package/reviewer coordinates are server-only and fail
+  closed when unconfigured. Its unsigned response proves neither package
+  deployment nor on-chain state, and Pay does not consume it yet.
 - A carried receipt or digest alone is not independent chain evidence. The
   server-only settlement route is fixed to Sui testnet and one read-only lookup;
   verified requires a successful transaction plus exact digest, pinned USDC,
@@ -54,6 +58,11 @@ pnpm dev           # app on :3000
 - `app/api/remittance/settlement/verify/` — fixed-testnet, read-only receipt
   verification; 16 KiB streamed body cap, one lookup, six-second abort,
   `no-store`, strict safe response, and no signer or payout authority.
+- `app/api/remittance/protected-transfer/plan/` — bounded, no-store plan
+  issuance from a verified quote plus server-only candidate coordinates; no
+  signer, RPC, submission, or deployment proof.
+- `lib/http/` — shared server-only bounded UTF-8 request reader used by typed
+  remittance APIs.
 - `lib/commerce/` — intent parser, payment core, QR Ferry envelope, and proof
   verification.
 - `lib/remittance/` — quote, transfer, and receipt rules plus the shared
