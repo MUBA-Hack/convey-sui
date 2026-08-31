@@ -33,6 +33,8 @@ import {
   extractSuccessfulDigest,
   isTypedWalletRejection,
 } from "@/lib/remittance/transfer";
+import { recordActivity } from "@/lib/activity/storage";
+import { formatUsdcGrouped } from "@/lib/remittance/money";
 
 export const NOT_CONFIGURED_COPY =
   "Family review isn't available right now. Send directly to continue.";
@@ -219,6 +221,18 @@ export function useFamilyReviewSubmit({
       });
       const receiptPayload = encodeProtectedTransferCreatedReceiptPayload(receipt);
       setPhase({ kind: "verified", plan, metadata, digest, receipt, receiptPayload });
+      const recipient = plan.authorization.recipient;
+      const reviewer = plan.reviewerName ?? "family";
+      const city = plan.authorization.destinationCity;
+      recordActivity({
+        id: `protected_transfer:${digest}`,
+        href: `/proof?${PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM}=${receiptPayload}`,
+        title: `Hold for ${recipient}`,
+        amountLabel: `${formatUsdcGrouped(metadata.amountMicro)} USDC`,
+        detailLabel: `${city} · ${reviewer}`,
+        nextOwner: reviewer,
+        updatedAt: receipt.exportedAt,
+      });
     } catch {
       // A failed independent check never downgrades the submitted hold state.
       // The hold remains pending confirmation; the customer can reopen it later.

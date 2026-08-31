@@ -3,7 +3,7 @@
 Minimal black-and-white Sui money movement built around one family-transfer
 journey. **Pay** is primary: a spoken or typed request becomes a transparent
 quote, Transfer checks, one wallet approval, and a portable receipt.
-**Continue elsewhere** and **Receipts** are contextual branches of that
+**Continue elsewhere** and **Activity** are contextual branches of that
 journey. **Treasury** is separate conceptual planning and never implies that it
 protects the remittance rate or payout.
 
@@ -31,16 +31,16 @@ pnpm dev           # app on :3000
   valid quote attestation, pinned asset and corridor, a fresh quote, a connected
   testnet wallet, and explicit approval. Prepared or carried states are not
   settlement.
-- The Protected Transfer plan endpoint accepts only a verified quote, deadline
-  preset, and review note. Package/reviewer coordinates are server-only and fail
-  closed when unconfigured. Its unsigned response proves neither package
-  deployment nor on-chain state. Executable Pay quotes offer **Send directly**
-  or **Hold for family review**; the hold path consumes the strict plan,
-  constructs the pinned `create_escrow` transaction client-side, requires a
-  connected Sui testnet wallet, and locks duplicate submission. It reports only
-  submitted or unknown—not `Created`, `Released`, or `Refunded`. The package is
-  unpublished and plan configuration remains empty by default; there is no
-  independent lifecycle receipt or release/refund UI.
+- Protected Transfer accepts only a verified quote, deadline preset, and review
+  note; package/reviewer coordinates remain server-only and fail closed. The
+  client builds and approves the pinned `create_escrow` call. Submission alone
+  remains submitted or unknown. Only an exact independent `Created` event match
+  creates the portable receipt and local Activity link. Freshly verified Created
+  receipts may request a bounded two-model advisory Evidence Council review;
+  models cannot release funds. Reviewer release and post-deadline payer refund
+  remain explicit wallet actions with separate terminal verification. The Move
+  package is still unpublished and unconfigured by default, so no live lifecycle
+  artifact is claimed.
 - A carried receipt or digest alone is not independent chain evidence. The
   server-only settlement route is fixed to Sui testnet and one read-only lookup;
   verified requires a successful transaction plus exact digest, pinned USDC,
@@ -60,7 +60,8 @@ pnpm dev           # app on :3000
 ## Layout
 
 - `app/` — Next.js routes: `/` (family remittance), `/qr-ferry` (Continue
-  elsewhere), `/proof` (Receipts), `/strategy` (Treasury), and typed APIs.
+  elsewhere), `/proof` (Activity and receipt verification), `/strategy`
+  (Treasury), and typed APIs.
 - `app/api/remittance/settlement/verify/` — fixed-testnet, read-only receipt
   verification; 16 KiB streamed body cap, one lookup, six-second abort,
   `no-store`, strict safe response, and no signer or payout authority.
@@ -69,6 +70,8 @@ pnpm dev           # app on :3000
   signer, RPC, submission, or deployment proof.
 - `lib/http/` — shared server-only bounded UTF-8 request reader used by typed
   remittance APIs.
+- `lib/activity/` — strict bounded device-local receipt-link history. It is
+  navigation convenience only and never proof, settlement, or authorization.
 - `lib/commerce/` — intent parser, payment core, QR Ferry envelope, and proof
   verification.
 - `lib/remittance/` — quote, transfer, and receipt rules plus the shared

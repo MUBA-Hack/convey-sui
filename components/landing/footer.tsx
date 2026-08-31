@@ -12,7 +12,7 @@ import Link from "next/link";
 const NAVIGATION = [
   { href: "/", label: "Pay" },
   { href: "/qr-ferry", label: "Continue elsewhere" },
-  { href: "/proof", label: "Receipts" },
+  { href: "/proof", label: "Activity" },
   { href: "/strategy", label: "Treasury" },
 ];
 

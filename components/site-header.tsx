@@ -13,7 +13,7 @@ const COMMERCE_ITEMS = [
     label: "Continue elsewhere",
     description: "Carry a quote to another device",
   },
-  { href: "/proof", label: "Receipts", description: "Review a transfer" },
+  { href: "/proof", label: "Activity", description: "Review recent transfers" },
   {
     href: "/strategy",
     label: "Treasury",

@@ -7,11 +7,14 @@ import { RemittanceQuoteActions } from "@/components/remittance/remittance-quote
 import { buildExplorerUrl, type QuoteBlocker } from "@/lib/remittance/transfer";
 import { PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS } from "@/lib/remittance/protected-transfer";
 import { USDC_COIN_TYPE_TESTNET } from "@/lib/remittance/constants";
+import { loadActivity } from "@/lib/activity/storage";
+import { PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM } from "@/lib/remittance/protected-transfer-created-receipt";
 
 const ADDR = "0x" + "1234567890abcdef".repeat(4);
 const ACCOUNT = "0x" + "22".repeat(32);
 const PACKAGE = "0x" + "44".repeat(32);
 const REVIEWER = "0x" + "33".repeat(32);
+const ESCROW = "0x" + "55".repeat(32);
 const VALID_DIGEST = "DnKz7eQwFR1i6Sd2L3pJ8mVoHgYsAaBcXcVbNbMzK9eR";
 const VALID_ATTESTATION = { v: 1 as const, hmac: "0x" + "ab".repeat(32) };
 const NOW = 1_700_000_000_000;
@@ -139,6 +142,37 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
 
 const REVIEWER_NAME = "Convey Review";
 
+function createdVerifyResponse() {
+  const plan = planResponse();
+  return {
+    kind: "verified" as const,
+    network: "testnet" as const,
+    digest: VALID_DIGEST,
+    escrowObjectId: ESCROW,
+    payerAddress: ACCOUNT,
+    beneficiaryAddress: ADDR,
+    reviewer: { name: REVIEWER_NAME, address: REVIEWER },
+    coinType: USDC_COIN_TYPE_TESTNET,
+    amountMicro: "109000000",
+    deadlineMs: plan.deadlineMs,
+    evidenceCommitmentHex: "0x" + "aa".repeat(32),
+    checkedAt: new Date(NOW).toISOString(),
+  };
+}
+
+async function prepareAndApproveHold() {
+  fireEvent.click(screen.getByTestId("send-path-hold"));
+  fireEvent.click(screen.getByTestId("family-review-add-note"));
+  fireEvent.change(screen.getByTestId("family-review-note"), {
+    target: { value: "Hold until Ana confirms" },
+  });
+  fireEvent.click(screen.getByTestId("hold-prepare"));
+  await waitFor(() => {
+    expect(screen.getByTestId("family-review-summary")).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByTestId("hold-approve"));
+}
+
 function planResponse() {
   return {
     kind: "protected_transfer_execution_plan" as const,
@@ -202,6 +236,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 describe("family review path on executable quote review", () => {
@@ -418,6 +453,7 @@ describe("family review path on executable quote review", () => {
     expect(explorer).toHaveAttribute("href", buildExplorerUrl(VALID_DIGEST));
     expect(explorer).toHaveAttribute("target", "_blank");
     expect(explorer).toHaveAttribute("rel", "noopener noreferrer");
+    expect(loadActivity()).toEqual([]);
   });
 
   it("locks unknown without inventing an explorer link", async () => {
@@ -448,6 +484,7 @@ describe("family review path on executable quote review", () => {
     // Single compact CTA in unknown phase; locked, no second hold action.
     expect(screen.getByTestId("hold-prepare")).toBeDisabled();
     expect(screen.queryByTestId("hold-approve")).not.toBeInTheDocument();
+    expect(loadActivity()).toEqual([]);
   });
 
   it("keeps hold idle to a single Hold for family review CTA and never signs on prepare", async () => {
@@ -474,6 +511,79 @@ describe("family review path on executable quote review", () => {
     // Step 2 is now the only remaining action.
     expect(screen.getByTestId("hold-approve")).toBeInTheDocument();
     expect(screen.queryByTestId("hold-prepare")).not.toBeInTheDocument();
+  });
+
+  it("records local Activity only after a verified Created receipt", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/remittance/protected-transfer/created/verify")) {
+        return new Response(JSON.stringify(createdVerifyResponse()), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(planResponse()), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST },
+    });
+
+    renderActions();
+    await prepareAndApproveHold();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("family-review-open-receipt")).toBeInTheDocument();
+    });
+    const href = screen.getByTestId("family-review-open-receipt").getAttribute("href");
+    expect(href).toMatch(new RegExp(`^/proof\\?${PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM}=[A-Za-z0-9_-]+$`));
+    const items = loadActivity();
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: `protected_transfer:${VALID_DIGEST}`,
+      href,
+      title: "Hold for Ana",
+      amountLabel: "109 USDC",
+      detailLabel: "manila · Convey Review",
+      nextOwner: REVIEWER_NAME,
+    });
+  });
+
+  it("does not record Activity when Created verification is rejected", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/remittance/protected-transfer/created/verify")) {
+        return new Response(JSON.stringify({ kind: "rejected", reason: "event_missing" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(planResponse()), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    wallet.signAndExecuteTransaction.mockResolvedValue({
+      $kind: "Transaction",
+      Transaction: { digest: VALID_DIGEST },
+    });
+
+    renderActions();
+    await prepareAndApproveHold();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("family-review-status")).toHaveTextContent(
+        "Hold submitted — confirmation pending",
+      );
+    });
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/created/verify"))).toBe(true);
+    });
+    expect(screen.queryByTestId("family-review-open-receipt")).not.toBeInTheDocument();
+    expect(loadActivity()).toEqual([]);
   });
 });
 

@@ -76,6 +76,8 @@ import {
   protectionPurchasePageCopy,
   type ProtectionPurchaseCheckState,
 } from "./protection-purchase-proof";
+import { ActivityPanel } from "./activity-panel";
+import { PROOF_RECEIPT_QUERY_PARAMS } from "@/lib/commerce/proof-query";
 import {
   decodeProtectionPurchaseReceiptPayload,
   encodeProtectionPurchaseReceiptPayload,
@@ -174,6 +176,7 @@ function titleCase(value: string): string {
 export function ProofVerifier() {
   const [raw, setRaw] = useState("");
   const [view, setView] = useState<EvidenceView>(EMPTY_VIEW);
+  const [boot, setBoot] = useState<"inspecting" | "home" | "query">("inspecting");
   const [copied, setCopied] = useState(false);
   const [urlLoaded, setUrlLoaded] = useState(false);
   const [settlementRetry, setSettlementRetry] = useState(0);
@@ -194,13 +197,23 @@ export function ProofVerifier() {
     const createdPayload = params.get(PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM);
     const terminalPayload = params.get(PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM);
     const purchasePayload = params.get(PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM);
-    if (!remittancePayload && !commercePayload && !createdPayload && !terminalPayload && !purchasePayload) return;
+    const hasRemittance = params.has("r");
+    const hasCommerce = params.has("p");
+    const hasCreated = params.has(PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM);
+    const hasTerminal = params.has(PROTECTED_TRANSFER_TERMINAL_RECEIPT_QUERY_PARAM);
+    const hasPurchase = params.has(PROTECTION_PURCHASE_RECEIPT_QUERY_PARAM);
+    const hasQuery = PROOF_RECEIPT_QUERY_PARAMS.some((key) => params.has(key));
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
+      if (!hasQuery) {
+        setBoot("home");
+        return;
+      }
+      setBoot("query");
       try {
-        if (purchasePayload) {
-          const doc = decodeProtectionPurchaseReceiptPayload(purchasePayload);
+        if (hasPurchase) {
+          const doc = decodeProtectionPurchaseReceiptPayload(purchasePayload ?? "");
           setRaw(JSON.stringify(doc, null, 2));
           setView({
             kind: "protection-purchase",
@@ -208,19 +221,19 @@ export function ProofVerifier() {
             purchaseVerify: { kind: "checking" },
           });
           setUrlLoaded(true);
-        } else if (terminalPayload) {
-          const doc = decodeProtectedTransferTerminalReceiptPayload(terminalPayload);
+        } else if (hasTerminal) {
+          const doc = decodeProtectedTransferTerminalReceiptPayload(terminalPayload ?? "");
           const json = JSON.stringify(doc, null, 2);
           setRaw(json);
           setView({
             kind: "protected-transfer-terminal",
             result: verifyProtectedTransferTerminalReceipt(doc),
             lifecycle: CHECKING_TERMINAL,
-            payload: terminalPayload,
+            payload: terminalPayload ?? "",
           });
           setUrlLoaded(true);
-        } else if (remittancePayload) {
-          const doc = decodeRemittanceReceiptPayload(remittancePayload);
+        } else if (hasRemittance) {
+          const doc = decodeRemittanceReceiptPayload(remittancePayload ?? "");
           const json = JSON.stringify(doc, null, 2);
           setRaw(json);
           setView({
@@ -230,8 +243,8 @@ export function ProofVerifier() {
             settlementVerify: CHECKING_SETTLEMENT,
           });
           setUrlLoaded(true);
-        } else if (createdPayload) {
-          const doc = decodeProtectedTransferCreatedReceiptPayload(createdPayload);
+        } else if (hasCreated) {
+          const doc = decodeProtectedTransferCreatedReceiptPayload(createdPayload ?? "");
           const json = JSON.stringify(doc, null, 2);
           setRaw(json);
           setView({
@@ -240,8 +253,8 @@ export function ProofVerifier() {
             createdVerify: CHECKING_CREATED,
           });
           setUrlLoaded(true);
-        } else if (commercePayload) {
-          const proof = decodeReceiptProofPayload(commercePayload);
+        } else if (hasCommerce) {
+          const proof = decodeReceiptProofPayload(commercePayload ?? "");
           const json = JSON.stringify(proof, null, 2);
           setRaw(json);
           setView({ kind: "commerce", result: verifyReceiptProof(proof) });
@@ -249,27 +262,27 @@ export function ProofVerifier() {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Shared proof payload is invalid.";
-        if (purchasePayload) {
+        if (hasPurchase) {
           setView({
             kind: "protection-purchase",
             result: { ok: false, errors: [message] },
             purchaseVerify: { kind: "rejected", reason: "invalid_request" },
           });
-        } else if (terminalPayload) {
+        } else if (hasTerminal) {
           setView({
             kind: "protected-transfer-terminal",
             result: { ok: false, errors: [message] },
             lifecycle: { kind: "rejected", reason: "invalid_receipt" },
-            payload: terminalPayload,
+            payload: terminalPayload ?? "",
           });
-        } else if (remittancePayload) {
+        } else if (hasRemittance) {
           setView({
             kind: "remittance",
             result: { ok: false, errors: [message] },
             quoteVerify: "error",
             settlementVerify: CHECKING_SETTLEMENT,
           });
-        } else if (createdPayload) {
+        } else if (hasCreated) {
           setView({
             kind: "protected-transfer-created",
             result: { ok: false, errors: [message] },
@@ -723,34 +736,38 @@ export function ProofVerifier() {
   };
 
   const pageCopy = remittancePageCopy(view);
+  const activityHome = boot === "home" && view.kind === "empty";
 
   return (
     <section className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-16">
-      <div className="mb-8">
-        <span className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1 font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-700">
-          <ShieldSearch size="14" variant="Linear" aria-hidden="true" />
-          {pageCopy.eyebrow}
-        </span>
-        <h1
-          data-testid="receipt-page-title"
-          className="mt-4 text-4xl font-normal tracking-[-0.05em] text-black sm:text-5xl"
-        >
-          {pageCopy.title}
-        </h1>
-        <p
-          data-testid="receipt-page-intro"
-          className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 sm:text-base"
-        >
-          {pageCopy.intro}
-        </p>
-      </div>
+      {activityHome ? null : (
+        <div className="mb-8">
+          <span className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1 font-narrow text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-700">
+            <ShieldSearch size="14" variant="Linear" aria-hidden="true" />
+            {pageCopy.eyebrow}
+          </span>
+          <h1
+            data-testid="receipt-page-title"
+            className="mt-4 text-4xl font-normal tracking-[-0.05em] text-black sm:text-5xl"
+          >
+            {pageCopy.title}
+          </h1>
+          <p
+            data-testid="receipt-page-intro"
+            className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 sm:text-base"
+          >
+            {pageCopy.intro}
+          </p>
+        </div>
+      )}
 
-      {/* Result-first: the receipt is the protagonist. When a share link
-          hydrates a result it leads the page; the JSON editor and structural
-          checks stay subordinate under Advanced details. */}
-      <div data-proof-panel="result" aria-label="Receipt">
-        {view.kind === "empty" ? (
-          <EmptyState />
+      {/* Result-first: a share link hydrates a receipt. No-query /proof is
+          Activity. JSON import stays subordinate under Advanced details. */}
+      <div data-proof-panel="result" aria-label={activityHome ? "Activity" : "Receipt"}>
+        {activityHome ? (
+          <ActivityPanel />
+        ) : view.kind === "empty" ? (
+          <div data-testid="proof-route-pending" className="min-h-[240px]" aria-hidden />
         ) : view.kind === "commerce" ? (
           <CommerceReceipt
             result={view.result}
@@ -821,21 +838,6 @@ export function ProofVerifier() {
         view={view}
       />
     </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Empty state — customer-facing, no engineering labels.
-// ---------------------------------------------------------------------------
-
-function EmptyState() {
-  return (
-    <div className="rounded-2xl border border-black/10 bg-white p-6 sm:p-8">
-      <h2 className="text-2xl tracking-[-0.035em] text-black">No receipt open yet.</h2>
-      <p className="mt-3 text-sm leading-6 text-neutral-600">
-        Open a Convey receipt link, or expand Advanced details to paste or import a receipt.
-      </p>
-    </div>
   );
 }
 

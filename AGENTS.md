@@ -32,7 +32,7 @@ identical.
 Convey is a minimal black-and-white money app built around one coherent family
 journey: express an intent, inspect the complete terms, approve in a wallet, and
 keep a portable receipt. **Pay** is primary; **Continue elsewhere** and
-**Receipts** are contextual branches. **Treasury** is visibly separate and must
+**Activity** is a contextual branch. **Treasury** is visibly separate and must
 never imply that an ETH/BTC strategy protects the transfer rate or payout.
 
 Customer-facing screens must read like a finished financial product. Keep SDK
@@ -71,16 +71,14 @@ and production build before a commit.
 - A real remittance testnet transfer additionally requires a mapped recipient,
   valid quote attestation, pinned asset and corridor, a fresh quote, a connected
   testnet wallet, and explicit user approval.
-- The Protected Transfer plan endpoint accepts only a verified quote, deadline
-  preset, and review note. Package/reviewer coordinates come from server-only
-  config and fail closed. The response is unsigned channel provenance—not proof
-  of publication, deployment, immutability, or on-chain state. Executable Pay
-  quotes offer **Send directly** or **Hold for family review**. The hold path
-  consumes the strict plan, builds the pinned `create_escrow` transaction
-  client-side, requires a connected Sui testnet wallet, and locks duplicate
-  submission. It reports only submitted or unknown—not `Created`, `Released`,
-  or `Refunded`. The package is unpublished and configuration is empty by
-  default; there is no independent lifecycle receipt or release/refund UI.
+- Protected Transfer uses a verified quote plus server-only package/reviewer
+  coordinates and fails closed when unconfigured. Submission alone remains
+  submitted or unknown. Only an exact independent `Created` event match creates
+  the portable receipt and local Activity link. Evidence Council is advisory and
+  only available after that fresh match. Reviewer release and post-deadline payer
+  refund remain explicit wallet actions with separate terminal verification. The
+  Move package is unpublished and unconfigured by default; no live lifecycle
+  artifact is claimed.
 - A demo or prepared transaction is not settlement. A carried transaction ID
   alone is not independent chain verification. Sui settlement is not fiat payout.
 - The remittance settlement verifier is server-only, fixed to Sui testnet, and
@@ -114,7 +112,8 @@ Keep this map aligned with `CLAUDE.md`; the extra entries identify current trust
 boundaries that workers commonly miss.
 
 - `app/` — product routes and typed APIs. `/` is Pay, `/qr-ferry` is Continue
-  elsewhere, `/proof` is Receipts, and `/strategy` is Treasury.
+  elsewhere, `/proof` is Activity plus receipt verification, and `/strategy` is
+  Treasury.
 - `app/api/remittance/settlement/verify/` — server-only, read-only Sui testnet
   settlement verification. It enforces the 16 KiB streamed body cap, at most one lookup,
   six-second abort, `no-store`, and a safe strict response union; it never signs
@@ -125,6 +124,8 @@ boundaries that workers commonly miss.
 - `lib/http/` — the shared server-only bounded UTF-8 request reader. Keep raw
   byte, declared-length, stream-error, and UTF-8 policy here instead of cloning
   it into routes.
+- `lib/activity/` — strict bounded device-local receipt-link history. It never
+  upgrades local data into proof, settlement, or authorization.
 - `lib/commerce/` — nearby-commerce intent, payment, offline envelope, and proof
   verification.
 - `lib/remittance/` — remittance intent, quotes, transfer constraints, receipt

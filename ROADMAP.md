@@ -106,13 +106,22 @@ FX, fiat funding, or bank disbursement in this path.
   remain distinct; terminal share/export requires verified lifecycle evidence.
   `/proof?o=...` locally binds a portable protection-purchase receipt and repeats
   direct Base verification before enabling share/export.
+- **Activity is a bounded device-local convenience surface.** A no-query
+  `/proof` view strictly parses up to 20 local receipt links, orders them by
+  update time, and fails closed to an empty state on malformed storage. Opening
+  an item reuses the existing receipt verifier; local history never upgrades a
+  receipt into settlement or chain evidence. A Protected Transfer is recorded
+  only after its submitted transaction passes the exact independent `Created`
+  event check. Submitted, unknown, rejected, malformed, sample, and imported
+  receipts are not recorded. Other receipt producers remain pending.
 - **Seedless Sui onboarding (zkLogin via Enoki) is implemented.** Enoki wallet
   registration and Google sign-in are wired through dApp Kit, with the
   registered redirect URI pinned to the origin. Live session restoration,
   salt/prover handling, and captured restoration evidence remain pending, so
   the feature is not yet presented as a proven onboarding path.
 
-Fiat on/off-ramp, payout, recipient intelligence, receipt splits, a production
+Fiat on/off-ramp, payout, recipient intelligence, receipt splits, Activity
+recording from the remaining completed transfer flows, a production
 signed offline envelope, a captured real Thetanuts fill and Sui Earn remain
 future evidence, not shipped outcomes. Protected Transfer now has a tested single-milestone
 Move package, pinned TypeScript transaction core, bounded plan and Created-event

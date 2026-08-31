@@ -51,8 +51,10 @@ decides whether it is safe to prepare; only the wallet can authorize value.
    same checks there. Carrying a quote never moves funds, and a submitted hold
    is not a verified escrow lifecycle state.
 6. **Keep the receipt.** A confirmed transfer can be reopened, shared, or
-   exported. Receipt structure, quote binding, Sui settlement, and fiat payout
-   remain separate states so one cannot silently stand in for another.
+   exported. The `/proof` route also has a no-query **Activity** view for
+   device-local transfer links. Receipt structure, quote binding, Sui
+   settlement, and fiat payout remain separate states so one cannot silently
+   stand in for another.
 
 **Treasury is separate.** The optional `/strategy` workspace turns an explicit
 ETH or BTC downside goal into a reviewable protective-put offer. For the
@@ -426,14 +428,37 @@ registry. Production use needs an on-chain nonce registry or trusted sponsor
 index. The commerce QR envelope remains checksum/device-local replay and is
 distinct from the signed-quote remittance handoff wrapper.
 
-### Receipts — portable transfer evidence
+### Activity and Receipts — portable transfer evidence
 
-`/proof` accepts pasted JSON, an imported file, or a self-contained URL-safe
-payload produced by a native-SUI commerce settlement card, a confirmed Sui
-testnet-USDC remittance settlement, a Protected Transfer Created receipt, or a
-Protected Transfer terminal receipt. It discriminates commerce, remittance,
-quote, Created, and terminal documents before validation, then checks each kind
-with its own strict rules. Terminal links use `/proof?t=...`.
+`/proof` with no query shows **Activity**, a bounded list of strict,
+device-local receipt links. Malformed or unavailable local storage fails safe to
+an empty state, and a local Activity record is never presented as settlement or
+chain evidence. After a Protected Transfer submission passes the independent
+exact `Created` event check, Convey records its portable receipt link here.
+Submitted, unknown, rejected, malformed, sample, and imported receipts are not
+recorded. Direct remittance, nearby-commerce, terminal, and Treasury producers
+remain future Activity integrations.
+
+<p align="center">
+  <img src="docs/screenshots/activity-desktop.png" alt="Convey Activity sample receipt ledger on desktop" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/activity-mobile.png" alt="Convey Activity sample receipt ledger on mobile" width="300" />
+</p>
+
+These Activity screenshots use schema-valid sample local receipt links to show
+the populated layout; they are not evidence of live Sui transactions. Opening a
+row still invokes the corresponding strict receipt verifier before any current
+chain status is shown.
+
+`/proof` with a receipt query accepts pasted JSON, an imported file, or a
+self-contained URL-safe payload produced by a native-SUI commerce settlement
+card, a confirmed Sui testnet-USDC remittance settlement, a Protected Transfer
+Created receipt, or a Protected Transfer terminal receipt. It discriminates
+commerce, remittance, quote, Created, and terminal documents before validation,
+then checks each kind with its own strict rules. Terminal links use
+`/proof?t=...`.
 
 - Strict schema and exact-key validation for every supported receipt family.
 - Canonical positive MIST amount and Sui merchant address checks (commerce).
@@ -634,7 +659,7 @@ approval, fill, or receipt artifact is claimed.
 | `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 1–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |
-| `/proof` — **Receipts** | Open or import commerce, remittance, Protected Transfer, terminal, or Base protection-purchase receipts | Customer result first; strict local binding plus the matching read-only chain checks; no signing authority or payout proof |
+| `/proof` — **Activity / Receipts** | Review bounded device-local receipt links, or open/import commerce, remittance, Protected Transfer, terminal, or Base protection-purchase receipts | Local Activity is convenience history only; receipt views use strict local binding plus matching read-only chain checks; no signing authority or payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
@@ -1202,7 +1227,7 @@ Additional boundaries:
    quote opens a review card that re-runs connected verification before your
    wallet opens.
 
-### Buy nearby, cross-device handoff, and Receipts
+### Buy nearby, cross-device handoff, Activity, and Receipts
 
 1. **Choose Buy nearby.** Language can propose a purchase, but cannot sign one.
 2. **Use the product.** Say or type
@@ -1213,10 +1238,12 @@ Additional boundaries:
 3. **Show controlled settlement.** Confirm inline, review again, then
    confirm payment. In zero-setup mode, point to the `DEMO-…` receipt, explicit
    no-chain label, and absent explorer link.
-4. **Review the receipt.** Open **Receipts** (`/proof`); show the customer result
-   first, then strict local evidence and the independent Sui check. A confirmed
-   check still shows **Awaiting family payout** because chain settlement is not
-   bank or cash payout.
+4. **Review Activity or a receipt.** Open **Activity** (`/proof`) to review
+   device-local links when a flow has recorded one, or open a receipt link with
+   its query payload. The receipt view shows the customer result first, then
+   strict local evidence and the independent Sui check. A confirmed check still
+   shows **Awaiting family payout** because chain settlement is not bank or cash
+   payout.
 5. **Cross the air gap.** Open **Continue elsewhere** (`/qr-ferry`), generate and
    import the commerce envelope, then show duplicate nonce or checksum-tamper
    rejection. The camera scanner starts only on an explicit **Scan QR** tap.
@@ -1262,7 +1289,7 @@ complete track submission.
 app/
   page.tsx                     Pay workspace: Send abroad / Buy nearby
   qr-ferry/page.tsx            Continue elsewhere: signed-quote carry and commerce handoff
-  proof/page.tsx               portable receipt verifier and Sui/Base evidence checks
+  proof/page.tsx               Activity ledger plus portable Sui/Base receipt verification
   strategy/page.tsx            ETH/BTC treasury protective-put purchase workspace
   offline/page.tsx             PWA navigation fallback
   api/commerce/intent/route.ts Gonka commerce route + deterministic fallback
@@ -1281,6 +1308,7 @@ app/
   manifest.ts                  installable PWA manifest
 components/
   commerce/                    chat, voice, checkout, ferry, scanner, receipt and proof UI, including Base purchase proof
+    activity-*.tsx             device-local receipt-link ledger and empty state
     remittance-settlement-status.tsx strict result-first Sui and payout states
     protected-transfer-evidence-council.tsx advisory evidence review inside verified Created receipts
     protected-transfer-terminal-action.tsx role/deadline-gated wallet action and receipt bridge
@@ -1289,6 +1317,7 @@ components/
   pwa/                         service-worker registration
   wallet/                      Sui wallet providers and connection
 lib/
+  activity/                    strict bounded local Activity schema, ordering and safe storage
   commerce/                    catalog, intent, Gonka resolver, payment, QR, proof
   gonka/                       shared structured-router core, commerce, remittance and Family Steward specs
   http/                        shared server-only bounded UTF-8 request reader
@@ -1320,6 +1349,7 @@ public/
   people/ana.jpg               demo recipient portrait
   sw.js                        static-only service worker
 tests/
+  activity/                    local Activity schema, ordering, bounds and storage-failure tests
   commerce/                    product, safety, scanner, handoff, proof, PWA and responsive tests
   gonka/                       adapter, schema, retry, and remittance-router tests
   http/                        shared bounded UTF-8 request reader transport tests

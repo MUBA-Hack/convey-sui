@@ -127,9 +127,10 @@ describe("ProofVerifier — result-first layout", () => {
     ).toBeTruthy();
   });
 
-  it("shows a customer empty state and keeps Advanced collapsed when nothing is verified yet", () => {
+  it("shows Activity and keeps Advanced collapsed when nothing is verified yet", async () => {
     render(<ProofVerifier />);
-    expect(screen.getByText(/no receipt open yet/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("activity-empty")).toBeInTheDocument());
+    expect(screen.queryByText(/no receipt open yet/i)).not.toBeInTheDocument();
     // The Advanced disclosure trigger is present but its body (editor) is not
     // rendered until opened.
     expect(screen.queryByLabelText(/receipt json/i)).not.toBeInTheDocument();
