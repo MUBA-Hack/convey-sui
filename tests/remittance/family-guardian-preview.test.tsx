@@ -148,9 +148,10 @@ describe("RemittanceQuotePreview — guardian render boundary", () => {
       '[data-testid="remittance-quote-preview"]',
     ) as HTMLElement;
     expect(preview).not.toBeNull();
-    // Two-column grid on desktop.
     const grid = preview.querySelector('[data-testid="quote-workspace-grid"]');
-    expect(grid?.className).toContain("lg:grid-cols-2");
+    expect(grid?.className).toContain(
+      "lg:grid-cols-[minmax(0,56fr)_minmax(0,44fr)]",
+    );
     const left = preview.querySelector('[data-testid="quote-left-group"]');
     const right = preview.querySelector('[data-testid="quote-right-group"]');
     expect(left).not.toBeNull();

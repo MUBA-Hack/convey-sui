@@ -1,10 +1,14 @@
+"use client";
+
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { Edit2, Refresh } from "@/components/icons";
 import { WalletConnectButton } from "@/components/wallet/connect-button";
-import { formatMyr, type QuoteEnvelope } from "@/lib/remittance/quote";
-import { titleCaseCity } from "@/lib/remittance/quote-form";
+import type { QuoteEnvelope } from "@/lib/remittance/quote";
 import type { QuoteBlocker } from "@/lib/remittance/transfer";
+import {
+  ExecutableQuoteActions,
+  SecondaryQuoteActions,
+} from "./executable-quote-actions";
 
 export type { QuoteBlocker } from "@/lib/remittance/transfer";
 
@@ -22,16 +26,6 @@ interface RemittanceQuoteActionsProps {
   editable: boolean;
 }
 
-function buildEthHedgeHref(quote: QuoteEnvelope): string {
-  const params = new URLSearchParams({
-    source: "remittance",
-    amountMyr: formatMyr(quote.youPayMinor),
-    recipient: quote.recipient,
-    city: titleCaseCity(quote.destinationCity),
-  });
-  return `/strategy?${params.toString()}`;
-}
-
 function blockerCopy(
   blocker: Exclude<QuoteBlocker, "none">,
   recipientName: string,
@@ -45,42 +39,14 @@ function blockerCopy(
   }
   if (blocker === "unmapped") {
     return {
-      title: `${recipientName} has no payout details yet`,
-      body: `Add ${recipientName}'s wallet address so this transfer can continue to wallet approval.`,
+      title: `${recipientName} is not ready for wallet transfers`,
+      body: "Choose another recipient. This recipient is not ready for wallet transfers.",
     };
   }
   return {
     title: "Preview only",
     body: "This quote cannot be approved for wallet settlement.",
   };
-}
-
-function SecondaryQuoteActions({
-  quote,
-  onCarry,
-}: {
-  quote: QuoteEnvelope;
-  onCarry: () => void;
-}) {
-  return (
-    <div className="mt-3 flex flex-col items-center gap-1.5 text-[11px] text-neutral-500">
-      <button
-        type="button"
-        data-testid="carry-to-device"
-        className="inline-flex min-h-9 items-center text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline"
-        onClick={onCarry}
-      >
-        Carry to another device
-      </button>
-      <Link
-        href={buildEthHedgeHref(quote)}
-        data-testid="preview-eth-hedge"
-        className="inline-flex min-h-9 items-center text-[11px] font-medium underline-offset-4 hover:text-neutral-800 hover:underline"
-      >
-        Explore separate ETH treasury protection
-      </Link>
-    </div>
-  );
 }
 
 function BlockerMessage({
@@ -164,40 +130,16 @@ export function RemittanceQuoteActions({
 
   if (blocker === "none") {
     return (
-      <div className="border-t border-black/8 p-4">
-        <button
-          type="button"
-          data-testid="review-transfer"
-          data-hit-target="true"
-          className="cv-btn-solid inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-          onClick={onConfirm}
-        >
-          {confirmLabel ?? "Review transfer"}
-        </button>
-        <div className="mt-2 flex gap-2">
-          {editable && (
-            <button
-              type="button"
-              data-testid="edit-transfer"
-              data-hit-target="true"
-              className="cv-btn-ghost inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-              onClick={onEdit}
-            >
-              <Edit2 size={15} variant="Linear" />
-              Edit details
-            </button>
-          )}
-          <button
-            type="button"
-            data-hit-target="true"
-            className="cv-btn-ghost inline-flex h-11 flex-1 items-center justify-center rounded-lg px-4 text-xs font-semibold uppercase tracking-[0.12em]"
-            onClick={onDismiss}
-          >
-            Dismiss
-          </button>
-        </div>
-        {handoffEligible && <SecondaryQuoteActions quote={quote} onCarry={onCarry} />}
-      </div>
+      <ExecutableQuoteActions
+        quote={quote}
+        confirmLabel={confirmLabel}
+        onConfirm={onConfirm}
+        onEdit={onEdit}
+        onDismiss={onDismiss}
+        handoffEligible={handoffEligible}
+        onCarry={onCarry}
+        editable={editable}
+      />
     );
   }
 
@@ -215,7 +157,7 @@ export function RemittanceQuoteActions({
             onClick={onEdit}
           >
             <Edit2 size={15} variant="Linear" />
-            {`Add ${quote.recipient}'s payout details`}
+            Choose another recipient
           </button>
         )}
         <DismissButton onDismiss={onDismiss} />

@@ -34,7 +34,13 @@ pnpm dev           # app on :3000
 - The Protected Transfer plan endpoint accepts only a verified quote, deadline
   preset, and review note. Package/reviewer coordinates are server-only and fail
   closed when unconfigured. Its unsigned response proves neither package
-  deployment nor on-chain state, and Pay does not consume it yet.
+  deployment nor on-chain state. Executable Pay quotes offer **Send directly**
+  or **Hold for family review**; the hold path consumes the strict plan,
+  constructs the pinned `create_escrow` transaction client-side, requires a
+  connected Sui testnet wallet, and locks duplicate submission. It reports only
+  submitted or unknown—not `Created`, `Released`, or `Refunded`. The package is
+  unpublished and plan configuration remains empty by default; there is no
+  independent lifecycle receipt or release/refund UI.
 - A carried receipt or digest alone is not independent chain evidence. The
   server-only settlement route is fixed to Sui testnet and one read-only lookup;
   verified requires a successful transaction plus exact digest, pinned USDC,
@@ -67,10 +73,12 @@ pnpm dev           # app on :3000
   verification.
 - `lib/remittance/` — quote, transfer, and receipt rules plus the shared
   settlement response schema, pure exact-match evaluator, and server-only Sui
-  reader.
+  reader; Protected Transfer includes the strict plan client and pinned
+  `create_escrow` builder.
 - `lib/protocol/hash.ts` — shared blake2b256 used by the QR Ferry checksum.
 - `components/remittance/` — the primary request, quote, Transfer checks,
-  wallet approval, cross-device carry, and receipt journey.
+  direct wallet approval, family-review creation, cross-device carry, and
+  receipt journey.
 - `components/commerce/` — secondary nearby-commerce, handoff, and receipt
   infrastructure shared by the product.
 - `components/wallet/` — dAppKit providers and connect button.

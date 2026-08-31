@@ -76,8 +76,13 @@ Fiat on/off-ramp, payout, recipient intelligence, receipt splits, a production
 signed offline envelope, real Thetanuts trade, and Sui Earn remain future work,
 not shipped capabilities. Protected Transfer now has a tested single-milestone
 Move package, pinned TypeScript transaction core, and bounded server plan
-endpoint. The endpoint is unconfigured and unsigned; the package is not
-published, the plan is not connected to Pay, and no lifecycle receipts exist.
+endpoint plus an integrated Pay creation path. Executable quotes offer **Send
+directly** or **Hold for family review**; the hold path requests the strict plan,
+builds the pinned `create_escrow` transaction client-side, requires a connected
+Sui testnet wallet, and locks duplicate submission. The endpoint remains
+unconfigured and unsigned by default, the package is not published, and the UI
+reports only submitted or unknown—not Created, Released, or Refunded. No
+lifecycle receipts or reviewer release/refund workflow exist.
 The signed-quote handoff wrapper in the tree is a transport envelope
 with no outer signature; a production signed offline envelope with cross-device
 replay authority is future work.
@@ -293,16 +298,21 @@ Exit evidence:
 
 ### 6. Protected Transfer
 
-Add a narrow, human-reviewed escrow option inside the existing Pay journey.
+Complete the narrow, human-reviewed escrow lifecycle already initiated inside
+the existing Pay journey.
 
-**Status: contract, transaction core, and bounded plan endpoint implemented;
-product lifecycle incomplete.** The current Move package supports one full-balance release or
+**Status: contract, transaction core, bounded plan endpoint, and Pay creation
+path implemented; on-chain lifecycle incomplete.** Executable quotes now offer
+**Send directly** or **Hold for family review** inside the existing Pay surface.
+The direct path is unchanged. The hold path requests a strict plan, builds the
+pinned `create_escrow` transaction client-side, requires a connected Sui
+testnet wallet, locks duplicate submission, and shows only submitted or unknown
+outcomes. The current Move package supports one full-balance release or
 post-deadline refund. It does not implement multiple milestones, automated
 delivery verification, disputes, early cancellation, matched grants, or model
-authority. The TypeScript core builds the pinned `create_escrow` call from one
-strict execution plan. The server endpoint authors that plan from a verified
-quote, deadline preset, review note, and configured candidate coordinates, but
-its unsigned response cannot prove publication, deployment, or on-chain state.
+authority. The server endpoint authors the plan from a verified quote, deadline
+preset, review note, and configured candidate coordinates, but its unsigned
+response cannot prove publication, deployment, immutability, or on-chain state.
 
 The implemented Sui Move escrow object records:
 
@@ -325,10 +335,12 @@ Next implementation sequence:
    source, and bytecode evidence without claiming immutability prematurely.
 2. Configure the implemented bounded plan endpoint after publication; retain its
    strict quote binding and server-only package/reviewer policy.
-3. Add **Hold until reviewed** inside Pay without changing the direct-transfer
-   path or adding a new top-level route.
-4. Verify Created, Released, and Refunded as distinct receipt states; keep each
-   separate from bank or cash payout.
+3. Independently verify the `Created` event and bind the escrow object, payer,
+   beneficiary, reviewer, asset, amount, deadline, and evidence commitment to a
+   lifecycle receipt before showing a held state.
+4. Add the authorized reviewer release and post-deadline payer refund workflows.
+5. Verify `Released` and `Refunded` as distinct terminal receipt states; keep
+   every escrow state separate from bank or cash payout.
 
 Exit evidence:
 
@@ -467,8 +479,8 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof, independent read-only settlement verification, tested Protected Transfer Move/TypeScript core and bounded plan endpoint | Protected Transfer publication/configuration and product lifecycle, Convey Earn, reproducible real USDC digest artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
-| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; bounded protected-plan issuance from verified quotes; commerce intent candidate path | Advisory evidence review, Pay/lifecycle integration, and live Gonka request evidence | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable receipt proof, independent read-only settlement verification, and an in-Pay Protected Transfer creation path over tested Move/TypeScript/plan cores | Protected Transfer publication/configuration, independent lifecycle verification, reviewer release/refund workflow, Convey Earn, reproducible real USDC digest artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
+| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; bounded protected-plan issuance and in-Pay client construction from verified quotes; commerce intent candidate path | Advisory evidence review, protected lifecycle evidence, and live Gonka request evidence | Live model metadata, validated schema, policy gate, Family Rule binding, Sui action |
 | Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
 | Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
 | GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, visible provenance, honest local fallback | A live key/request and captured multilingual remittance evidence | Real router request, uncertainty handling, social-impact user path |

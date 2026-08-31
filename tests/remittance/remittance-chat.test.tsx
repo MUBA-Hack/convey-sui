@@ -572,10 +572,10 @@ describe("RemittanceChat — confirmation gate", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     const preview = await screen.findByTestId("remittance-quote-preview");
-    // Primary next action is Add Ana's payout details (wired to the edit form) — never
+    // Primary next action is Choose another recipient (wired to the edit form) — never
     // a black payout/review forward CTA in the repair state.
     const setup = within(preview).getByTestId("edit-transfer");
-    expect(setup).toHaveTextContent(/Add Ana's payout details/i);
+    expect(setup).toHaveTextContent(/Choose another recipient/i);
     expect(setup.className).toContain("cv-btn-solid");
     expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
     expect(within(preview).queryByTestId("demo-payout-receipt")).not.toBeInTheDocument();
@@ -898,8 +898,8 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     const preview = await screen.findByTestId("remittance-quote-preview");
-    // Unmapped recipient: the primary is Add Ana's payout details, not a Sign-in dead end.
-    expect(within(preview).getByTestId("edit-transfer")).toHaveTextContent(/Add Ana's payout details/i);
+    // Unmapped recipient: the primary is Choose another recipient, not a Sign-in dead end.
+    expect(within(preview).getByTestId("edit-transfer")).toHaveTextContent(/Choose another recipient/i);
     // No Connect wallet / Sign in dead end when the corridor or recipient is
     // the blocker.
     expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
@@ -1140,7 +1140,7 @@ describe("RemittanceChat — exact blocker copy", () => {
     fireEvent.click(screen.getByTestId("see-quote"));
     const preview = await screen.findByTestId("remittance-quote-preview");
     const setup = within(preview).getByTestId("edit-transfer");
-    expect(setup).toHaveTextContent(/Add Ana's payout details/i);
+    expect(setup).toHaveTextContent(/Choose another recipient/i);
     expect(setup.className).toContain("cv-btn-solid");
     // No black payout/review forward CTA in the repair state.
     expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
@@ -1149,7 +1149,7 @@ describe("RemittanceChat — exact blocker copy", () => {
       within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
     expect(within(preview).queryByTestId("wallet-connect")).not.toBeInTheDocument();
-    // Add Ana's payout details is wired to the existing edit form (onEdit).
+    // Choose another recipient is wired to the existing edit form (onEdit).
     fireEvent.click(setup);
     await waitFor(() =>
       expect(within(preview).getByTestId("edit-transfer-form")).toBeInTheDocument(),
@@ -1168,7 +1168,7 @@ describe("RemittanceChat — exact blocker copy", () => {
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
     const preview = await screen.findByTestId("remittance-quote-preview");
-    expect(within(preview).getByTestId("edit-transfer")).toHaveTextContent(/Add Ana's payout details/i);
+    expect(within(preview).getByTestId("edit-transfer")).toHaveTextContent(/Choose another recipient/i);
     expect(
       within(preview).queryByRole("button", { name: /Review transfer/i }),
     ).not.toBeInTheDocument();
@@ -1384,7 +1384,7 @@ describe("RemittanceChat — blocker matrix: one primary next action per blocker
     const preview = await screen.findByTestId("remittance-quote-preview");
     const solids = solidButtons(preview);
     expect(solids).toHaveLength(1);
-    expect(solids[0]).toHaveTextContent(/Add Ana's payout details/i);
+    expect(solids[0]).toHaveTextContent(/Choose another recipient/i);
     expect(solids[0]).toHaveAttribute("data-testid", "edit-transfer");
     expect(within(preview).queryByTestId("preview-demo-payout")).not.toBeInTheDocument();
   });

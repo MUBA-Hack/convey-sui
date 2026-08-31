@@ -74,8 +74,13 @@ and production build before a commit.
 - The Protected Transfer plan endpoint accepts only a verified quote, deadline
   preset, and review note. Package/reviewer coordinates come from server-only
   config and fail closed. The response is unsigned channel provenance—not proof
-  of publication, deployment, immutability, or on-chain state—and Pay does not
-  consume it yet.
+  of publication, deployment, immutability, or on-chain state. Executable Pay
+  quotes offer **Send directly** or **Hold for family review**. The hold path
+  consumes the strict plan, builds the pinned `create_escrow` transaction
+  client-side, requires a connected Sui testnet wallet, and locks duplicate
+  submission. It reports only submitted or unknown—not `Created`, `Released`,
+  or `Refunded`. The package is unpublished and configuration is empty by
+  default; there is no independent lifecycle receipt or release/refund UI.
 - A demo or prepared transaction is not settlement. A carried transaction ID
   alone is not independent chain verification. Sui settlement is not fiat payout.
 - The remittance settlement verifier is server-only, fixed to Sui testnet, and
@@ -125,9 +130,11 @@ boundaries that workers commonly miss.
 - `lib/remittance/` — remittance intent, quotes, transfer constraints, receipt
   rules, and independent settlement evaluation. `sui-settlement-response.ts` is
   client-safe; `sui-settlement-verification.ts` is pure; and
-  `sui-settlement.server.ts` owns the fixed testnet RPC boundary.
+  `sui-settlement.server.ts` owns the fixed testnet RPC boundary. Protected
+  Transfer keeps its strict plan client and pinned `create_escrow` builder here.
 - `lib/protocol/hash.ts` — shared blake2b256 used by the offline checksum.
-- `components/remittance/` — primary family-transfer journey.
+- `components/remittance/` — primary family-transfer journey, including the
+  unchanged direct path and family-review creation path.
 - `components/commerce/` — nearby-commerce, cross-device handoff, and receipt UI.
 - `components/wallet/`, `components/pwa/`, `components/landing/`, and
   `components/ui/` — wallet providers, PWA registration, presentation primitives,
@@ -150,6 +157,9 @@ Before editing:
 Workers do not commit or push unless the integration owner explicitly assigns
 that responsibility. Never rewrite history, reset the worktree, or discard files
 to make a lane appear clean.
+
+UI construction and visual criticism use Grok 4.6 gauntlets only. Non-UI work
+may use other workers.
 
 ## NASA-style implementation discipline
 
