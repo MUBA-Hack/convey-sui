@@ -330,7 +330,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       style={{ minHeight: "calc(100svh - 60px)" }}
     >
       {showMoneySheet && (
-        <div className="flex w-full flex-1 items-center lg:min-h-[calc(100svh-108px)]">
+        <div className="flex w-full flex-1 items-start lg:items-center">
           <div className="mx-auto w-full max-w-[800px] lg:max-w-[1040px]">
             <header
               data-testid="remittance-entry-heading"
@@ -345,25 +345,27 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
             </header>
           <div
             data-testid="remittance-hero"
-            className="cv-money-sheet cv-enter overflow-hidden rounded-2xl lg:flex lg:min-h-[620px] lg:flex-col"
+            className="cv-money-sheet cv-enter overflow-hidden rounded-2xl lg:flex lg:flex-col"
           >
-            <div className="flex items-center gap-3 px-5 pt-5 pb-4 lg:px-7 lg:pt-7 lg:pb-5">
-              <span aria-hidden className="cv-contact-portrait shrink-0">
-                <span className="cv-contact-portrait__head" />
-                <span className="cv-contact-portrait__body" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p
-                  data-testid="hero-recipient"
-                  className="truncate text-base font-semibold tracking-[-0.01em] text-black"
-                >
-                  {HERO_RECIPIENT} · {HERO_CITY}
-                </p>
-                <p className="mt-0.5 truncate text-[12px] text-neutral-500">
-                  Sister · {HERO_CITY}, {HERO_COUNTRY}
-                </p>
+            <div className="flex flex-col gap-3 px-5 pt-5 pb-4 sm:flex-row sm:items-center sm:gap-3 lg:px-7 lg:pt-7 lg:pb-5">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span aria-hidden className="cv-contact-portrait shrink-0">
+                  <span className="cv-contact-portrait__head" />
+                  <span className="cv-contact-portrait__body" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p
+                    data-testid="hero-recipient"
+                    className="text-base font-semibold tracking-[-0.01em] text-black"
+                  >
+                    {HERO_RECIPIENT} · {HERO_CITY}
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-neutral-500">
+                    Sister · {HERO_CITY}, {HERO_COUNTRY}
+                  </p>
+                </div>
               </div>
-              <div className="flex shrink-0 gap-1.5" aria-label="Quick amounts">
+              <div className="flex shrink-0 gap-1.5 sm:ml-auto" aria-label="Quick amounts">
                 {["250", "500", "750"].map((quickAmount) => (
                   <button
                     key={quickAmount}
@@ -428,7 +430,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               data-testid="hero-truth"
               className="px-5 pt-3 pb-1 text-[11px] leading-relaxed text-neutral-500 lg:px-7 lg:pt-4"
             >
-              Rate preview · wallet settlement only
+              Live rate estimate
             </p>
 
             <div className="px-5 pb-3 lg:px-7 lg:pt-2">
@@ -453,7 +455,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-black/8 px-5 py-1.5 lg:mt-auto lg:px-7 lg:py-3">
+            <div className="flex items-center justify-between gap-3 border-t border-black/8 px-5 py-1.5 lg:px-7 lg:py-3">
               <button
                 type="button"
                 data-testid="type-request-toggle"
@@ -553,7 +555,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       {/* Settlement sheet — replaces the money sheet once a quote arrives.
           One review surface, never a transcript. */}
       {sessionQuote && sessionQuote.quote && (
-        <div className="cv-enter flex w-full flex-1 items-center lg:min-h-[calc(100svh-108px)]">
+        <div className="cv-enter flex w-full flex-1 items-start lg:items-center">
           <div className="mx-auto w-full max-w-[760px] lg:max-w-[1040px]">
           {/* Page identity — rendered ONLY for a quote that carries a real
               family rule (a purpose or a per-transfer cap). A no-rule

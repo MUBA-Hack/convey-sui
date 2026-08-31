@@ -1448,14 +1448,17 @@ describe("RemittanceChat — blocker matrix: one primary next action per blocker
 // ---------------------------------------------------------------------------
 
 describe("RemittanceChat — desktop workspace, two groups, and mobile order", () => {
-  it("entry layout centers the instrument on desktop with min-height, no two-column rail", () => {
+  it("entry layout top-aligns below lg, centers on desktop, and does not force desktop min-height", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
     const flex = section.querySelector(".flex.w-full.flex-1");
     expect(flex).not.toBeNull();
     expect(flex?.className).not.toMatch(/grid-cols/);
-    expect(flex?.className).toContain("items-center");
-    expect(flex?.className).toMatch(/lg:min-h-/);
+    expect(flex?.className).toContain("items-start");
+    expect(flex?.className).toContain("lg:items-center");
+    expect(flex?.className).not.toMatch(/lg:min-h-/);
+    const hero = screen.getByTestId("remittance-hero");
+    expect(hero.className).not.toMatch(/lg:min-h-/);
     // The instrument wrapper centers at ~1040px on desktop.
     const wrapper = flex?.querySelector(".mx-auto") as HTMLElement | null;
     expect(wrapper?.className).toContain("lg:max-w-[1040px]");
@@ -1477,9 +1480,16 @@ describe("RemittanceChat — desktop workspace, two groups, and mobile order", (
     const workspace = preview.parentElement;
     expect(workspace?.className).toContain("max-w-[760px]");
     expect(workspace?.className).toContain("lg:max-w-[1040px]");
-    // Two desktop groups inside a two-column grid.
+    const workspaceShell = preview.closest(".flex.w-full.flex-1");
+    expect(workspaceShell?.className).toContain("items-start");
+    expect(workspaceShell?.className).toContain("lg:items-center");
+    expect(workspaceShell?.className).not.toMatch(/lg:min-h-/);
+    expect(preview.className).not.toMatch(/lg:min-h-/);
+    // Two desktop groups in a content-driven 56/44 grid, not a forced equal split.
     const grid = within(preview).getByTestId("quote-workspace-grid");
-    expect(grid.className).toContain("lg:grid-cols-2");
+    expect(grid.className).toContain("lg:grid-cols-[minmax(0,56fr)_minmax(0,44fr)]");
+    expect(grid.className).not.toContain("lg:grid-cols-2");
+    expect(grid.className).not.toMatch(/lg:min-h-/);
     const left = within(preview).getByTestId("quote-left-group");
     const right = within(preview).getByTestId("quote-right-group");
     // Left group carries recipient + amounts + summary.

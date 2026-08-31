@@ -148,7 +148,7 @@ export function RemittanceQuotePreview({
   return (
     <div
       data-testid="remittance-quote-preview"
-      className="cv-money-sheet cv-preview-in mt-3 overflow-hidden rounded-2xl lg:min-h-[560px]"
+      className="cv-money-sheet cv-preview-in mt-3 overflow-hidden rounded-2xl"
     >
       {/* Two desktop groups inside one sheet. Below lg the groups stack so the
          mobile order stays recipient → amount → summary → rule → checks →
@@ -158,7 +158,7 @@ export function RemittanceQuotePreview({
          details. */}
       <div
         data-testid="quote-workspace-grid"
-        className="lg:grid lg:min-h-[560px] lg:grid-cols-2 lg:gap-0"
+        className="lg:grid lg:grid-cols-[minmax(0,56fr)_minmax(0,44fr)] lg:items-start lg:gap-0"
       >
         <div data-testid="quote-left-group" className="lg:flex lg:flex-col lg:border-r lg:border-black/8">
           {/* Recipient contact chip — rich identity at the top of the ticket. */}
@@ -303,7 +303,6 @@ export function RemittanceQuotePreview({
           {/* Transfer details — collapsed technical disclosure below the
               action: rail, recipient address, reference, and the wallet USDC
               transfer. */}
-          <div className="lg:mt-auto">
           <SheetDisclosure label="Transfer details" triggerTestId="transfer-details-trigger">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
               <dt className="text-neutral-500">Amount converted</dt>
@@ -340,7 +339,6 @@ export function RemittanceQuotePreview({
               </dd>
             </dl>
           </SheetDisclosure>
-          </div>
         </div>
       </div>
     </div>
