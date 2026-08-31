@@ -10,6 +10,7 @@ import {
   type VerifiedProtectedTransferCreatedReceipt,
 } from "@/lib/remittance/protected-transfer-created-receipt";
 import type { CreatedCheckState } from "./proof-advanced-details";
+import { ProtectedTransferEvidenceCouncil } from "./protected-transfer-evidence-council";
 import { ProofRejectionCard } from "./proof-rejection-card";
 import { ProtectedTransferTerminalAction } from "./protected-transfer-terminal-action";
 
@@ -289,6 +290,9 @@ export function ProtectedTransferCreatedReceipt({
       </div>
 
       <ReceiptDetails receipt={result} />
+      {createdVerified ? (
+        <ProtectedTransferEvidenceCouncil receipt={result.document} />
+      ) : null}
       {createdVerified ? (
         <ProtectedTransferTerminalAction
           receipt={result}

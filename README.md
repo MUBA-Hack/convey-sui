@@ -81,7 +81,7 @@ payout.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Tested single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, and `/proof?t=` terminal receipt lifecycle with strict Created, terminal-event, and open-state checks | Testnet publication/configuration, reproducible real Created/terminal artifacts, captured release/refund evidence, and production review/payout policy |
+| Tested single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, and `/proof?t=` terminal receipt lifecycle with strict Created, terminal-event, and open-state checks | Testnet publication/configuration, reproducible real Created/terminal artifacts, a captured successful live Evidence Council artifact, captured release/refund evidence, and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
@@ -225,6 +225,45 @@ cover authority, deadline boundaries, terminal behavior, event payloads,
 canonical binding, transport and input bounds, receipt tampering, transaction
 structure, and result-first receipt states. The Move package passes all 20 Move
 tests with Sui CLI v1.78.1.
+
+#### Evidence Council — advisory review after verified creation
+
+Evidence Council appears only inside a Protected Transfer Created receipt after
+Receipts has freshly repeated the exact Sui `Created` check. The customer can
+paste up to 1,000 Unicode code points and 4,000 UTF-8 bytes of supporting text.
+The endpoint accepts the complete strict Created receipt, applies a 24 KiB
+request cap, repeats the fixed-testnet Created verification, rejects stale or
+mismatched receipt fields, and stops after the review deadline.
+
+Two distinct configured Gonka models inspect the same bounded text. They return
+fact identifiers, exact evidence text, and occurrence selectors; the server
+resolves the displayed Unicode spans rather than trusting model-provided
+offsets. Deterministic checks separately require the named recipient, stated
+purpose when present, and an exact bound MYR or PHP amount from the Created receipt. The
+strict result is one of `ready_for_human_review`, `questions_needed`,
+`disputed`, `unavailable`, or `rejected`.
+
+Every completed artifact records the fresh Created-check timestamp, two
+distinct model and request identifiers, exact corroborated or disputed spans,
+deterministic checks, questions, an evidence-text digest, and a canonical
+artifact digest. This artifact is advisory provenance, not an on-chain
+authorization or proof that the evidence is true. Only the assigned human
+reviewer can choose the existing wallet release action; the council cannot
+unlock, sign, submit, release, refund, or redirect funds. No successful live
+Evidence Council artifact has been captured, so the repository claims only the
+implemented and tested behavior.
+
+<p align="center">
+  <img src="docs/screenshots/evidence-council-desktop.png" alt="Evidence Council sample review state on desktop" width="820" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/evidence-council-mobile.png" alt="Evidence Council sample review state on mobile" width="300" />
+</p>
+
+These screenshots use a schema-valid sample Created receipt and sample review
+response to document the responsive UI states; they are not evidence of a live
+Sui transaction or Gonka request. Capturing and replacing them with one complete
+live artifact is tracked in [issue #1](https://github.com/MUBA-Hack/convey-sui/issues/1).
 
 This is an integrated creation and terminal action path plus read-only terminal
 receipt lifecycle. The package has not yet been
@@ -605,6 +644,7 @@ approval, fill, or receipt artifact is claimed.
 | `POST /api/remittance/settlement/verify` | Independently check one strict remittance receipt against Sui testnet | Fixed server-side testnet/RPC/USDC; 16 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact success/digest/recipient/amount match; strict safe response union; `no-store`; no signer, submission, client-selected endpoint, or payout authority |
 | `POST /api/remittance/protected-transfer/plan` | Issue a bounded Protected Transfer execution plan over a verified quote | Accepts only an attested quote, one of three deadline presets, and a review note; 16 KiB shared streamed body cap; server-only configured candidate package/reviewer; `no-store`; unsigned/unattested response-channel provenance; no RPC, signer, submission, or deployment proof; unconfigured by default |
 | `POST /api/remittance/protected-transfer/created/verify` | Check one submitted Protected Transfer digest for an exact `Created` event | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; at most one read-only `getTransaction`; six-second abort; exact package, digest, event, payer, beneficiary, reviewer, asset, amount, deadline, and commitment binding; strict safe response union; `no-store`; no terminal-state or payout proof |
+| `POST /api/remittance/protected-transfer/evidence` | Review bounded pasted evidence for one freshly verified Protected Transfer Created receipt | 24 KiB body cap; repeats the fixed-testnet Created check; two distinct configured Gonka models; server-resolved exact spans; deterministic recipient, purpose, and bound MYR/PHP amount checks; canonical advisory digest and provenance; human reviewer remains the only release authority; no signer or on-chain authorization |
 | `POST /api/remittance/protected-transfer/terminal/verify` | Check one submitted Protected Transfer digest for an exact `Released` or `Refunded` event | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; at most one read-only `getTransaction`; exact action, package, actor, escrow, parties, asset, amount, deadline, and commitment binding; strict safe response union; `no-store`; no action authority or payout proof |
 | `POST /api/remittance/protected-transfer/terminal/open` | Check whether the exact Created escrow remains open | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; one bounded read-only object lookup; exact shared type, parties, amount, deadline, commitment, and full balance binding; strict safe response union; `no-store`; absence is never treated as open |
 | `POST /api/strategy` | Strict goal parse plus protective-put discovery or educational mapping | Bounded Base order read and preview; no key or submission authority |
@@ -718,6 +758,12 @@ flowchart LR
   Sui["Sui testnet"]
   CreatedVerifyAPI["Strict Created verify API"]
   CreatedReceipt["Bound Created receipt"]
+  Evidence["Bounded pasted evidence"]
+  EvidenceCreatedCheck["Fresh Created re-check"]
+  CouncilA["Gonka review A"]
+  CouncilB["Gonka review B"]
+  EvidenceGate["Exact spans and deterministic checks"]
+  HumanReviewer["Assigned human reviewer"]
   TerminalReceipt["Bound terminal receipt"]
   TerminalLifecycle["Receipt lifecycle resolver"]
   TerminalVerifyAPI["Strict terminal verify API"]
@@ -734,7 +780,11 @@ flowchart LR
   Hmac --> ProtectedPlan --> ProtectedBuild --> Wallet
   Wallet --> CreatedVerifyAPI --> SuiRead
   CreatedVerifyAPI --> CreatedReceipt
-  CreatedReceipt -->|eligible role and deadline| TerminalBuild --> Wallet
+  CreatedReceipt --> Evidence --> EvidenceCreatedCheck --> SuiRead
+  EvidenceCreatedCheck --> CouncilA --> EvidenceGate
+  EvidenceCreatedCheck --> CouncilB --> EvidenceGate
+  EvidenceGate -->|advisory artifact only| HumanReviewer
+  CreatedReceipt -->|eligible role and deadline| HumanReviewer --> TerminalBuild --> Wallet
   Wallet --> TerminalVerifyAPI --> TerminalReceipt
   TerminalReceipt --> TerminalLifecycle
   TerminalLifecycle --> CreatedVerifyAPI
@@ -762,6 +812,12 @@ rejected or absent Gonka candidate falls back to deterministic parsing with
 honest local provenance. Neither receipt path proves family bank or cash payout.
 Family Steward remains outside the authorization chain: it receives only a
 pasted message and can suggest questions, never change quote or wallet state.
+Evidence Council is equally advisory: it starts only from a freshly verified
+Created receipt, sends bounded text to two distinct models, resolves exact spans
+server-side, and passes deterministic recipient, purpose, and bound MYR/PHP amount
+checks to the assigned human reviewer. Its digest records provenance; it is not
+an on-chain authorization. The human reviewer and connected wallet remain the
+release boundary.
 
 ### Cross-device signed-quote handoff
 
@@ -879,6 +935,7 @@ flowchart TB
     SettlementVerifyAPI["Settlement verify API"]
     ProtectedPlanAPI["Protected plan API"]
     ProtectedCreatedAPI["Protected Created verify API"]
+    ProtectedEvidenceAPI["Protected evidence review API"]
     StrategyAPI["Strategy discovery API"]
     ProtectionPlanAPI["Protection plan API"]
     ProtectionVerifyAPI["Protection verify API"]
@@ -913,17 +970,21 @@ flowchart TB
   Pay -->|verify submitted hold| ProtectedCreatedAPI
   ReadOnly -->|verify remittance receipt| SettlementVerifyAPI
   ReadOnly -->|re-check Created receipt| ProtectedCreatedAPI
+  ReadOnly -->|bounded evidence after Created verification| ProtectedEvidenceAPI
   IntentAPI -->|public catalog and request| Gonka
   QuoteAPI -->|public manifest and prompt| Gonka
   StewardAPI -->|message only, two distinct models| Gonka
+  ProtectedEvidenceAPI -->|bounded evidence, two distinct models| Gonka
   Gonka -->|untrusted candidate and evidence| IntentAPI
   Gonka -->|untrusted candidate and evidence| QuoteAPI
   Gonka -->|exact evidence text and occurrence| StewardAPI
+  Gonka -->|fact text and occurrence| ProtectedEvidenceAPI
   SuiWallet -->|client-signed transaction| Usdc
   SuiWallet -->|client-signed create escrow| ProtectedEscrow
   SuiWallet -->|client-signed transaction| Sui
   SettlementVerifyAPI -->|one bounded read| SuiRead
   ProtectedCreatedAPI -->|one bounded read| SuiRead
+  ProtectedEvidenceAPI -->|fresh Created re-check| SuiRead
   Treasury --> StrategyAPI
   StrategyAPI -->|read and preview offers| Thetanuts
   Treasury -->|prepare exact next request| ProtectionPlanAPI
@@ -1189,11 +1250,11 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, and Protected Transfer creation, role/deadline-gated terminal wallet actions, plus strict `/proof?t=` lifecycle verification | Protected Transfer publication/configuration, reproducible real Created/terminal artifacts, a real direct-USDC digest artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
-| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward two-model advisory message review with server-resolved exact evidence; bounded protected-plan issuance and commerce intent candidate path | Successful live two-model council artifact, protected lifecycle evidence, and live Gonka + Sui evidence remain required |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, and Protected Transfer creation, advisory Evidence Council, role/deadline-gated terminal wallet actions, plus strict `/proof?t=` lifecycle verification | Protected Transfer publication/configuration, reproducible real Created/terminal artifacts, a real direct-USDC digest artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
+| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance and commerce intent candidate path | Successful live two-model artifacts, protected lifecycle evidence, and live Gonka + Sui evidence remain required |
 | Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 1–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, live signed-order selection, customer review, wallet execution boundary, and independently checked outcome | Mapping is deterministic rather than model-routed; a live order and real transaction artifact remain uncaptured |
-| Gonka AI for Society | Mixed-language remittance interpretation plus advisory Family Steward review with distinct-model provenance, exact-evidence span resolution, verification questions, and honest partial/local fallback | The configured local key's 2026-08-31 two-model attempt was unavailable; a captured successful council and multilingual remittance artifact remain required |
+| Gonka AI for Society | Mixed-language remittance interpretation plus Family Steward and protected-evidence advisory review with distinct-model provenance, exact-evidence span resolution, deterministic checks, verification questions, and honest unavailable states | The configured local key's 2026-08-31 Family Steward attempt was unavailable; captured successful live advisory artifacts and a multilingual remittance artifact remain required |
 
 ## Project map
 
@@ -1211,6 +1272,7 @@ app/
   api/remittance/settlement/verify/route.ts read-only Sui settlement evidence
   api/remittance/protected-transfer/plan/route.ts bounded Protected Transfer plan issuance
   api/remittance/protected-transfer/created/verify/route.ts Created-event evidence adapter
+  api/remittance/protected-transfer/evidence/route.ts advisory two-model Created-receipt evidence review
   api/remittance/protected-transfer/terminal/verify/route.ts Released/Refunded evidence adapter
   api/remittance/protected-transfer/terminal/open/route.ts open escrow-state adapter
   api/strategy/route.ts        strict goal parse + protective-put discovery or educational mapping
@@ -1220,6 +1282,7 @@ app/
 components/
   commerce/                    chat, voice, checkout, ferry, scanner, receipt and proof UI, including Base purchase proof
     remittance-settlement-status.tsx strict result-first Sui and payout states
+    protected-transfer-evidence-council.tsx advisory evidence review inside verified Created receipts
     protected-transfer-terminal-action.tsx role/deadline-gated wallet action and receipt bridge
   remittance/                  quote, review, direct payment, family-review creation, handoff and receipt UI
   strategy/                    strategy desk UI
@@ -1230,6 +1293,8 @@ lib/
   gonka/                       shared structured-router core, commerce, remittance and Family Steward specs
   http/                        shared server-only bounded UTF-8 request reader
   remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, Family Steward policy, offline handoff, settlement verification
+    evidence-council.ts        exact-span resolution, deterministic checks, aggregation and artifact provenance
+    evidence-council-client.ts strict bounded request and advisory response schemas
     server-config.ts           server-only pricing, recipients, manifest and quote key
     attestation.server.ts      server-only HMAC signing and verification
     sui-settlement-response.ts shared client-safe strict response schema
@@ -1285,6 +1350,10 @@ tests/
   reviewer release and payer refund bridge with eligible wallets, and preserve
   independently verified terminal lifecycle evidence. The direct-transfer path
   remains separate and unchanged.
+- From that real freshly verified Created receipt, capture a successful live
+  Evidence Council artifact with two distinct model/request identifiers, exact
+  spans, deterministic checks, and a reproducible artifact digest. Until then,
+  tests demonstrate behavior but no live council success is claimed.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
 - Restore access to the official live order index, then use the implemented

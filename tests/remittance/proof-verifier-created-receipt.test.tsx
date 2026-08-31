@@ -286,6 +286,8 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
     expect(stage).toHaveTextContent(/Held for family review/i);
     expect(stage).toHaveTextContent(/Awaiting Convey Review/);
     expect(stage).toHaveTextContent(/review/i);
+    expect(screen.getByTestId("protected-transfer-evidence-council")).toBeInTheDocument();
+    expect(screen.getByText(/Check the evidence\. Keep the decision human\./i)).toBeInTheDocument();
     const result = screen.getByTestId("protected-transfer-created-result");
     expect(result).toHaveTextContent(/locked in escrow/i);
     // Verified page heading retains the Hold confirmed claim.

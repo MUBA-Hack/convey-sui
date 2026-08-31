@@ -2,7 +2,7 @@
   "name": "convey",
   "version": "0.1.0",
   "private": true,
-  "description": "Convey — minimal black-and-white Sui voice commerce: chat, voice, client-signed checkout, and Offline QR Ferry.",
+  "description": "Convey — voice-first Sui payments, protected family transfers, offline handoff, and verifiable receipts.",
   "license": "MIT",
   "type": "module",
   "engines": {
