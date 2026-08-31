@@ -191,6 +191,9 @@ Visual work is not complete from DOM tests alone.
    motion.
 6. Judge product copy, hierarchy, whitespace, speed, and task completion—not only
    aesthetic similarity.
+7. When a visible product surface changes, refresh its tracked README desktop
+   and mobile screenshots in the same integration diff. Teammates should never
+   have to infer the current UI from stale images.
 
 Competitor evidence and comparisons stay outside this tracked repository. Convert
 research into neutral product requirements before it enters code or documentation.
@@ -309,4 +312,5 @@ Return:
 
 The integration owner performs a fresh spec review, code-quality review,
 simplification pass, runtime dogfood pass, README/ROADMAP sync, secret scan, and
-visual gate before committing and pushing.
+visual gate before committing and pushing. Any visible UI change also requires
+verified README screenshot refreshes before that commit.

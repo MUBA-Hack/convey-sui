@@ -53,4 +53,27 @@ describe("parseStrategyGoal", () => {
       missing: "safe_goal",
     });
   });
+
+  it("accepts the exact 365-day boundary as a strategy", () => {
+    expect(parseStrategyGoal("Protect my ETH downside for 365 days")).toMatchObject({
+      kind: "strategy",
+      horizonDays: 365,
+    });
+  });
+
+  // Invalid horizons: must return a safe-goal clarification, never a strategy.
+  const invalidHorizons: Array<{ name: string; input: string }> = [
+    { name: "out-of-range 999 days", input: "Protect my ETH downside for 999 days" },
+    { name: "zero-day horizon", input: "Protect my ETH downside for 0 days" },
+    { name: "fractional horizon 30.5 days", input: "Protect my ETH downside for 30.5 days" },
+    { name: "oversized 4-digit horizon 9999 days", input: "Protect my ETH downside for 9999 days" },
+  ];
+
+  for (const { name, input } of invalidHorizons) {
+    it(`returns a safe-goal clarification for ${name}, never a strategy`, () => {
+      const result = parseStrategyGoal(input);
+      expect(result.kind).toBe("clarification");
+      expect(result).toMatchObject({ missing: "safe_goal" });
+    });
+  }
 });

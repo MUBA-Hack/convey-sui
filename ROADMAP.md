@@ -61,12 +61,21 @@ FX, fiat funding, or bank disbursement in this path.
   cross-device replay authority.
 - **Buy nearby** (River Cafe native-SUI commerce) remains a separate secondary
   capability, never relabeled as the Ana remittance.
-- **Treasury remains conceptual/read-only.** The payoff workspace covers
-  protective-put, covered-call, and collar shapes for explicit ETH/BTC goals,
-  with market context kept separate from the unpriced shape. Family Watch can
-  summarize a declared remittance obligation beside an explicitly selected
-  treasury strategy, but there is no FX hedge, MYR→PHP protection, contract
-  selection, or trade execution.
+- **Treasury Purchase Power Shield preflight is implemented (planning-only).**
+  A strict deterministic goal parser extracts ETH/BTC asset, objective, and
+  integer horizon (1..365 days) from natural-language text; a separate
+  `premiumBudgetUsd` control/API field supplies the strict exact-cent total
+  premium budget. The server-only adapter reads live Thetanuts OptionBook
+  orders on Base mainnet, inspects at most 200, deterministically selects the
+  lowest-price maker-sell put matching the asset and binding horizon, and runs
+  one signer-free `previewFillOrder` with the exact 6-decimal USDC budget. The
+  public response is a strict `live`, `no_match`, or `unavailable` state with
+  `execution: "none"`; invalid constraints, malformed orders, and preview
+  mismatches fail closed. Family Watch can summarize a declared remittance
+  obligation beside an explicitly selected treasury strategy, but there is no
+  FX hedge, MYR→PHP protection, signer, allowance, fill, or trade execution.
+  The current environment captured no successful live recommendation (provider
+  unavailable/TLS failed); no end-to-end trade is claimed.
 - **Receipts** accepts local, asset-aware native-SUI commerce and confirmed Sui
   testnet-USDC remittance receipts. Remittance receipts bind settlement
   evidence to the signed quote, independently check the digest, successful
@@ -84,7 +93,7 @@ FX, fiat funding, or bank disbursement in this path.
   the feature is not yet presented as a proven onboarding path.
 
 Fiat on/off-ramp, payout, recipient intelligence, receipt splits, a production
-signed offline envelope, real Thetanuts trade, and Sui Earn remain future work,
+signed offline envelope, real Thetanuts fill (signer/allowance/trade), and Sui Earn remain future work,
 not shipped capabilities. Protected Transfer now has a tested single-milestone
 Move package, pinned TypeScript transaction core, bounded plan and Created-event
 verification endpoints, and an integrated Pay creation path. After wallet
@@ -426,28 +435,50 @@ Use the official **Thetanuts Finance** SDK for a separate Base-mainnet workflow
 that protects a future ETH purchase or treasury exposure. This is not a Sui
 settlement feature and does not protect the MYR→PHP rate.
 
-**Status: read-only mapping and market-data adapter implemented; remittance
-context linked.** Model-based constraint extraction, actionable order review,
-allowance, signer, and real trade evidence remain outstanding. The linked
-remittance context is a conceptual ETH treasury preview only — it does not
-protect the MYR→PHP rate, guarantee Ana's payout, or execute a trade.
+**Status: bounded Purchase Power Shield preflight implemented (planning-only);
+real approval/signing/fill and a successful live artifact remaining.** A strict
+deterministic goal parser extracts ETH/BTC asset, objective, and integer
+horizon (1..365 days) from natural-language text; a separate `premiumBudgetUsd`
+control/API field supplies the strict exact-cent total premium budget. The
+server-only adapter reads live Thetanuts OptionBook orders on Base mainnet,
+inspects at most 200, deterministically selects the lowest-price maker-sell put
+matching the asset and binding horizon, and runs one signer-free
+`previewFillOrder` with the exact 6-decimal USDC budget. The public response is
+a strict `live`, `no_match`, or `unavailable` state with `execution: "none"`;
+invalid constraints, malformed orders, and preview mismatches fail closed. The
+linked remittance context is a conceptual ETH treasury preview only — it does
+not protect the MYR→PHP rate, guarantee Ana's payout, or execute a trade. The
+current environment captured no successful live recommendation (provider
+unavailable/TLS failed); no end-to-end trade is claimed. Real allowance,
+signer, fill, and trade evidence remain outstanding.
 
 Customer flow:
 
-1. Describe a floor, expiry, or coverage goal.
-2. Use GonkaRouter to extract constraints.
-3. Fetch live Thetanuts orders.
-4. Reject stale or unactionable orders and calculate payoff deterministically.
-5. Show premium, maximum loss, expiry, underlying asset, collateral, allowance,
-   and Base network before approval.
-6. Fill through OptionBook or create a custom RFQ through OptionFactory.
+1. Describe a protective-put goal in natural language (asset and horizon).
+2. Strict deterministic parse extracts ETH/BTC asset, objective, and integer
+   horizon 1..365; fractional or oversized horizons return a safe
+   clarification. Separately set the `premiumBudgetUsd` control/API field to
+   the exact-cent total budget; the parser never extracts or implies a budget
+   from goal text.
+3. Fetch live Thetanuts OptionBook orders (one bounded call, at most 200
+   inspected).
+4. Deterministically select the lowest-price maker-sell put matching the asset
+   and binding horizon; reject stale, wrong-side, wrong-type, wrong-asset, or
+   wrong-collateral orders to `no_match`.
+5. Run one signer-free `previewFillOrder` with the exact USDC budget; cross-check
+   maker+nonce, expiry, call/put, strikes, and per-contract price.
+6. Show premium, maximum loss (equal to premium paid), expiry, underlying asset,
+   collateral, contract count, and Base network with `execution: "none"` and
+   `approvalRequired: true` — never sign, approve, or fill.
 
 Exit evidence:
 
-- Live SDK market data and deterministic payoff tests.
-- An explicit signer and allowance flow.
-- A small real Base-mainnet trade with a BaseScan receipt.
-- Clear separation between an AI recommendation and the customer's trade
+- Live SDK order read, deterministic selection, signer-free preview, and strict
+  fail-closed tests (197 focused strategy tests currently pass).
+- An explicit Base signer and allowance flow (future).
+- A small real Base-mainnet fill with a BaseScan receipt (future).
+- A captured successful live recommendation artifact (future; not yet captured).
+- Clear separation between a deterministic preflight and the customer's trade
   approval.
 
 ## Later — Sui-native savings
@@ -517,8 +548,8 @@ this source) and which are **future** (still required for a complete submission)
 | --- | --- | --- | --- |
 | Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, and a Protected Transfer path with independent Created verification plus a portable receipt | Protected Transfer publication/configuration, reproducible real Created evidence, reviewer release/refund workflow and terminal receipts, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
 | Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; Family Steward two-model advisory message review with server-resolved exact evidence; bounded protected-plan issuance; commerce intent candidate path | Successful live two-model council artifact, protected lifecycle evidence, and live Gonka request evidence | Distinct model/request provenance, validated schema, policy gate, Family Rule binding, Sui action |
-| Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, market/order evidence surface | Quote selection, approval, signing, and a real Base-mainnet trade | Live SDK orders and a useful options workflow |
-| Thetanuts AI x Options | Natural-language risk-goal interface plus SDK market context | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
+| Thetanuts Best Product Built on the SDK | Pinned SDK, Base mainnet read adapter, bounded 200-order inspection, deterministic maker-sell put selection, signer-free `previewFillOrder`, strict `live`/`no_match`/`unavailable` state | Base signer, allowance, real OptionBook/OptionFactory fill, and a captured successful live recommendation artifact | Live SDK orders, signer-free preview, and a useful planning-only options workflow |
+| Thetanuts AI x Options | Natural-language risk-goal interface with strict deterministic parse plus SDK order read and signer-free preview | Model-routed constraint extraction plus deterministic payoff and real fill | OptionBook or OptionFactory Base-mainnet transaction |
 | GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and advisory Family Steward review with distinct provenance, exact evidence, verification questions, and honest fallback | The 2026-08-31 two-model attempt was unavailable; captured successful council and multilingual live-request evidence remain required | Real router requests, uncertainty handling, exact evidence, social-impact user path |
 
 ## Delivery gates

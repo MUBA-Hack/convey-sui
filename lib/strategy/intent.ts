@@ -67,8 +67,23 @@ export function parseStrategyGoal(raw: string): StrategyIntent {
     };
   }
 
-  const horizon = text.match(/\b(\d{1,3})\s*(?:day|days|d)\b/);
-  const horizonDays = horizon ? Math.min(Number(horizon[1]), 365) : null;
+  // Parse the FULL numeric token before the day/days/d suffix so a fractional
+  // horizon (e.g. "30.5 days") or an oversized integer (e.g. "9999 days") is
+  // recognized and explicitly rejected as a safe-goal clarification, never
+  // silently reinterpreted (e.g. dropping the ".5") or ignored. Only a safe
+  // integer in 1..365 yields a strategy; missing horizon stays null.
+  const horizon = text.match(/\b(\d+(?:\.\d+)?)\s*(?:days|day|d)\b/);
+  if (horizon) {
+    const days = Number(horizon[1]);
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      return {
+        kind: "clarification",
+        missing: "safe_goal",
+        message: "Use a horizon between 1 and 365 days.",
+      };
+    }
+  }
+  const horizonDays = horizon ? Number(horizon[1]) : null;
 
   if (protection && income) {
     return {

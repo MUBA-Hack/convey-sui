@@ -125,19 +125,19 @@ describe("StrategyDesk — static standalone workspace", () => {
     expect(html).not.toContain(">?</p>");
   });
 
-  it("uses the 1180px max width and the lg two-column workspace grid", () => {
+  it("uses the 1320px max width and the lg two-column workspace grid", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
-    expect(html).toContain("max-w-[1180px]");
-    expect(html).toContain("lg:grid-cols-[0.86fr_1.14fr]");
+    expect(html).toContain("max-w-[1320px]");
+    expect(html).toContain("lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)]");
     expect(html).toContain("grid-cols-1");
+    expect(html).not.toContain("AnimatePresence");
   });
 
-  it("has exactly one notional control and no duplicate formatted notional", () => {
+  it("has exactly one premium-budget control on the default protect draft", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
-    const notionalControls = html.match(/id="strategy-notional"/g) ?? [];
-    expect(notionalControls.length).toBe(1);
-    // The editable black tile holds the raw input value; no separate formatted
-    // "RM2,400" display duplicates it.
+    const premiumControls = html.match(/id="strategy-premium-budget"/g) ?? [];
+    expect(premiumControls.length).toBe(1);
+    expect(html).not.toContain("id=\"strategy-notional\"");
     expect(html).not.toContain("RM2,400");
   });
 
@@ -156,9 +156,9 @@ describe("StrategyDesk — static standalone workspace", () => {
     expect(html).toContain("No strike, premium, quote, or trade is selected.");
   });
 
-  it("uses the Map strategy CTA in standalone mode", () => {
+  it("uses the Find protection CTA on the default protect draft", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
-    expect(html).toContain("Map strategy");
+    expect(html).toContain("Find protection");
     expect(html).not.toContain("Preview strategy");
   });
 
@@ -170,6 +170,8 @@ describe("StrategyDesk — static standalone workspace", () => {
     // Presets are not hidden inside a <details> element.
     expect(html).not.toContain("Edit goal presets");
     expect(html).not.toContain("<details");
+    const selectedPresetButtons = html.match(/type="button"[^>]*>Protect ETH downside for 30 days/g) ?? [];
+    expect(selectedPresetButtons.length).toBe(0);
   });
 
   it("does not surface SDK/version/server-only/no-signer badges", () => {
@@ -183,24 +185,22 @@ describe("StrategyDesk — static standalone workspace", () => {
 });
 
 describe("StrategyDesk — notional accessible name and preset sizing", () => {
-  it("gives the notional spinbutton an explicit accessible name 'Protected notional in MYR'", () => {
+  it("gives the premium budget an explicit accessible name 'Premium budget in USD'", () => {
     render(<StrategyDesk />);
     expect(
-      screen.getByRole("spinbutton", { name: "Protected notional in MYR" }),
+      screen.getByRole("spinbutton", { name: "Premium budget in USD" }),
     ).toBeInTheDocument();
     cleanup();
   });
 
   it("keeps the dynamic strategy hero label visible above the notional input", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
-    // Default ETH protect draft → "ETH downside" hero label remains visible.
-    expect(html).toContain("ETH downside");
+    expect(html).toContain("ETH premium budget");
   });
 
-  it("sizes preset buttons to min-h-11 on mobile and lg:min-h-9 on large screens", () => {
+  it("sizes preset buttons to a 48px hit target", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
-    expect(html).toContain("min-h-11");
-    expect(html).toContain("lg:min-h-9");
+    expect(html).toContain("min-h-12");
   });
 });
 
@@ -239,7 +239,7 @@ describe("StrategyDesk — remittance deep-link context", () => {
   it("standalone mode remains intact when no context is passed", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
     expect(html).toContain("Treasury protection");
-    expect(html).toContain("Map strategy");
+    expect(html).toContain("Find protection");
     expect(html).not.toContain("Map protection");
     expect(html).not.toContain("Related transfer");
   });
@@ -291,9 +291,8 @@ describe("StrategyDesk — pending state", () => {
     const form = screen.getByLabelText("Strategy goal").closest("form")!;
     await fireEvent.submit(form);
     // The CTA reflects the in-flight mapping.
-    expect(screen.getByText("Mapping…")).toBeInTheDocument();
-    // The payoff workspace shows the pending status.
-    expect(screen.getByText("Checking market context")).toBeInTheDocument();
+    expect(screen.getByText("Looking…")).toBeInTheDocument();
+    expect(screen.getByTestId("treasury-loading")).toBeInTheDocument();
     // The default ETH/30-day draft shape is still shown (not cleared).
     expect(screen.getByText("Downside floor")).toBeInTheDocument();
     expect(screen.getByText("Protective put")).toBeInTheDocument();
@@ -426,7 +425,7 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     await fireEvent.submit(form);
     // ETH result resolves.
     await waitFor(() =>
-      expect(screen.getByText("ETH downside")).toBeInTheDocument(),
+      expect(screen.getByText("ETH premium budget")).toBeInTheDocument(),
     );
     // Family Watch suggests a protective put from the carried ETH evidence.
     expect(
@@ -437,7 +436,7 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     fireEvent.click(screen.getByText("Earn premium on BTC"));
 
     // The stale ETH hero label is gone; the BTC draft shape takes over.
-    expect(screen.queryByText("ETH downside")).toBeNull();
+    expect(screen.queryByText("ETH premium budget")).toBeNull();
     // Family Watch no longer carries the stale ETH protective-put suggestion.
     expect(
       within(screen.getByTestId("family-watch")).queryByText("Protective put"),
@@ -453,14 +452,14 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     const form = screen.getByLabelText("Strategy goal").closest("form")!;
     await fireEvent.submit(form);
     await waitFor(() =>
-      expect(screen.getByText("ETH downside")).toBeInTheDocument(),
+      expect(screen.getByText("ETH premium budget")).toBeInTheDocument(),
     );
 
     await fireEvent.change(screen.getByLabelText("Strategy goal"), {
       target: { value: "Earn premium on BTC" },
     });
 
-    expect(screen.queryByText("ETH downside")).toBeNull();
+    expect(screen.queryByText("ETH premium budget")).toBeNull();
     expect(screen.getByText("Covered call")).toBeInTheDocument();
   });
 
@@ -474,7 +473,7 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     render(<StrategyDesk remittanceContext={REMITTANCE_CTX} />);
     const form = screen.getByLabelText("Strategy goal").closest("form")!;
     await fireEvent.submit(form);
-    expect(screen.getByText("Mapping…")).toBeInTheDocument();
+    expect(screen.getByText("Looking…")).toBeInTheDocument();
 
     // While the ETH fetch is pending, edit the draft to BTC without resubmitting.
     await fireEvent.change(screen.getByLabelText("Strategy goal"), {
@@ -482,7 +481,7 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     });
 
     // Loading ends when the draft abandons the pending request.
-    expect(screen.queryByText("Mapping…")).toBeNull();
+    expect(screen.queryByText("Looking…")).toBeNull();
     // The BTC draft shape is present, not a stale ETH preview.
     expect(screen.getByText("Covered call")).toBeInTheDocument();
 
@@ -491,13 +490,13 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     await waitFor(() =>
       expect(screen.getByText("Covered call")).toBeInTheDocument(),
     );
-    expect(screen.queryByText("ETH downside")).toBeNull();
+    expect(screen.queryByText("ETH premium budget")).toBeNull();
     expect(
       within(screen.getByTestId("family-watch")).queryByText("Protective put"),
     ).toBeNull();
     // The draft remains the BTC draft, not the stale ETH goal.
     expect(screen.getByLabelText("Strategy goal")).toHaveValue("Earn premium on BTC");
-    expect(screen.queryByText("Mapping…")).toBeNull();
+    expect(screen.queryByText("Looking…")).toBeNull();
   });
 });
 
@@ -521,7 +520,7 @@ describe("StrategyDesk — BTC result is asset-neutral across the whole page", (
     await fireEvent.submit(form);
 
     await waitFor(() =>
-      expect(screen.getByText("BTC downside")).toBeInTheDocument(),
+      expect(screen.getByText("BTC premium budget")).toBeInTheDocument(),
     );
     expect(screen.getByText("$112,000")).toBeInTheDocument();
 
@@ -636,13 +635,13 @@ describe("StrategyDesk — bounded external work (AbortController)", () => {
     render(<StrategyDesk />);
     const form = screen.getByLabelText("Strategy goal").closest("form")!;
     await fireEvent.submit(form);
-    expect(screen.getByText("Mapping…")).toBeInTheDocument();
+    expect(screen.getByText("Looking…")).toBeInTheDocument();
     await fireEvent.change(screen.getByLabelText("Strategy goal"), {
       target: { value: "Earn premium on BTC" },
     });
     // The first request's signal is aborted; loading ends.
     expect(signals[0]!.aborted).toBe(true);
-    expect(screen.queryByText("Mapping…")).toBeNull();
+    expect(screen.queryByText("Looking…")).toBeNull();
   });
 
   it("aborts the in-flight fetch when a preset is chosen", async () => {
@@ -653,7 +652,7 @@ describe("StrategyDesk — bounded external work (AbortController)", () => {
     await fireEvent.submit(form);
     fireEvent.click(screen.getByText("Earn premium on BTC"));
     expect(signals[0]!.aborted).toBe(true);
-    expect(screen.queryByText("Mapping…")).toBeNull();
+    expect(screen.queryByText("Looking…")).toBeNull();
   });
 
   it("aborts the previous in-flight fetch on a new submit", async () => {
