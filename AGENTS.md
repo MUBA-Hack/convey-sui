@@ -111,9 +111,10 @@ and production build before a commit.
 Keep this map aligned with `CLAUDE.md`; the extra entries identify current trust
 boundaries that workers commonly miss.
 
-- `app/` — product routes and typed APIs. `/` is Pay, `/qr-ferry` is Continue
-  elsewhere, `/proof` is Activity plus receipt verification, and `/strategy` is
-  Treasury.
+- `app/` — product routes and typed APIs. `/` is public product landing,
+  `/app` is full-height companion workspace, `/pay` is Send money,
+  `/qr-ferry` is Continue elsewhere, `/proof` is Activity plus receipt
+  verification, and `/strategy` is Treasury.
 - `app/api/remittance/settlement/verify/` — server-only, read-only Sui testnet
   settlement verification. It enforces the 16 KiB streamed body cap, at most one lookup,
   six-second abort, `no-store`, and a safe strict response union; it never signs
@@ -140,6 +141,8 @@ boundaries that workers commonly miss.
 - `components/wallet/`, `components/pwa/`, `components/landing/`, and
   `components/ui/` — wallet providers, PWA registration, presentation primitives,
   and the shared shadcn system respectively.
+- `brand.md` — canonical visual, motion, product-copy, and demo-disclosure
+  contract for every human or agent UI implementation lane.
 
 ## Parallel ownership
 

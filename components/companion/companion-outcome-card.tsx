@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, ShieldTick } from "@/components/icons";
 import { OvernightProtectionCard } from "@/components/companion/overnight-protection-card";
 import { PaymentRiskReview } from "@/components/companion/payment-risk-review";
+import { ProtectedSupportDemoCard } from "@/components/companion/protected-support-demo-card";
 import { ReceiptSplitFlow } from "@/components/companion/receipt-split-flow";
 import type { CompanionResolution } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
@@ -57,6 +58,10 @@ export function CompanionOutcomeCard({ result, message, memory }: { result: Comp
 
   if (result.toolId === "strategies.propose") {
     return <OvernightProtectionCard />;
+  }
+
+  if (result.toolId === "missions.propose") {
+    return <ProtectedSupportDemoCard />;
   }
 
   if (result.clarification) {

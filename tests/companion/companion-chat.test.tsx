@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { CompanionChat } from "@/components/companion/companion-chat";
+import {
+  buildProtectedSupportDemoTrace,
+  ProtectedSupportDemoCard,
+} from "@/components/companion/protected-support-demo-card";
+import {
+  buildThetanutsDemoTrace,
+  ThetanutsExecutionDemo,
+} from "@/components/companion/thetanuts-execution-demo";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
@@ -10,8 +18,58 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe("Companion demo lifecycles", () => {
+  it("derives the protected-support replay from the lifecycle state machine", () => {
+    const trace = buildProtectedSupportDemoTrace();
+    expect(trace.map((state) => state.status)).toEqual([
+      "created",
+      "evidence_approved",
+      "released",
+    ]);
+    expect(trace.at(-1)?.settlement).toBe("not_submitted");
+  });
+
+  it("plays protected support and keeps simulation truth in details", async () => {
+    vi.useFakeTimers();
+    render(<ProtectedSupportDemoCard />);
+    fireEvent.click(screen.getByRole("button", { name: /play protected journey/i }));
+    for (let step = 0; step < 3; step += 1) {
+      await act(async () => vi.advanceTimersByTimeAsync(700));
+    }
+    expect(screen.getByText("Ready for Ana").closest("[data-reached]"))
+      .toHaveAttribute("data-reached", "true");
+    fireEvent.click(screen.getByText(/about this replay/i));
+    expect(screen.getByText(/no sui transaction was signed/i)).toBeInTheDocument();
+  });
+
+  it("derives a verified simulated receipt from the execution journal", () => {
+    const trace = buildThetanutsDemoTrace();
+    expect(trace.map((state) => state.status)).toEqual([
+      "policy_reviewed",
+      "approval_confirmed",
+      "pending_verification",
+      "verified",
+    ]);
+    expect(trace.at(-1)?.receipt?.evidence).toBe("simulated");
+  });
+
+  it("plays the guarded options sequence without presenting a live fill", async () => {
+    vi.useFakeTimers();
+    render(<ThetanutsExecutionDemo />);
+    fireEvent.click(screen.getByRole("button", { name: /run overnight policy/i }));
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => vi.advanceTimersByTimeAsync(700));
+    }
+    expect(screen.getByText("Policy replay complete").closest("[data-reached]"))
+      .toHaveAttribute("data-reached", "true");
+    fireEvent.click(screen.getByText(/replay evidence/i));
+    expect(screen.getByText(/no wallet request, order broadcast, or live fill occurred/i)).toBeInTheDocument();
+  });
 });
 
 describe("CompanionChat", () => {

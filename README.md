@@ -70,12 +70,45 @@ specific people, explicitly confirmed, and converted into exactly reconciled
 requests. The photo is not persisted, the sample is labelled, and a chat reply
 never becomes a settlement claim.
 
+The companion also includes two product-grade, deterministic journey replays:
+
+- **Protected support** turns “Send Ana 25 USDC for medicine, release after
+  pickup evidence” into a reviewable support mission. The replay exercises the
+  same typed create, evidence-review, release, expiry, refund, authority, and
+  replay rules used by the tested domain core.
+- **Overnight protection** turns a bounded treasury goal into a policy review,
+  exact approval, order check, and independently checked outcome journal. Its
+  replay exercises the same cap, authority, stale-order, duplicate-submit, and
+  retry rules used by the tested strategy core.
+
+Both replays are explicitly disclosed inside their expandable evidence details.
+They do not connect a wallet, submit a Sui transaction, broadcast a Thetanuts
+order, or claim a live settlement. Their purpose is to make the complete
+customer journey usable while the separately listed live-proof work remains
+blocked.
+
 <p align="center">
   <img src="docs/screenshots/convey-app-desktop.png" alt="Convey app preparing a receipt split on desktop" width="820" />
 </p>
 
 <p align="center">
   <img src="docs/screenshots/convey-app-mobile.png" alt="Convey app preparing a receipt split on mobile" width="300" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/convey-app-protected-demo-desktop.png" alt="Convey protected support journey on desktop" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/convey-app-protected-demo-mobile.png" alt="Convey protected support journey on mobile" width="300" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/convey-app-strategy-demo-desktop.png" alt="Convey overnight treasury protection journey on desktop" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/convey-app-strategy-demo-mobile.png" alt="Convey overnight treasury protection journey on mobile" width="300" />
 </p>
 
 The public prototype uses a visibly labelled sample contact so `Pay Dave` is
@@ -140,12 +173,12 @@ payout.
 | --- | --- |
 | Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, visibly labelled sample contact, full manual receipt split, bounded two-review payment risk route, and explicit overnight limits | Durable user-controlled Agentic Memory, production receipt OCR, a captured successful live two-model council artifact, and execution authority for an approved overnight policy |
 | Strict receipt-to-obligation allocator with reconciled subtotal/tax/service, shared items, deterministic rounding, explicit confirmation, and independently verified settlement transitions | Connected receipt extraction and production request delivery |
-| Strict overnight protection policy with policy hash, time/spend/loss/trade/slippage limits, authority binding, kill switch, and fail-closed evaluation | Customer-approved scoped execution authority and independently verified Thetanuts fills |
+| Strict overnight protection policy with policy hash, time/spend/loss/trade/slippage limits, authority binding, kill switch, fail-closed evaluation, and a deterministic approval-to-verification replay backed by the tested journal | Customer-approved scoped execution authority and independently verified Thetanuts fills |
 | Public Gonka request-receipt proxy with strict metadata schema, bounded device-local Activity records, exact request/model re-verification, and explicit verified/mismatch/not-found/unavailable states | Gateway-signed request and response hashes when Gonka ships signed receipts |
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Tested single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, and `/proof?t=` terminal receipt lifecycle with strict Created, terminal-event, and open-state checks | Testnet publication/configuration, reproducible real Created/terminal artifacts, a captured successful live Evidence Council artifact, captured release/refund evidence, and production review/payout policy |
+| Tested single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, and a deterministic create-to-release/refund replay backed by the tested lifecycle | Testnet publication/configuration, reproducible real Created/terminal artifacts, a captured successful live Evidence Council artifact, captured release/refund evidence, and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
@@ -757,7 +790,8 @@ approval, fill, or receipt artifact is claimed.
 
 | Route | Purpose | Network / authority |
 | --- | --- | --- |
-| `/` — **Home** | Chat or speak to the companion; prepare a bounded payment proposal or receive a safe clarification | Gonka sees a redacted contact manifest; deterministic code rebinds opaque IDs; no signer or transaction submission |
+| `/` — **Product site** | Explain Convey's value, trust model, and primary customer journeys before opening the product | Public, read-only presentation; no transaction authority |
+| `/app` — **Companion** | Chat or speak to Convey; prepare a bounded payment, receipt split, protected support mission, or treasury policy | Gonka sees a redacted contact manifest; deterministic code rebinds opaque IDs; no signer or transaction submission |
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 1–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |

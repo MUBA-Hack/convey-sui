@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, ShieldTick } from "@/components/icons";
 import { previewOvernightProtectionLimits } from "@/lib/companion/overnight-policy";
+import { ThetanutsExecutionDemo } from "@/components/companion/thetanuts-execution-demo";
 
 const MICRO = 1_000_000n;
 
@@ -49,6 +50,7 @@ export function OvernightProtectionCard() {
         <span className="companion-limit"><b>12 hours</b> active window</span>
       </div>
       <p className="mt-4 text-xs leading-5 text-white/55">This is a policy preview. Nothing can run until you create limited authority and approve the final plan.</p>
+      <ThetanutsExecutionDemo />
       <Link href="/strategy" className="mt-4 inline-flex min-h-11 w-full items-center justify-between rounded-full bg-white px-5 text-sm font-semibold text-black">
         Shape the plan <ArrowRight size={16} />
       </Link>

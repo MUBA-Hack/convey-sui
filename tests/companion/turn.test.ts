@@ -66,10 +66,14 @@ describe("parseCompanionTurn", () => {
     expect(result.clarification?.missingFields).toContain("approval");
   });
 
-  it("routes receipt and protection requests to their bounded tools", () => {
+  it("routes receipt, protected support, and options requests to bounded tools", () => {
     const split = parseCompanionTurn({ message: "Split this receipt", localeHint: "en", memory: MEMORY });
+    const mission = parseCompanionTurn({ message: "Send Ana 25 USDC for medicine, release after pickup evidence", localeHint: "en", memory: MEMORY });
     const protection = parseCompanionTurn({ message: "Protect 500 USDC overnight", localeHint: "en", memory: MEMORY });
     expect(split.toolId).toBe("splits.propose");
+    expect(mission.toolId).toBe("missions.propose");
+    expect(mission.candidate?.amountMajor).toBe("25");
+    expect(mission.candidate?.asset).toBe("USDC");
     expect(protection.toolId).toBe("strategies.propose");
     expect(protection.candidate?.amountMajor).toBe("500");
   });

@@ -80,6 +80,26 @@ export function parseCompanionTurn(input: CompanionInput): CompanionResolution {
       clarification: null,
     };
   }
+  if (/(?:release|unlock).*(?:evidence|pickup|delivery)|(?:medicine|relief).*(?:evidence|pickup|delivery)/i.test(message)) {
+    return {
+      toolId: "missions.propose",
+      outcome: "unavailable",
+      routing: deterministicRouting,
+      candidate: {
+        toolId: "missions.propose",
+        contactId: null,
+        contactRef: null,
+        amountMajor: message.match(AMOUNT_RE)?.[1] ?? null,
+        asset: (message.match(ASSET_RE)?.[1]?.toUpperCase() as CompanionAsset | undefined) ?? null,
+        purpose: "evidence-protected support",
+        missingFields: [],
+        confidence: 0.93,
+        explanation: "A protected support transfer can be prepared with an evidence condition and refund deadline.",
+      },
+      proposal: null,
+      clarification: null,
+    };
+  }
   if (/protect|hedge|downside|overnight strategy/i.test(message)) {
     return {
       toolId: "strategies.propose",

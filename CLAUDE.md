@@ -59,9 +59,10 @@ pnpm dev           # app on :3000
 
 ## Layout
 
-- `app/` — Next.js routes: `/` (family remittance), `/qr-ferry` (Continue
-  elsewhere), `/proof` (Activity and receipt verification), `/strategy`
-  (Treasury), and typed APIs.
+- `app/` — Next.js routes: `/` (public product landing), `/app` (full-height
+  companion workspace), `/pay` (Send money), `/qr-ferry` (Continue elsewhere),
+  `/proof` (Activity and receipt verification), `/strategy` (Treasury), and typed
+  APIs.
 - `app/api/remittance/settlement/verify/` — fixed-testnet, read-only receipt
   verification; 16 KiB streamed body cap, one lookup, six-second abort,
   `no-store`, strict safe response, and no signer or payout authority.

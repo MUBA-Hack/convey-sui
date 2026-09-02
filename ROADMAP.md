@@ -42,6 +42,14 @@ reproduced.
   window, authority mode and kill switch. Evaluation fails closed and only
   declares eligibility; an explicit execution path plus independent Thetanuts
   `OrderFilled` verification is still required.
+- **The companion exposes honest end-to-end journey replays.** Protected
+  support invokes a typed create, evidence-review, release, expiry, and refund
+  state machine with authority and replay defenses. Overnight protection
+  invokes a typed policy, exact approval, order-check, and outcome-verification
+  journal with cap, stale-order, pending-submit, and retry defenses. Both are
+  deterministic simulations disclosed in their evidence details; neither
+  connects a wallet, submits a transaction, broadcasts an order, or replaces
+  the live proof thresholds below.
 - **Public Gonka provenance lookup is implemented.** Live companion results can
   expose a compact verification link backed by Gonka's unauthenticated receipt
   endpoint. The strict proxy returns request ID, devshard, exact model,

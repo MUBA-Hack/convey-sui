@@ -32,9 +32,10 @@ type Message = {
 };
 
 const STARTER_PROMPTS = [
-  { label: "Pay Dave 12 USDC", detail: "For dinner", icon: MoneyRecive },
-  { label: "Split this receipt", detail: "Add a photo next", icon: DocumentText },
-  { label: "Protect 500 USDC", detail: "Map a downside strategy", icon: ShieldTick },
+  { label: "Pay Dave 12 USDC", prompt: "Pay Dave 12 USDC for dinner", detail: "For dinner", icon: MoneyRecive },
+  { label: "Support Ana safely", prompt: "Send Ana 25 USDC for medicine, release after pickup evidence", detail: "Release after pickup", icon: ShieldTick },
+  { label: "Split this receipt", prompt: "Split this receipt", detail: "Add a photo next", icon: DocumentText },
+  { label: "Protect 500 USDC", prompt: "Protect 500 USDC overnight", detail: "Bound an overnight strategy", icon: ShieldTick },
 ] as const;
 
 const DESTINATIONS = [
@@ -72,6 +73,9 @@ function responseText(result: CompanionResolution): string {
   }
   if (result.toolId === "strategies.propose") {
     return "I prepared a limited overnight protection policy for you to shape.";
+  }
+  if (result.toolId === "missions.propose") {
+    return "I mapped a protected medicine payment that releases after pickup evidence is approved.";
   }
   if (result.outcome === "proposal" && result.proposal) {
     return `I prepared ${result.proposal.amountMajor} ${result.proposal.asset} for ${result.proposal.contactLabel}.`;
@@ -228,8 +232,8 @@ export function CompanionChat({
           </div>
 
           <div className="companion-quick-row" aria-label="Suggested requests">
-            {STARTER_PROMPTS.map(({ label }) => (
-              <button key={label} type="button" onClick={() => setInput(label)} className="companion-quick-chip">
+            {STARTER_PROMPTS.map(({ label, prompt }) => (
+              <button key={label} type="button" onClick={() => setInput(prompt)} className="companion-quick-chip">
                 {label}
               </button>
             ))}
@@ -287,8 +291,8 @@ export function CompanionChat({
               <span className="companion-spark"><Flash size={18} /></span>
             </div>
             <div className="mt-5 grid gap-2.5">
-              {STARTER_PROMPTS.map(({ label, detail, icon: Icon }) => (
-                <button key={label} type="button" onClick={() => setInput(label)} className="companion-action-row">
+              {STARTER_PROMPTS.map(({ label, prompt, detail, icon: Icon }) => (
+                <button key={label} type="button" onClick={() => setInput(prompt)} className="companion-action-row">
                   <span className="companion-action-icon"><Icon size={17} /></span>
                   <span className="min-w-0 flex-1 text-left">
                     <span className="block truncate text-sm font-medium text-black">{label}</span>
