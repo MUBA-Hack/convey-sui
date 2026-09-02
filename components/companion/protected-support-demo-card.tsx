@@ -117,11 +117,16 @@ export function ProtectedSupportDemoCard() {
       <div className="protected-support-reference">
         <div>
           <span><TickCircle size={15} variant="Bold" aria-hidden="true" /> Public reference</span>
-          <p>The same release rule has completed on Sui.</p>
+          <p>The same release and refund rules have completed on Sui.</p>
         </div>
-        <a href={PROTECTED_TRANSFER_REFERENCE.releasedExplorerUrl} target="_blank" rel="noreferrer">
-          View receipt <ExportSquare size={14} variant="Linear" aria-hidden="true" />
-        </a>
+        <div className="protected-support-reference-links">
+          <a href={PROTECTED_TRANSFER_REFERENCE.releasedExplorerUrl} target="_blank" rel="noreferrer">
+            Release <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+          </a>
+          <a href={PROTECTED_TRANSFER_REFERENCE.refundedExplorerUrl} target="_blank" rel="noreferrer">
+            Refund <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+          </a>
+        </div>
       </div>
 
       <details className="companion-demo-disclosure">

@@ -15,6 +15,7 @@ describe("published Protected Transfer reference", () => {
   it("binds explorer links to the exact public digests", () => {
     expect(reference.createdExplorerUrl).toBe(`https://suiscan.xyz/testnet/tx/${reference.createdDigest}`);
     expect(reference.releasedExplorerUrl).toBe(`https://suiscan.xyz/testnet/tx/${reference.releasedDigest}`);
+    expect(reference.refundedExplorerUrl).toBe(`https://suiscan.xyz/testnet/tx/${reference.refundedDigest}`);
     expect(reference.packageExplorerUrl).toBe(`https://suiscan.xyz/testnet/object/${reference.packageId}`);
   });
 });

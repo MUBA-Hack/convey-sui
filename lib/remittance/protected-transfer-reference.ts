@@ -7,9 +7,13 @@ export const PROTECTED_TRANSFER_REFERENCE = Object.freeze({
   escrowObjectId: "0xf00261b8172f11b635b7715b89f3e2f6fd650abbd62a07c9f6ab45516f5a3fcd",
   createdDigest: "CuJbcPfWcuUCWVuNbga3iuAvKGduGPx15tWDCVxsqAgb",
   releasedDigest: "D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1",
+  refundEscrowObjectId: "0xe961ad66af814011b1481235433e1188bc1b650506ab11678c6a453b29173e61",
+  refundCreatedDigest: "AczATaY1RAE15frfBJ8AELxjkGyWTKb7vSmeGE5j32yE",
+  refundedDigest: "7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv",
   beneficiaryAddress: "0xb2bdd8a1121b08cad34e5dac45e555a6bed541254adea8e2448e57d80becf7db",
   reviewerAddress: "0x70acd3a61ca107ef0d9983cf01c6bba282475fe3bb1e6b34e50e1a47b0757543",
   createdExplorerUrl: "https://suiscan.xyz/testnet/tx/CuJbcPfWcuUCWVuNbga3iuAvKGduGPx15tWDCVxsqAgb",
   releasedExplorerUrl: "https://suiscan.xyz/testnet/tx/D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1",
+  refundedExplorerUrl: "https://suiscan.xyz/testnet/tx/7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv",
   packageExplorerUrl: "https://suiscan.xyz/testnet/object/0x265dcb32526bbe87973752b6164d1860a2f7e6fa16520948a83c4c9de60212c7",
 });

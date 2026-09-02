@@ -37,10 +37,13 @@ describe("Companion demo lifecycles", () => {
   it("links the protected-support story to the real public reference without merging claims", () => {
     render(<ProtectedSupportDemoCard />);
 
-    const receipt = screen.getByRole("link", { name: /view receipt/i });
-    expect(receipt).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /release/i })).toHaveAttribute(
       "href",
       "https://suiscan.xyz/testnet/tx/D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1",
+    );
+    expect(screen.getByRole("link", { name: /refund/i })).toHaveAttribute(
+      "href",
+      "https://suiscan.xyz/testnet/tx/7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv",
     );
     expect(screen.getByText(/separate 0\.01 SUI testnet lifecycle/i)).toBeInTheDocument();
     expect(screen.getByText(/not Ana's 25 USDC scenario or a fiat payout/i)).toBeInTheDocument();

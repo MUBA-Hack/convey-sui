@@ -77,9 +77,9 @@ and production build before a commit.
   the portable receipt and local Activity link. Evidence Council is advisory and
   only available after that fresh match. Reviewer release and post-deadline payer
   refund remain explicit wallet actions with separate terminal verification. The
-  Move package is published on Sui testnet. A public 0.01 native-SUI Created →
-  Released reference exists, but it is not testnet USDC, a product-generated
-  receipt, Evidence Council success, or fiat payout evidence.
+  Move package is published on Sui testnet. Public native-SUI release and
+  expiry-refund references exist, but they are not testnet USDC,
+  product-generated receipts, Evidence Council success, or fiat payout evidence.
 - A demo or prepared transaction is not settlement. A carried transaction ID
   alone is not independent chain verification. Sui settlement is not fiat payout.
 - The remittance settlement verifier is server-only, fixed to Sui testnet, and
