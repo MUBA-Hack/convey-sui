@@ -116,6 +116,15 @@ describe("createGonkaCommerceRouter — successful run", () => {
     expect(result.attempts[0]?.kind).toBe("PRIMARY");
     expect(deps._calls[0]?.headers["x-gonka-no-fallback"]).toBe("true");
   });
+
+  it("uses the public X-Request-Id instead of the response-body completion id", async () => {
+    const deps = DEPS([{ ...okSpec(validCandidateJson(), "req_public_123"), bodyId: "devshard-69497-160" }]);
+    const router = createGonkaCommerceRouter(CFG, deps);
+    const result = await router.run(TEST_INPUT);
+    expect(isGonkaRunOk(result)).toBe(true);
+    if (!isGonkaRunOk(result)) return;
+    expect(result.metadata.gonkaRequestId).toBe("req_public_123");
+  });
 });
 
 describe("createGonkaCommerceRouter — missing request id", () => {

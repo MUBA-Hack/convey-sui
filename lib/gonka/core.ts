@@ -99,22 +99,26 @@ function responseMetadata(response: unknown): {
   content?: string;
 } {
   if (!isRecord(response)) return { gonkaRequestId: "" };
-  const choices = Array.isArray(response.choices) ? response.choices : [];
+  const body = isRecord(response.data) ? response.data : response;
+  const headerRequestId = typeof response.request_id === "string" ? response.request_id : "";
+  const choices = Array.isArray(body.choices) ? body.choices : [];
   const firstChoice = choices[0];
   const message =
     isRecord(firstChoice) && isRecord(firstChoice.message) ? firstChoice.message : undefined;
 
   return {
-    gonkaRequestId: typeof response.id === "string" ? response.id : "",
-    ...(typeof response.model === "string" ? { responseModel: response.model } : {}),
+    gonkaRequestId: headerRequestId || (typeof body.id === "string" ? body.id : ""),
+    ...(typeof body.model === "string" ? { responseModel: body.model } : {}),
     ...(typeof message?.content === "string" ? { content: message.content } : {}),
   };
 }
 
 function tokenUsage(response: unknown): GonkaTokenUsage {
-  if (!isRecord(response) || !isRecord(response.usage)) return {};
-  const inputTokens = response.usage.prompt_tokens;
-  const outputTokens = response.usage.completion_tokens;
+  if (!isRecord(response)) return {};
+  const body = isRecord(response.data) ? response.data : response;
+  if (!isRecord(body.usage)) return {};
+  const inputTokens = body.usage.prompt_tokens;
+  const outputTokens = body.usage.completion_tokens;
   const usage: GonkaTokenUsage = {};
   if (typeof inputTokens === "number" && Number.isInteger(inputTokens) && inputTokens >= 0) {
     usage.inputTokens = inputTokens;
@@ -283,7 +287,7 @@ export function createGonkaStructuredRouter<TInput extends { prompt: string; loc
             ...(includeResponseFormat
               ? { response_format: { type: "json_object" as const } }
               : {}),
-          }),
+          }).withResponse(),
         {
           maxRetries: retriesRemaining,
           now,

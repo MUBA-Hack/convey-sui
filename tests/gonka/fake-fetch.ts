@@ -5,7 +5,7 @@
  */
 
 export type FetchResponseSpec =
-  | { kind: "ok"; body: unknown; requestId?: string; model?: string }
+  | { kind: "ok"; body: unknown; requestId?: string; bodyId?: string; model?: string }
   | { kind: "http"; status: number; body?: unknown }
   | { kind: "throw"; error: unknown };
 
@@ -96,7 +96,7 @@ function buildResponse(spec: FetchResponseSpec, url: string): FakeResponse {
     );
   }
   const body = chatCompletionBody({
-    id: spec.requestId ?? "req_abc123",
+    id: spec.bodyId ?? spec.requestId ?? "req_abc123",
     model: spec.model ?? "deepseek-ai/DeepSeek-V4-Flash-0731",
     content: typeof spec.body === "string" ? spec.body : JSON.stringify(spec.body),
   });
