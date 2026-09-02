@@ -2114,6 +2114,7 @@
 .landing-final-cta .landing-primary-cta { margin-top: 28px; background: var(--landing-ink); color: #f7f7f4; }
 
 .companion-shell--app { height: 100dvh; overflow: hidden; background: #eeeeeb; padding: 16px; }
+body:has(.companion-shell--app) .site-header { display: none; }
 .companion-shell--app .companion-layout { height: 100%; grid-template-columns: minmax(0, 1fr) 340px; }
 .companion-shell--app .companion-window { display: flex; height: 100%; flex-direction: column; border-radius: 16px; }
 .companion-app-header { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgb(10 10 10 / 8%); padding: 12px 18px; }
@@ -2124,6 +2125,45 @@
 .companion-shell--app .companion-composer-wrap { background: #fdfdfb; }
 .companion-shell--app .companion-sidebar { align-content: start; overflow-y: auto; }
 .companion-mobile-nav { display: none; }
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .companion-shell--app { padding: 12px 12px 86px; }
+    .companion-shell--app .companion-layout {
+        display: block;
+        width: min(100%, 760px);
+        height: 100%;
+        margin-inline: auto;
+    }
+    .companion-shell--app .companion-window { height: 100%; }
+    .companion-shell--app .companion-sidebar { display: none; }
+    .companion-shell--app .companion-message { max-width: min(82%, 620px); }
+    .companion-mobile-nav {
+        position: fixed;
+        z-index: 20;
+        inset: auto 0 0;
+        display: grid;
+        height: calc(74px + env(safe-area-inset-bottom));
+        grid-template-columns: repeat(4, 1fr);
+        border-top: 1px solid rgb(10 10 10 / 9%);
+        background: rgb(253 253 251 / 96%);
+        padding: 8px max(12px, calc((100vw - 760px) / 2)) env(safe-area-inset-bottom);
+        backdrop-filter: blur(12px);
+    }
+    .companion-mobile-nav a {
+        display: flex;
+        min-width: 0;
+        min-height: 52px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border-radius: 12px;
+        color: rgb(10 10 10 / 46%);
+        font-size: 10px;
+    }
+    .companion-mobile-nav a[aria-current="page"] { color: #0a0a0a; }
+    .companion-mobile-nav a:focus-visible { outline: 2px solid #0a0a0a; outline-offset: -2px; }
+}
 
 @media (max-width: 900px) {
     .landing-hero { min-height: auto; }

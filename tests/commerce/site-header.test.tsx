@@ -180,10 +180,10 @@ describe("SiteHeader — wallet control", () => {
 });
 
 describe("SiteHeader — app shell", () => {
-  it("yields navigation chrome to the full-height app workspace", () => {
+  it("keeps a stable header node for CSS to hide when the app shell is present", () => {
     pathname.current = "/app";
     const { container } = render(<SiteHeader />);
-    expect(container.querySelector("header")).toBeNull();
+    expect(container.querySelector("header.site-header")).not.toBeNull();
   });
 });
 

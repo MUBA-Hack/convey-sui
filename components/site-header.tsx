@@ -69,7 +69,6 @@ export function SiteHeader() {
   // The sheet is keyed to the route it was opened on, so navigating away
   // closes it without an effect fighting React's render pass.
   const [openedOnPath, setOpenedOnPath] = useState<string | null>(null);
-  if (pathname === "/app" || pathname.startsWith("/app/")) return null;
   const menuOpen = openedOnPath === pathname;
   const toggleMenu = () =>
     setOpenedOnPath((prev) => (prev === pathname ? null : pathname));
@@ -80,7 +79,7 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        "top-0 z-[999] w-full sticky border-b border-[var(--cv-line)] bg-[var(--cv-paper)]/85 backdrop-blur-xl",
+        "site-header top-0 z-[999] w-full sticky border-b border-[var(--cv-line)] bg-[var(--cv-paper)]/85 backdrop-blur-xl",
       )}
     >
       <div className="flex h-[68px] items-center justify-between gap-4 px-5 md:px-8">

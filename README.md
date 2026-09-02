@@ -43,8 +43,9 @@ safe to prepare; only the wallet can authorize value.
 
 The `/app` companion combines text, voice, bounded contact context, strict tool
 contracts, and approval-first outcomes in a dedicated responsive workspace.
-Desktop adds a contextual action rail; mobile uses a full-height conversation,
-fixed safe-area navigation, and a thumb-reachable composer. Its current
+Wide desktop adds a contextual action rail; tablet and mobile switch to one
+full-height conversation canvas, fixed safe-area navigation, and a
+thumb-reachable composer instead of compressing desktop columns. Its current
 tool registry allows contact resolution, payment proposals, split proposals,
 mission proposals, strategy proposals, and clarification. The implemented
 payment path can return a typed proposal and run deterministic recipient and
