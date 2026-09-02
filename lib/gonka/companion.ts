@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { gonkaConfigFromEnv } from "./adapter";
 import { createGonkaStructuredRouter } from "./core";
-import type { GonkaAdapterConfig } from "./types";
+import type { GonkaAdapterConfig, GonkaAdapterDependencies } from "./types";
 import { CompanionCandidateSchema, CompanionInputSchema } from "@/lib/companion/contracts";
 import type { CompanionCandidate } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
@@ -56,6 +56,9 @@ function buildSystemPrompt(): string {
     "Prefer clarification when memory is missing or the contact is ambiguous.",
     "Use only the manifest contact ids and labels shown in the prompt.",
     "Never emit raw wallet addresses, keys, or transaction details.",
+    "Return exactly one JSON object with these keys and no extras:",
+    '{"toolId":"contacts.resolve|payments.propose|splits.propose|missions.propose|strategies.propose|clarify","contactId":"manifest id or null","contactRef":"manifest display name or null","amountMajor":"decimal string or null","asset":"USDC|SUI|null","purpose":"short text or null","missingFields":["contact|amount|asset|purpose|approval"],"confidence":0.0,"explanation":"short reason"}.',
+    "Use null for every unknown nullable value and [] when no fields are missing.",
   ].join(" ");
 }
 
@@ -68,7 +71,10 @@ function buildRepairPrompt(invalid: string, manifest: CompanionManifest): string
 
 type CompanionRouterInput = z.infer<typeof CompanionRouterInputSchema>;
 
-export function createGonkaCompanionRouter(config: GonkaAdapterConfig) {
+export function createGonkaCompanionRouter(
+  config: GonkaAdapterConfig,
+  dependencies: GonkaAdapterDependencies = {},
+) {
   return createGonkaStructuredRouter<CompanionRouterInput, CompanionManifest, CompanionCandidate>(
     {
       manifestSchema: CompanionManifestSchema,
@@ -98,6 +104,7 @@ export function createGonkaCompanionRouter(config: GonkaAdapterConfig) {
       candidateKeyHint: "toolId",
     },
     config,
+    dependencies,
   );
 }
 

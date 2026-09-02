@@ -65,4 +65,12 @@ describe("parseCompanionTurn", () => {
     expect(result.outcome).toBe("clarification");
     expect(result.clarification?.missingFields).toContain("approval");
   });
+
+  it("routes receipt and protection requests to their bounded tools", () => {
+    const split = parseCompanionTurn({ message: "Split this receipt", localeHint: "en", memory: MEMORY });
+    const protection = parseCompanionTurn({ message: "Protect 500 USDC overnight", localeHint: "en", memory: MEMORY });
+    expect(split.toolId).toBe("splits.propose");
+    expect(protection.toolId).toBe("strategies.propose");
+    expect(protection.candidate?.amountMajor).toBe("500");
+  });
 });

@@ -3,7 +3,7 @@
 # Convey
 
 <p align="center">
-  <img src="public/brand/convey-mark.png" alt="Convey logo" width="120" height="120" />
+  <img src="public/brand/convey-mark.svg" alt="Convey logo" width="120" height="120" />
 </p>
 
 <p align="center"><strong>Say it. Carry it across. Settle on Sui.</strong></p>
@@ -38,11 +38,15 @@ safe to prepare; only the wallet can authorize value.
 ## One companion, focused money journeys
 
 The Home companion combines text, voice, bounded contact context, strict tool
-contracts, and approval-first outcomes in one responsive surface. Its Wave 1
+contracts, and approval-first outcomes in one responsive surface. Its current
 tool registry allows contact resolution, payment proposals, split proposals,
 mission proposals, strategy proposals, and clarification. The implemented
-payment path can return a typed proposal; no companion tool signs, submits,
-releases escrow, or executes an options trade.
+payment path can return a typed proposal and run deterministic recipient and
+amount checks. Receipt requests open a camera-friendly intake before the tested
+receipt-to-obligation allocator can create reconciled shares. Protection
+requests open a bounded policy review backed by the tested overnight-policy
+core. No companion tool signs, submits, releases escrow, or executes an options
+trade.
 
 The companion has two inference paths:
 
@@ -53,10 +57,14 @@ The companion has two inference paths:
    asks for clarification when a person, amount, asset, or confirmation is
    missing.
 
-The long-term Agentic Memory adapter is tracked in GitHub issue #4. The shared
+The public prototype uses a visibly labelled sample contact so `Pay Dave` is
+immediately demonstrable without claiming persistence. The long-term Agentic
+Memory adapter is tracked in GitHub issue #4. The shared
 schema, redacted Gonka manifest, deterministic contact rebind, companion API,
-and responsive Home UI are implemented in this wave; durable user-controlled
-storage is not claimed until that issue lands.
+responsive Home UI, deterministic risk council, receipt obligation lifecycle,
+overnight protection policy, and public Gonka request-receipt lookup are
+implemented; durable user-controlled storage is not claimed until that issue
+lands.
 
 ### One family-transfer journey
 
@@ -109,6 +117,10 @@ payout.
 
 | Works in this repository | Still required for a complete production transfer |
 | --- | --- |
+| Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, visibly labelled sample contact, receipt intake, payment risk checks, and bounded protection review | Durable user-controlled Agentic Memory, production receipt OCR, live two-model council evidence, and execution authority for an approved overnight policy |
+| Strict receipt-to-obligation allocator with reconciled subtotal/tax/service, shared items, deterministic rounding, explicit confirmation, and independently verified settlement transitions | Connected receipt extraction and production request delivery |
+| Strict overnight protection policy with policy hash, time/spend/loss/trade/slippage limits, authority binding, kill switch, and fail-closed evaluation | Customer-approved scoped execution authority and independently verified Thetanuts fills |
+| Public Gonka request-receipt proxy with strict metadata schema plus pinned-model no-fallback routing | Gateway-signed request and response hashes when Gonka ships signed receipts |
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
@@ -372,6 +384,10 @@ addresses, keys, transaction bytes, signatures, digests, or signing authority.
 configured key is not proof of a successful request; the evidence for a live
 remittance route is `intentReview.reviewer = "gonka"`, `mode: "live"`, request
 id, and matching model id on a successful POST response.
+
+The hosted Fly app has `GONKA_ROUTER_API_KEY` and its pinned model IDs deployed
+as server-only secrets. Local development uses the gitignored `.env.local`;
+neither secret value is stored in GitHub.
 
 ### Family Steward — advisory two-model message review
 

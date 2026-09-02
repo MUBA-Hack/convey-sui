@@ -1,12 +1,12 @@
 # Convey product roadmap
 
-Convey is one Ana-centered remittance journey: a spoken or typed MYR-to-PHP
-request becomes a signed reference quote carrying a Family Rule, then a guarded
-Sui testnet-USDC wallet transfer of USDC the wallet already holds. The exact
-signed quote can be carried by QR to a connected device, camera-scanned,
-server-verified, and explicitly approved. A separate Treasury workspace can
-discover and, with explicit external Base-wallet approval, buy a tightly capped
-ETH or BTC protective put without implying that it protects the transfer.
+Convey is a chat-first financial companion: a person describes what should
+happen, Convey prepares a bounded action, and the person reviews the exact
+outcome before value can move. The same front door can prepare a local or
+cross-border payment, turn a receipt into obligations, carry a request between
+devices, protect a conditional family payment, or define a tightly capped
+treasury policy. Remittance remains the deepest settlement journey, not the
+limit of the product.
 
 This roadmap is ordered around one coherent customer journey, not around sponsor
 logos. Each phase has a customer outcome and a proof threshold. A feature is not
@@ -14,6 +14,33 @@ complete because a screen exists; it is complete when the stated evidence can be
 reproduced.
 
 ## Implementation snapshot
+
+- **The companion is the Home experience.** Text and voice requests route
+  through a strict Gonka candidate contract with pinned-model no-fallback
+  routing and deterministic rebind. The public build labels Dave as sample
+  context; durable Agentic Memory remains issue #4 and is not claimed.
+- **Payment risk checks are implemented as advisory policy.** Known/new
+  recipient, changed address, unusual amount, duplicate invoice, QR mismatch,
+  expiry/replay, urgency, and prompt-injection signals produce explicit hold or
+  reject questions. AI disagreement can hold a request but cannot reject it
+  without a blocking deterministic fact.
+- **Receipt obligations are implemented as a strict domain core.** Confirmed
+  receipt candidates must reconcile item subtotal, tax, service and total;
+  shared items use deterministic rounding; duplicate names remain ambiguous;
+  chat acknowledgement cannot mark anything paid; settlement requires an
+  independent transaction check. Camera intake is visible on Home. Connected
+  OCR remains pending.
+- **Overnight protection policy is implemented without autonomous execution.**
+  A canonical policy hash binds underlying, option side/type, objective,
+  premium and loss caps, trade count, expiry, quote age, slippage, active
+  window, authority mode and kill switch. Evaluation fails closed and only
+  declares eligibility; an explicit execution path plus independent Thetanuts
+  `OrderFilled` verification is still required.
+- **Public Gonka provenance lookup is implemented.** Live companion results can
+  expose a compact verification link backed by Gonka's unauthenticated receipt
+  endpoint. The strict proxy returns request ID, devshard, exact model,
+  timestamp, outcome, status, streaming flag, tokens, TTFT and duration only.
+  This is metadata provenance, not a gateway signature.
 
 The current source implements the Ana remittance **quote-to-wallet software
 path** on Sui testnet — from natural-language request through a signed

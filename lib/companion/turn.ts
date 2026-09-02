@@ -53,6 +53,53 @@ function buildProposal(candidate: CompanionCandidate, contactLabel: string): Com
 
 export function parseCompanionTurn(input: CompanionInput): CompanionResolution {
   const message = input.message.trim();
+  const deterministicRouting = {
+    provider: "deterministic" as const,
+    mode: "fallback" as const,
+    requestId: null,
+    responseModel: null,
+    fallbackReason: "deterministic_only" as const,
+  };
+  if (/receipt|split (?:this|the) (?:bill|receipt)|who owes/i.test(message)) {
+    return {
+      toolId: "splits.propose",
+      outcome: "unavailable",
+      routing: deterministicRouting,
+      candidate: {
+        toolId: "splits.propose",
+        contactId: null,
+        contactRef: null,
+        amountMajor: null,
+        asset: null,
+        purpose: "receipt split",
+        missingFields: [],
+        confidence: 0.96,
+        explanation: "A receipt is needed before the split can be prepared.",
+      },
+      proposal: null,
+      clarification: null,
+    };
+  }
+  if (/protect|hedge|downside|overnight strategy/i.test(message)) {
+    return {
+      toolId: "strategies.propose",
+      outcome: "unavailable",
+      routing: deterministicRouting,
+      candidate: {
+        toolId: "strategies.propose",
+        contactId: null,
+        contactRef: null,
+        amountMajor: message.match(AMOUNT_RE)?.[1] ?? null,
+        asset: (message.match(ASSET_RE)?.[1]?.toUpperCase() as CompanionAsset | undefined) ?? null,
+        purpose: "downside protection",
+        missingFields: [],
+        confidence: 0.91,
+        explanation: "A bounded protection plan can be prepared for review.",
+      },
+      proposal: null,
+      clarification: null,
+    };
+  }
   const contactMention = input.memory.contacts.length
     ? input.memory.contacts.find((contact) => {
         const key = normalizeContactKey(contact.displayName);

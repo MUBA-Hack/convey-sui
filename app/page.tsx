@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { CompanionChat } from "@/components/companion/companion-chat";
+import { CompanionShowcase } from "@/components/companion/companion-showcase";
+import { SAMPLE_COMPANION_MEMORY } from "@/components/companion/sample-context";
 
 export const metadata: Metadata = {
   title: "Convey",
@@ -12,5 +14,10 @@ export const metadata: Metadata = {
  * Existing remittance and commerce routes remain intact elsewhere in the app.
  */
 export default function HomePage() {
-  return <CompanionChat />;
+  return (
+    <main>
+      <CompanionChat initialMemory={SAMPLE_COMPANION_MEMORY} memoryMode="sample" />
+      <CompanionShowcase />
+    </main>
+  );
 }

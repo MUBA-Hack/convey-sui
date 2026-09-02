@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -17,6 +18,7 @@ import { useVoiceInput } from "@/components/commerce/use-voice-input";
 import { CompanionResolutionSchema, type CompanionResolution } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
 import { EMPTY_COMPANION_MEMORY } from "@/lib/companion/memory";
+import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
 
 type Message = {
   id: number;
@@ -71,49 +73,12 @@ function responseText(result: CompanionResolution): string {
   return "I could not prepare that safely. Try a clearer request.";
 }
 
-function ResultCard({ result }: { result: CompanionResolution }) {
-  if (result.outcome === "proposal" && result.proposal) {
-    return (
-      <div className="companion-result companion-result--dark">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="companion-eyebrow text-white/55">Ready to review</p>
-            <p className="mt-2 text-2xl font-medium tracking-[-0.035em] text-white">
-              {result.proposal.amountMajor} {result.proposal.asset}
-            </p>
-            <p className="mt-1 text-sm text-white/65">
-              To {result.proposal.contactLabel}
-              {result.proposal.purpose ? ` · ${result.proposal.purpose}` : ""}
-            </p>
-          </div>
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-black">
-            <ShieldTick size={17} />
-          </span>
-        </div>
-        <Link href="/pay" className="mt-5 inline-flex min-h-11 w-full items-center justify-between rounded-full bg-white px-5 text-sm font-semibold text-black">
-          Review payment
-          <ArrowRight size={16} />
-        </Link>
-      </div>
-    );
-  }
-
-  if (result.clarification) {
-    return (
-      <div className="companion-result">
-        <p className="companion-eyebrow text-black/45">One detail first</p>
-        <p className="mt-2 text-sm leading-6 text-black/72">{result.clarification.reason}</p>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 export function CompanionChat({
   initialMemory = EMPTY_COMPANION_MEMORY,
+  memoryMode = "live",
 }: {
   initialMemory?: CompanionMemory;
+  memoryMode?: "live" | "sample";
 }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -167,7 +132,16 @@ export function CompanionChat({
       <div className="companion-layout">
         <div className="companion-window">
           <header className="companion-hero">
-            <div className="companion-orbit" aria-hidden><span /><span /><span /></div>
+            <div className="companion-hero-media" aria-hidden>
+              {reduceMotion ? (
+                <Image src="/media/convey-intent-poster.webp" alt="" fill sizes="(max-width: 640px) 74vw, 62vw" priority />
+              ) : (
+                <video autoPlay muted loop playsInline poster="/media/convey-intent-poster.webp">
+                  <source src="/media/convey-intent-route.webm" type="video/webm" />
+                  <source src="/media/convey-intent-route.mp4" type="video/mp4" />
+                </video>
+              )}
+            </div>
             <div className="relative z-10 max-w-[680px]">
               <p className="companion-eyebrow text-white/52">Your money, in plain language</p>
               <h1 className="mt-3 text-[38px] font-medium leading-[0.98] tracking-[-0.055em] text-white sm:text-[54px]">
@@ -184,7 +158,9 @@ export function CompanionChat({
               <span className="companion-live-dot" aria-hidden />
               <p className="truncate text-xs font-medium text-black">
                 {rememberedPeople.length > 0
-                  ? `${rememberedPeople.length} remembered ${rememberedPeople.length === 1 ? "person" : "people"}`
+                  ? memoryMode === "sample"
+                    ? `Sample person · ${rememberedPeople[0]?.displayName}`
+                    : `${rememberedPeople.length} remembered ${rememberedPeople.length === 1 ? "person" : "people"}`
                   : "Ready for your first request"}
               </p>
             </div>
@@ -212,7 +188,7 @@ export function CompanionChat({
                   <div className={message.role === "user" ? "companion-bubble companion-bubble--user" : "companion-bubble"}>
                     {message.text}
                   </div>
-                  {message.resolution && <ResultCard result={message.resolution} />}
+                  {message.resolution && <CompanionOutcomeCard result={message.resolution} message={message.text} memory={memory} />}
                 </motion.article>
               ))}
             </AnimatePresence>
