@@ -285,6 +285,6 @@ pnpm build
 - additional Home chat intents beyond Wave 1;
 - cross-device encrypted memory sync;
 - autonomous Thetanuts isolated executor;
-- on-chain reputation or credit capsule.
+- portable on-chain reputation credentials.
 
 Each later wave receives its own vertical ticket and proof gate.

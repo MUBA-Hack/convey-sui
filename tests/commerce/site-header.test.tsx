@@ -55,7 +55,7 @@ vi.mock("@/components/wallet/connect-button", () => ({
 
 import { SiteHeader } from "@/components/site-header";
 
-const DEAD_HREFS = ["/app", "/fact-check", "/claims", "/agents", "/verify", "/status", "/build-progress"];
+const DEAD_HREFS = ["/fact-check", "/claims", "/agents", "/verify", "/status", "/build-progress"];
 
 beforeEach(() => {
   pathname.current = "/";
@@ -73,13 +73,13 @@ describe("SiteHeader — commerce navigation", () => {
     expect(screen.queryByRole("link", { name: /Continue elsewhere/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
 
-    const home = screen.getByRole("link", { name: "Home" });
+    const assistant = screen.getByRole("link", { name: "Assistant" });
     const pay = screen.getByRole("link", { name: "Pay" });
     const relay = screen.getByRole("link", { name: /Continue elsewhere/ });
     const activity = screen.getByRole("link", { name: /Activity/ });
     const treasury = screen.getByRole("link", { name: /Treasury/ });
 
-    expect(home).toHaveAttribute("href", "/");
+    expect(assistant).toHaveAttribute("href", "/app");
     expect(pay).toHaveAttribute("href", "/pay");
     expect(relay).toHaveAttribute("href", "/qr-ferry");
     expect(activity).toHaveAttribute("href", "/proof");
@@ -95,7 +95,7 @@ describe("SiteHeader — commerce navigation", () => {
     expect(screen.queryByRole("link", { name: /Treasury/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
-    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Assistant" })).toHaveAttribute("href", "/app");
     expect(screen.getByRole("link", { name: "Pay" })).toHaveAttribute("href", "/pay");
     expect(screen.getByRole("link", { name: /Continue elsewhere/ })).toHaveAttribute("href", "/qr-ferry");
     expect(screen.getByRole("link", { name: /Activity/ })).toHaveAttribute("href", "/proof");
@@ -176,6 +176,14 @@ describe("SiteHeader — wallet control", () => {
     const walletControls = screen.getAllByTestId("wallet-connect");
     expect(walletControls.length).toBeGreaterThanOrEqual(1);
     expect(walletControls[0]).toHaveTextContent("Sign in");
+  });
+});
+
+describe("SiteHeader — app shell", () => {
+  it("yields navigation chrome to the full-height app workspace", () => {
+    pathname.current = "/app";
+    const { container } = render(<SiteHeader />);
+    expect(container.querySelector("header")).toBeNull();
   });
 });
 

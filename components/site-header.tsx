@@ -7,7 +7,7 @@ import { WalletConnectButton } from "@/components/wallet/connect-button";
 import { cn } from "@/lib/utils";
 
 const COMMERCE_ITEMS = [
-  { href: "/", label: "Home", description: "Ask Convey" },
+  { href: "/app", label: "Assistant", description: "Ask Convey" },
   { href: "/pay", label: "Pay", description: "Send money nearby or abroad" },
   {
     href: "/qr-ferry",
@@ -69,6 +69,7 @@ export function SiteHeader() {
   // The sheet is keyed to the route it was opened on, so navigating away
   // closes it without an effect fighting React's render pass.
   const [openedOnPath, setOpenedOnPath] = useState<string | null>(null);
+  if (pathname === "/app" || pathname.startsWith("/app/")) return null;
   const menuOpen = openedOnPath === pathname;
   const toggleMenu = () =>
     setOpenedOnPath((prev) => (prev === pathname ? null : pathname));

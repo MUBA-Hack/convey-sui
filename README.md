@@ -9,7 +9,9 @@
 <p align="center"><strong>Say it. Carry it across. Settle on Sui.</strong></p>
 
 <p align="center">
-  <a href="https://convey-sui.fly.dev"><strong>Open the live app</strong></a>
+  <a href="https://convey-sui.fly.dev"><strong>Visit the product site</strong></a>
+  ·
+  <a href="https://convey-sui.fly.dev/app"><strong>Open Convey</strong></a>
 </p>
 
 Convey is a chat-first financial companion for Sui. One voice or text request
@@ -21,24 +23,28 @@ customer still reviews and approves the final wallet action.
 
 The product is designed for people who should not need to understand seed
 phrases, token decimals, transaction builders, or AI routing. The companion is
-the front door; the existing Pay, cross-device continuation, Activity, and
-Treasury workspaces remain focused destinations behind it. Google/Enoki
+available from a dedicated full-height app at `/app`; the public `/` route is
+now a product landing page rather than an embedded workspace. Pay,
+cross-device continuation, Activity, and Treasury remain focused destinations
+behind the assistant. Google/Enoki
 onboarding and extension wallets converge on the same customer-controlled
 approval. AI interprets a request; deterministic policy decides whether it is
 safe to prepare; only the wallet can authorize value.
 
 <p align="center">
-  <img src="docs/screenshots/companion-desktop.jpg" alt="Convey companion desktop interface" width="820" />
+  <img src="docs/screenshots/convey-landing-desktop.png" alt="Convey product landing page on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/companion-mobile.jpg" alt="Convey companion mobile interface" width="300" />
+  <img src="docs/screenshots/convey-landing-mobile.png" alt="Convey product landing page on mobile" width="300" />
 </p>
 
 ## One companion, focused money journeys
 
-The Home companion combines text, voice, bounded contact context, strict tool
-contracts, and approval-first outcomes in one responsive surface. Its current
+The `/app` companion combines text, voice, bounded contact context, strict tool
+contracts, and approval-first outcomes in a dedicated responsive workspace.
+Desktop adds a contextual action rail; mobile uses a full-height conversation,
+fixed safe-area navigation, and a thumb-reachable composer. Its current
 tool registry allows contact resolution, payment proposals, split proposals,
 mission proposals, strategy proposals, and clarification. The implemented
 payment path can return a typed proposal and run deterministic recipient and
@@ -65,11 +71,11 @@ requests. The photo is not persisted, the sample is labelled, and a chat reply
 never becomes a settlement claim.
 
 <p align="center">
-  <img src="docs/screenshots/companion-receipt-split-desktop.png" alt="Convey receipt split companion on desktop" width="820" />
+  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey app preparing a receipt split on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/companion-receipt-split-mobile.png" alt="Convey receipt split companion on mobile" width="300" />
+  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey app preparing a receipt split on mobile" width="300" />
 </p>
 
 The public prototype uses a visibly labelled sample contact so `Pay Dave` is

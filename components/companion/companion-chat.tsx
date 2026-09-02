@@ -20,6 +20,8 @@ import type { CompanionMemory } from "@/lib/companion/memory";
 import { EMPTY_COMPANION_MEMORY } from "@/lib/companion/memory";
 import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
 import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
+import { BrandMark } from "@/components/site-header";
+import { WalletConnectButton } from "@/components/wallet/connect-button";
 
 type Message = {
   id: number;
@@ -84,9 +86,11 @@ function responseText(result: CompanionResolution): string {
 export function CompanionChat({
   initialMemory = EMPTY_COMPANION_MEMORY,
   memoryMode = "live",
+  variant = "showcase",
 }: {
   initialMemory?: CompanionMemory;
   memoryMode?: "live" | "sample";
+  variant?: "showcase" | "app";
 }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -144,10 +148,18 @@ export function CompanionChat({
   };
 
   return (
-    <section data-testid="companion-chat" className="companion-shell mx-auto w-full max-w-[1380px] px-4 py-4 md:px-6 md:py-6">
+    <section data-testid="companion-chat" data-variant={variant} className={variant === "app" ? "companion-shell companion-shell--app" : "companion-shell mx-auto w-full max-w-[1380px] px-4 py-4 md:px-6 md:py-6"}>
       <div className="companion-layout">
         <div className="companion-window">
-          <header className="companion-hero">
+          {variant === "app" ? (
+            <header className="companion-app-header">
+              <Link href="/" aria-label="Convey website" className="flex items-center gap-2.5">
+                <BrandMark size={31} />
+                <span><b>Convey</b><small>Good evening</small></span>
+              </Link>
+              <WalletConnectButton />
+            </header>
+          ) : <header className="companion-hero">
             <div className="companion-hero-media" aria-hidden>
               {reduceMotion ? (
                 <Image src="/media/convey-intent-poster.webp" alt="" fill sizes="(max-width: 640px) 74vw, 62vw" priority />
@@ -167,7 +179,7 @@ export function CompanionChat({
                 Speak, type, or scan. Convey turns your request into a clear next move, ready for your approval.
               </p>
             </div>
-          </header>
+          </header>}
 
           <div className="companion-people">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -313,6 +325,15 @@ export function CompanionChat({
           </div>
         </aside>
       </div>
+
+      {variant === "app" && (
+        <nav className="companion-mobile-nav" aria-label="Primary app navigation">
+          <Link href="/app" aria-current="page"><Flash size={19} /><span>Talk</span></Link>
+          <Link href="/pay"><Wallet size={19} /><span>Pay</span></Link>
+          <Link href="/proof"><Activity size={19} /><span>Activity</span></Link>
+          <Link href="/strategy"><ShieldTick size={19} /><span>Treasury</span></Link>
+        </nav>
+      )}
     </section>
   );
 }

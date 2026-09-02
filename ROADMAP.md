@@ -15,7 +15,9 @@ reproduced.
 
 ## Implementation snapshot
 
-- **The companion is the Home experience.** Text and voice requests route
+- **The public landing and companion workspace are separate.** `/` tells the
+  product story and `/app` provides a full-height text, voice, and receipt
+  workspace with desktop context rail and mobile safe-area navigation. Requests route
   through a strict Gonka candidate contract with pinned-model no-fallback
   routing and deterministic rebind. The public build labels Dave as sample
   context; durable Agentic Memory remains issue #4 and is not claimed.
