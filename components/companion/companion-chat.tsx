@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Activity,
@@ -18,6 +18,10 @@ import { useVoiceInput } from "@/components/commerce/use-voice-input";
 import { CompanionResolutionSchema, type CompanionResolution } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
 import { EMPTY_COMPANION_MEMORY } from "@/lib/companion/memory";
+import {
+  createCompanionMemoryStore,
+  type CompanionMemoryStore,
+} from "@/lib/companion/memory-store";
 import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
 import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
 import { BrandMark } from "@/components/site-header";
@@ -40,7 +44,6 @@ const STARTER_PROMPTS = [
 
 const DESTINATIONS = [
   { href: "/pay", label: "Send money", detail: "Local or abroad", icon: Wallet },
-  { href: "/qr-ferry", label: "Scan to continue", detail: "Move between devices", icon: Flash },
   { href: "/proof", label: "Recent activity", detail: "Receipts and status", icon: Activity },
 ] as const;
 
@@ -98,14 +101,63 @@ export function CompanionChat({
 }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [memory, setMemory] = useState(initialMemory);
+  const [activeMemoryMode, setActiveMemoryMode] = useState(memoryMode);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: "assistant", text: "I’m ready. Tell me what should happen with your money." },
   ]);
   const nextId = useRef(2);
   const reduceMotion = useReducedMotion();
-  const memory = initialMemory;
   const voice = useVoiceInput({ onFinal: setInput });
+  const memoryStoreRef = useRef<CompanionMemoryStore | null>(null);
   const rememberedPeople = useMemo(() => memory.contacts.slice(0, 4), [memory.contacts]);
+
+  useEffect(() => {
+    const store = createCompanionMemoryStore(window.localStorage);
+    memoryStoreRef.current = store;
+    const persisted = store.read();
+    let hydrationTimer: number | undefined;
+    if (persisted.contacts.length > 0 || persisted.interactions.length > 0) {
+      hydrationTimer = window.setTimeout(() => {
+        setMemory(persisted);
+        setActiveMemoryMode("live");
+      }, 0);
+    }
+    return () => {
+      if (hydrationTimer !== undefined) window.clearTimeout(hydrationTimer);
+      memoryStoreRef.current = null;
+    };
+  }, []);
+
+  function rememberSamplePeople() {
+    const store = memoryStoreRef.current;
+    if (!store) return;
+    let latest = store.read();
+    for (const contact of initialMemory.contacts) {
+      const result = store.rememberContact(contact);
+      if (result.ok) latest = result.memory;
+    }
+    setMemory(latest);
+    setActiveMemoryMode("live");
+  }
+
+  function forgetPerson(contactId: string) {
+    const result = memoryStoreRef.current?.forgetContact(contactId);
+    if (result?.ok) {
+      setMemory(result.memory);
+      setActiveMemoryMode("live");
+    }
+  }
+
+  function clearMemory() {
+    const result = memoryStoreRef.current?.clearAll();
+    if (result?.ok) {
+      setMemory(result.memory);
+      setActiveMemoryMode("live");
+      setMemoryOpen(false);
+    }
+  }
 
   const addMessage = (message: Omit<Message, "id">) => {
     const id = nextId.current;
@@ -190,22 +242,74 @@ export function CompanionChat({
               <span className="companion-live-dot" aria-hidden />
               <p className="truncate text-xs font-medium text-black">
                 {rememberedPeople.length > 0
-                  ? memoryMode === "sample"
+                  ? activeMemoryMode === "sample"
                     ? `Sample person · ${rememberedPeople[0]?.displayName}`
                     : `${rememberedPeople.length} remembered ${rememberedPeople.length === 1 ? "person" : "people"}`
                   : "Ready for your first request"}
               </p>
             </div>
             {rememberedPeople.length > 0 && (
-              <div className="flex -space-x-1.5">
+              <button
+                type="button"
+                aria-expanded={memoryOpen}
+                aria-controls="companion-memory-panel"
+                onClick={() => setMemoryOpen((current) => !current)}
+                className="flex min-h-11 items-center -space-x-1.5 rounded-full px-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
+              >
                 {rememberedPeople.map((person) => (
                   <span key={person.id} title={person.displayName} className="companion-avatar">
                     {person.displayName.slice(0, 1).toUpperCase()}
                   </span>
                 ))}
-              </div>
+                <span className="sr-only">Manage remembered people</span>
+              </button>
             )}
           </div>
+
+          {memoryOpen && rememberedPeople.length > 0 && (
+            <section id="companion-memory-panel" className="companion-memory-panel" aria-label="Remembered people">
+              <div>
+                <p className="companion-eyebrow text-black/45">
+                  {activeMemoryMode === "sample" ? "Sample context" : "Remembered on this device"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-black/58">
+                  Names help prepare a request. Your wallet still approves every payment.
+                </p>
+              </div>
+              <div className="companion-memory-list">
+                {rememberedPeople.map((person) => (
+                  <div key={person.id} className="companion-memory-person">
+                    <span className="companion-avatar">{person.displayName.slice(0, 1).toUpperCase()}</span>
+                    <span className="min-w-0 flex-1">
+                      <strong className="block truncate text-sm font-medium text-black">{person.displayName}</strong>
+                      <small className="block truncate text-[11px] text-black/45">
+                        {person.relationshipLabel ?? "Contact"} · {person.confirmation === "confirmed" ? "address confirmed" : "address not confirmed"}
+                      </small>
+                    </span>
+                    {activeMemoryMode === "live" && (
+                      <button type="button" onClick={() => forgetPerson(person.id)} className="min-h-11 px-2 text-[11px] font-semibold text-black/55 hover:text-black">
+                        Forget
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activeMemoryMode === "sample" ? (
+                  <button type="button" onClick={rememberSamplePeople} className="cv-btn-solid min-h-11 rounded-full px-4 text-xs font-semibold">
+                    Remember on this device
+                  </button>
+                ) : (
+                  <button type="button" onClick={clearMemory} className="cv-btn-ghost min-h-11 rounded-full px-4 text-xs font-semibold">
+                    Clear memory
+                  </button>
+                )}
+                <button type="button" onClick={() => setMemoryOpen(false)} className="cv-btn-ghost min-h-11 rounded-full px-4 text-xs font-semibold">
+                  Done
+                </button>
+              </div>
+            </section>
+          )}
 
           <div className="companion-thread" aria-live="polite">
             <AnimatePresence initial={false}>
@@ -251,6 +355,7 @@ export function CompanionChat({
                 type="button"
                 aria-label={voice.listening ? "Stop listening" : "Start voice input"}
                 aria-pressed={voice.listening}
+                disabled={!voice.supported || loading}
                 onClick={() => (voice.listening ? voice.stop() : voice.start())}
                 className="companion-icon-button"
               >
@@ -273,6 +378,19 @@ export function CompanionChat({
               <button type="submit" aria-label="Send" disabled={!input.trim() || loading} className="companion-send-button">
                 <Send2 size={18} />
               </button>
+            </div>
+            <div className="min-h-5 px-2 pt-1 text-center text-[10px] text-black/48" aria-live="polite">
+              {voice.listening
+                ? voice.interimTranscript
+                  ? `Listening · ${voice.interimTranscript}`
+                  : "Listening…"
+                : voice.error
+                  ? voice.error === "not-allowed"
+                    ? "Microphone permission was denied. Type your request instead."
+                    : "Voice input stopped. Type your request or try again."
+                  : !voice.supported
+                    ? "Voice input is unavailable in this browser."
+                    : ""}
             </div>
             <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[10px] text-black/42 sm:text-[11px]">
               <ShieldTick size={12} />

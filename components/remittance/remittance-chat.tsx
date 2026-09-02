@@ -9,7 +9,7 @@ import {
   type QuoteEnvelope,
 } from "@/lib/remittance/quote-schema";
 import { resolveQuoteBlocker } from "@/lib/remittance/transfer";
-import { Send2 } from "@/components/icons";
+import { Flash, Send2 } from "@/components/icons";
 import { useVoiceInput } from "@/components/commerce/use-voice-input";
 import {
   parseAmountToMinor,
@@ -346,7 +346,7 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
       style={{ minHeight: "calc(100svh - 96px)" }}
     >
       {showMoneySheet && (
-        <div className="mx-auto flex w-full max-w-[1290px] flex-1 flex-col items-start lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:grid-rows-1 lg:items-start lg:gap-8">
+        <div className="remittance-entry-stage mx-auto flex w-full max-w-[1380px] flex-1 flex-col items-start lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:grid-rows-1 lg:items-start lg:gap-8 xl:grid-cols-[180px_minmax(0,1fr)_260px] xl:gap-7">
             <header
               data-testid="remittance-entry-heading"
               className="mb-4 flex flex-col gap-2 px-1 lg:mb-0 lg:pt-2"
@@ -591,11 +591,28 @@ export function RemittanceChat({ onSwitchToBuy }: RemittanceChatProps = {}) {
               implementation language. */}
           <p
             data-testid="remittance-corridor"
-            className="mt-3 px-1 text-[12px] leading-relaxed text-neutral-600 lg:mt-auto"
+            className="mt-3 px-1 text-[12px] leading-relaxed text-neutral-600"
           >
             Malaysia → Philippines · Settle in USDC on Sui. One wallet approval, a portable receipt when Sui confirms — bank payout is separate, not yet available.
           </p>
           </div>
+          <aside data-testid="remittance-journey" className="remittance-journey hidden xl:flex" aria-label="Transfer journey">
+            <div>
+              <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.17em] text-black/42">One clear transfer</p>
+              <h2 className="mt-3 text-2xl font-medium leading-[1.02] tracking-[-0.04em] text-black">From request to receipt.</h2>
+            </div>
+            <ol className="remittance-journey-steps">
+              <li data-current="true"><span>01</span><div><strong>Set the request</strong><small>Person, amount and family limit</small></div></li>
+              <li><span>02</span><div><strong>Review together</strong><small>Rate, fees and warning checks</small></div></li>
+              <li><span>03</span><div><strong>Approve once</strong><small>Your wallet stays in control</small></div></li>
+              <li><span>04</span><div><strong>Keep the receipt</strong><small>Check the Sui outcome independently</small></div></li>
+            </ol>
+            <div className="remittance-journey-carry">
+              <Flash size={18} />
+              <strong>Need another device?</strong>
+              <p>Prepare the quote first. Its review includes a secure way to continue elsewhere without rebuilding the request.</p>
+            </div>
+          </aside>
         </div>
       )}
 

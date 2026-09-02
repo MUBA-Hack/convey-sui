@@ -463,7 +463,20 @@ function ProvenanceDisclosure({
             <dt className="text-neutral-400">Model</dt>
             <dd className="font-mono text-neutral-700">{r.responseModel}</dd>
             <dt className="text-neutral-400">Request</dt>
-            <dd className="font-mono text-neutral-700">{r.requestId}</dd>
+            <dd className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 break-all font-mono text-neutral-700">
+                {r.requestId}
+              </span>
+              <a
+                href={`https://api.gonkarouter.io/v1/receipts/${encodeURIComponent(r.requestId)}`}
+                target="_blank"
+                rel="noreferrer"
+                data-testid={`family-steward-receipt-${i}`}
+                className="shrink-0 font-sans font-semibold text-black underline decoration-black/25 underline-offset-2 hover:decoration-black"
+              >
+                Open receipt
+              </a>
+            </dd>
           </div>
         ))}
       </dl>

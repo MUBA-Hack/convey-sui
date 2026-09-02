@@ -24,8 +24,8 @@ export function ConveyLanding() {
   const reveal = reduceMotion
     ? {}
     : {
-        initial: { opacity: 1, transform: "translateY(18px)" },
-        whileInView: { opacity: 1, transform: "translateY(0)" },
+        initial: { opacity: 0 },
+        whileInView: { opacity: 1 },
         viewport: { once: true, amount: 0.22 },
         transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] as const },
       };
@@ -53,7 +53,7 @@ export function ConveyLanding() {
             <p className="companion-eyebrow text-white/52">Money that understands the assignment</p>
             <h1>Say what should happen.</h1>
             <p className="landing-hero-lede">
-              Pay a friend, split a receipt, or protect a treasury. Start with one natural conversation.
+              Pay a friend, split a receipt, or protect a treasury. Start with one natural conversation and keep going when the connection changes.
             </p>
             <div className="landing-hero-actions">
               <Link href="/app" className="landing-primary-cta">
@@ -93,10 +93,43 @@ export function ConveyLanding() {
         </div>
       </section>
 
+      <section className="landing-handoff" aria-labelledby="landing-handoff-title">
+        <motion.div {...reveal} className="landing-handoff-copy">
+          <p className="companion-eyebrow text-black/45">One request · any device</p>
+          <h2 id="landing-handoff-title">Start here. Finish anywhere.</h2>
+          <p>
+            Prepare the payment in conversation. If signal or battery becomes the problem,
+            carry that same review to another device and approve only after you reconnect.
+          </p>
+          <Link href="/pay" className="landing-handoff-link">
+            Send money <ArrowRight size={17} />
+          </Link>
+        </motion.div>
+        <motion.div {...reveal} className="landing-handoff-flow" aria-label="A payment request moving between two devices">
+          <article className="landing-device-card">
+            <span className="landing-device-status">Phone · prepared</span>
+            <strong>Send Ana RM500</strong>
+            <small>School supplies · family limit RM520</small>
+            <div><span>Review ready</span><ShieldTick size={17} /></div>
+          </article>
+          <div className="landing-transfer-pulse" aria-hidden>
+            <span><Flash size={18} /></span>
+            <i />
+            <b>Carry</b>
+          </div>
+          <article className="landing-device-card landing-device-card--dark">
+            <span className="landing-device-status">Laptop · reconnected</span>
+            <strong>Same request</strong>
+            <small>Recipient, amount and limit checked again</small>
+            <div><span>Ready for wallet approval</span><ArrowRight size={17} /></div>
+          </article>
+        </motion.div>
+      </section>
+
       <section className="landing-stage">
         <motion.div {...reveal} className="landing-stage-copy">
           <h2>From a thought to a trustworthy outcome.</h2>
-          <p>Pay, split, protect, collect, or continue offline. Each request becomes a reviewable move with hard limits and a durable receipt.</p>
+          <p>Pay, split, protect, or collect. Each request becomes a reviewable move with hard limits and a durable receipt.</p>
           <Link href="/app" className="landing-stage-link">Start a conversation <ArrowRight size={17} /></Link>
         </motion.div>
         <motion.div {...reveal} className="landing-request-stack">

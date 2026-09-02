@@ -14,9 +14,12 @@ import {
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
+  window.localStorage.clear();
 });
 
 afterEach(() => {
+  delete (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition;
+  delete (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
   cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -88,6 +91,75 @@ describe("Companion demo lifecycles", () => {
 });
 
 describe("CompanionChat", () => {
+  it("keeps sample context explicit until the user chooses device-local memory", async () => {
+    const memory = {
+      version: "convey.companion-memory.v1" as const,
+      ownerLabel: null,
+      contacts: [{ id: "dave", displayName: "Dave", aliases: [], relationshipLabel: "friend", address: `0x${"1".repeat(64)}`, previousAddress: null, confirmation: "confirmed" as const, confirmedAt: 1 }],
+      interactions: [],
+    };
+    const view = render(<CompanionChat memoryMode="sample" initialMemory={memory} />);
+
+    expect(screen.getByText(/sample person · dave/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /manage remembered people/i }));
+    fireEvent.click(screen.getByRole("button", { name: /remember on this device/i }));
+
+    await waitFor(() => expect(screen.getByText(/1 remembered person/i)).toBeInTheDocument());
+    expect(window.localStorage.getItem("convey.companion-memory.v1")).toContain('"displayName":"Dave"');
+
+    view.unmount();
+    render(<CompanionChat memoryMode="sample" initialMemory={memory} />);
+    await waitFor(() => expect(screen.getByText(/1 remembered person/i)).toBeInTheDocument());
+    expect(screen.queryByText(/sample person/i)).toBeNull();
+  });
+
+  it("disables voice honestly when speech recognition is unavailable", () => {
+    render(<CompanionChat />);
+    expect(screen.getByRole("button", { name: /start voice input/i })).toBeDisabled();
+    expect(screen.getByText(/voice input is unavailable in this browser/i)).toBeInTheDocument();
+  });
+
+  it("moves a final speech transcript into the composer without submitting", async () => {
+    let recognition: {
+      onresult: ((event: unknown) => void) | null;
+      onerror: ((event: unknown) => void) | null;
+      onend: (() => void) | null;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+      abort: ReturnType<typeof vi.fn>;
+    } | null = null;
+    class SpeechRecognitionMock {
+      static latest: SpeechRecognitionMock | null = null;
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      maxAlternatives = 1;
+      onresult: ((event: unknown) => void) | null = null;
+      onerror: ((event: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      start = vi.fn();
+      stop = vi.fn();
+      abort = vi.fn();
+      constructor() {
+        SpeechRecognitionMock.latest = this;
+      }
+    }
+    (window as unknown as { SpeechRecognition: unknown }).SpeechRecognition = SpeechRecognitionMock;
+    render(<CompanionChat />);
+
+    fireEvent.click(screen.getByRole("button", { name: /start voice input/i }));
+    recognition = SpeechRecognitionMock.latest;
+    expect(screen.getByText(/listening/i)).toBeInTheDocument();
+    act(() => {
+      recognition?.onresult?.({
+        resultIndex: 0,
+        results: Object.assign([[{ transcript: "Pay Dave 12 USDC" }]], { 0: Object.assign([{ transcript: "Pay Dave 12 USDC" }], { isFinal: true }), length: 1 }),
+      });
+    });
+    expect(screen.getByLabelText(/companion message/i)).toHaveValue("Pay Dave 12 USDC");
+    expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
+  });
+
   it("renders starter prompts and sends a turn request", async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue({
       ok: true,

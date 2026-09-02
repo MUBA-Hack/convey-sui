@@ -313,6 +313,14 @@ describe("FamilyStewardCard — live council", () => {
     expect(screen.getByTestId("family-steward-provenance-1")).toHaveTextContent(
       "provider/model-b",
     );
+    expect(screen.getByTestId("family-steward-receipt-0")).toHaveAttribute(
+      "href",
+      "https://api.gonkarouter.io/v1/receipts/req-a",
+    );
+    expect(screen.getByTestId("family-steward-receipt-1")).toHaveAttribute(
+      "href",
+      "https://api.gonkarouter.io/v1/receipts/req-b",
+    );
   });
 
   it("highlights evidence using code-point offsets, not UTF-16 slices", async () => {

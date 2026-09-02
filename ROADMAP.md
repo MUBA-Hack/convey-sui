@@ -20,7 +20,10 @@ reproduced.
   workspace with desktop context rail and mobile safe-area navigation. Requests route
   through a strict Gonka candidate contract with pinned-model no-fallback
   routing and deterministic rebind. The public build labels Dave as sample
-  context; durable Agentic Memory remains issue #4 and is not claimed.
+  context until the user deliberately remembers it. Bounded device-local
+  Agentic Memory is now integrated with schema validation, inspect, forget, and
+  clear controls. Encrypted multi-device sync and production contact onboarding
+  remain future work.
 - **Payment risk checks are implemented as advisory policy.** Known/new
   recipient, changed address, unusual amount, duplicate invoice, QR mismatch,
   expiry/replay, urgency, and prompt-injection signals produce explicit hold or
@@ -92,9 +95,10 @@ FX, fiat funding, or bank disbursement in this path.
   wallet, or authorize value. Unsigned unmapped display quotes are eligible only
   when both recipient address and attestation are null; mapped executable quotes
   require a valid attestation. Honest partial/local fallback remains available.
-  The local key is configured, but the live two-model attempt on **2026-08-31**
-  timed out or returned unavailable, so no successful council artifact is
-  claimed.
+  A hosted `live_council` run was captured on **2026-09-02** with two distinct
+  models and request IDs. Both outcomes independently verify against Gonka's
+  public receipt endpoint. A live Created-receipt Evidence Council artifact is
+  still outstanding.
 - **Protected Transfer Evidence Council is implemented.** It appears only in a
   freshly verified Created receipt and accepts bounded pasted evidence. The
   server repeats the fixed-testnet Created check, sends the same text to two
@@ -289,16 +293,16 @@ Use **GonkaRouter** for multilingual intent extraction and accessible
 explanations across the remittance journey. Gonka is the decentralized inference
 network; GonkaRouter is the hosted router used by the product.
 
-**Status: implemented for remittance, commerce, and advisory Family Steward
-review; live evidence outstanding.**
+**Status: implemented for remittance, commerce, and advisory Family Steward;
+publicly verified Family Steward evidence captured.**
 Both Send abroad and Buy nearby use the Gonka candidate/policy path when
 configured. The remittance candidate is untrusted and re-resolved against the
 original text and the canonical manifest by
 `resolveGonkaRemittanceCandidate`. This workspace has a local gitignored key;
 a successful captured multilingual request with matching live provenance remains
 required. Family Steward asks two distinct configured models to inspect only a
-bounded solicitation message. The **2026-08-31** live attempt timed out or
-returned unavailable, so this roadmap claims no successful live council.
+bounded solicitation message. The **2026-09-02** live council returned distinct
+request/model provenance, and both public Gonka receipts verify successfully.
 
 The model may propose:
 
@@ -694,10 +698,10 @@ this source) and which are **future** (still required for a complete submission)
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
 | Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, published Protected Transfer package, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | Product-generated testnet-USDC lifecycle, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Published package plus both terminal digests, exact assets, events, beneficiary delivery, and payer reclaim |
-| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance; public human-reviewed Sui release | Successful live two-model artifacts joined to the public Sui lifecycle | Distinct model/request provenance, validated schema, deterministic checks, Family Rule binding, human review, and Sui wallet action |
+| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; publicly verified two-model Family Steward artifact; Created-receipt Evidence Council with server-resolved exact evidence; bounded protected-plan issuance; public human-reviewed Sui release | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, validated schema, deterministic checks, Family Rule binding, human review, and Sui wallet action |
 | Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 1–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
-| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and advisory Family Steward plus protected-evidence review with distinct provenance, exact evidence, deterministic checks, verification questions, and honest unavailable states | The 2026-08-31 Family Steward attempt was unavailable; captured successful advisory artifacts and multilingual live-request evidence remain required | Real router requests, uncertainty handling, exact evidence, social-impact user path |
+| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and a publicly verified live two-model Family Steward artifact with exact evidence, deterministic aggregation, verification questions, and honest unavailable states | Captured multilingual remittance evidence and a live Created-receipt Evidence Council artifact | Real router requests, uncertainty handling, exact evidence, social-impact user path |
 
 ## Delivery gates
 

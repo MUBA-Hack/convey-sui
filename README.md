@@ -89,11 +89,11 @@ customer journey usable while the separately listed live-proof work remains
 blocked.
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey app preparing a receipt split on desktop" width="820" />
+  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey app preparing protected family support on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey app preparing a receipt split on mobile" width="300" />
+  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey app preparing protected family support on mobile" width="300" />
 </p>
 
 <p align="center">
@@ -113,13 +113,14 @@ blocked.
 </p>
 
 The public prototype uses a visibly labelled sample contact so `Pay Dave` is
-immediately demonstrable without claiming persistence. The long-term Agentic
-Memory adapter is tracked in GitHub issue #4. The shared
-schema, redacted Gonka manifest, deterministic contact rebind, companion API,
-responsive Home UI, deterministic risk council, receipt obligation lifecycle,
-overnight protection policy, and public Gonka request-receipt lookup are
-implemented; durable user-controlled storage is not claimed until that issue
-lands.
+immediately demonstrable without claiming that the sample is already saved.
+The integrated Agentic Memory store validates a bounded device-local envelope
+and exposes deliberate remember, inspect, forget, and clear controls. The
+shared schema, redacted Gonka manifest, deterministic contact rebind, companion
+API, responsive Home UI, deterministic risk council, receipt obligation
+lifecycle, overnight protection policy, and public Gonka request-receipt lookup
+are implemented. Encrypted multi-device memory sync and production contact
+onboarding are not claimed.
 
 ### One family-transfer journey
 
@@ -172,12 +173,12 @@ payout.
 
 | Works in this repository | Still required for a complete production transfer |
 | --- | --- |
-| Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, visibly labelled sample contact, full manual receipt split, bounded two-review payment risk route, and explicit overnight limits | Durable user-controlled Agentic Memory, production receipt OCR, a captured successful live two-model council artifact, and execution authority for an approved overnight policy |
+| Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, inspectable device-local contact memory with forget/clear controls, visibly labelled sample contact, full manual receipt split, bounded two-review payment risk route, a publicly verified live two-model Family Steward artifact, and explicit overnight limits | Encrypted multi-device memory sync, production contact onboarding and receipt OCR, a live Evidence Council artifact joined to a Created receipt, and execution authority for an approved overnight policy |
 | Strict receipt-to-obligation allocator with reconciled subtotal/tax/service, shared items, deterministic rounding, explicit confirmation, and independently verified settlement transitions | Connected receipt extraction and production request delivery |
 | Strict overnight protection policy with policy hash, time/spend/loss/trade/slippage limits, authority binding, kill switch, fail-closed evaluation, and a deterministic approval-to-verification replay backed by the tested journal | Customer-approved scoped execution authority and independently verified Thetanuts fills |
 | Public Gonka request-receipt proxy with strict metadata schema, bounded device-local Activity records, exact request/model re-verification, and explicit verified/mismatch/not-found/unavailable states | Gateway-signed request and response hashes when Gonka ships signed receipts |
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
-| Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
+| Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback plus two public Gonka receipts | Production pricing and independent recipient/payout-provider verification |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
 | Published single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, deterministic replay, and public native-SUI release and expiry-refund references | A real testnet-USDC Created/terminal artifact, a captured successful live Evidence Council artifact, and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
@@ -417,17 +418,16 @@ Sui transaction or Gonka request. Capturing and replacing them with one complete
 live artifact is tracked in [issue #1](https://github.com/MUBA-Hack/convey-sui/issues/1).
 
 This is an integrated creation and terminal action path plus read-only terminal
-receipt lifecycle. The package has not yet been
-published from this repository, and the protected endpoints are
-unconfigured by default, so the hold path fails closed unless a real package
-ID, reviewer address, and
-bounded reviewer name are configured. The Created receipt proves only that the
+receipt lifecycle. The package is published on Sui testnet at
+`0x265dcb32526bbe87973752b6164d1860a2f7e6fa16520948a83c4c9de60212c7`;
+the hosted app has the package, reviewer address, and bounded reviewer name
+configured. A clean checkout remains fail-closed until those values are set.
+The Created receipt proves only that the
 configured package emitted an exact matching `Created` event for the submitted
 transaction. A verified terminal receipt proves an exact matching terminal
 event; a pending result proves current open state only after the strict object
-check. The implemented bridge does not prove package publication history,
-upgrade policy, immutability, production policy, a captured live artifact, or
-fiat payout. The evidence commitment is
+check. The implemented bridge does not prove upgrade immutability, production
+policy, testnet-USDC settlement, or fiat payout. The evidence commitment is
 immutable metadata on the escrow; it does not prove that the underlying claim
 is true.
 
@@ -496,10 +496,21 @@ do not.
 The endpoint accepts a fresh, configuration-bound display quote only when
 `recipientAddress` and `attestation` are both null. A mapped executable quote
 must carry a valid attestation. This policy only decides whether the message may
-be reviewed; it never authorizes payment. The local gitignored Gonka key is
-configured, but a live two-model attempt on **2026-08-31** timed out or returned
-unavailable. No successful live Family Steward council or request artifact is
-claimed.
+be reviewed; it never authorizes payment.
+
+On **2026-09-02**, the hosted route returned a real `live_council` result for
+the bounded message “Please pay today and keep this secret. Use the new account
+and do not call me.” Both independent public Gonka receipts verify the exact
+models and successful outcomes:
+
+- [`req-1788362019976821454-179975`](https://api.gonkarouter.io/v1/receipts/req-1788362019976821454-179975) — `deepseek-ai/DeepSeek-V4-Flash-0731`, node `69559`;
+- [`req-1788362012443553474-179972`](https://api.gonkarouter.io/v1/receipts/req-1788362012443553474-179972) — `moonshotai/Kimi-K2.6`, node `69551`.
+
+The reviewers independently corroborated urgency, secrecy, payment-change, and
+unusual-method spans, so the deterministic aggregator returned **Pause and
+verify**. These receipts prove successful model-routing metadata, not the truth
+of the message and not payment authorization. Every new live result also offers
+contextual **Open receipt** links inside its collapsed provenance panel.
 
 ### Signed-quote cross-device handoff
 
@@ -1239,7 +1250,7 @@ safety route**. Neither fallback proves settlement.
 | `GONKA_MODEL_ID` | Server only | `deepseek-ai/DeepSeek-V4-Flash-0731` |
 | `GONKA_FAMILY_STEWARD_MODEL_A` | Server only | Empty; first Family Steward reviewer model; must be nonblank and differ from model B |
 | `GONKA_FAMILY_STEWARD_MODEL_B` | Server only | Empty; second Family Steward reviewer model; must be nonblank and differ from model A |
-| `GONKA_REQUEST_TIMEOUT_MS` | Server only | `30000` milliseconds |
+| `GONKA_REQUEST_TIMEOUT_MS` | Server only | `90000` milliseconds in the hosted app so both council models can finish; the interactive quote route still caps each Gonka attempt at six seconds |
 | `GONKA_MAX_RETRIES` | Server only | `1`; accepted range is 0 or 1 |
 | `REMITTANCE_MYR_PER_USDC` | Server only | Reference MYR sen per USDC; default `450` |
 | `REMITTANCE_PHP_PER_USDC` | Server only | Reference PHP centavos per USDC; default `5600` |
@@ -1262,14 +1273,13 @@ and inspect the assistant provenance badge or the POST response. Only a response
 with `intentReview.reviewer = "gonka"`, `mode: "live"`, request id, and matching
 model id demonstrates a live route. This workspace is configured locally through
 the gitignored `.env.local`; the secret is intentionally not committed. A
-reproducible successful live request artifact is not checked in yet.
+reproducible live multilingual remittance artifact is not captured yet.
 
 Family Steward also requires two distinct, nonblank model IDs. Leaving either
 unset, configuring the same ID twice, or receiving unusable provider responses
-produces an honest local fallback rather than simulated consensus. The local
-gitignored key is configured, but the two-model live attempt on **2026-08-31**
-timed out or returned unavailable. No successful live Family Steward artifact
-is claimed.
+produces an honest local fallback rather than simulated consensus. The hosted
+2026-09-02 live council and both independently verified public receipts are
+linked in the Family Steward section above.
 
 For real Sui testnet settlement, set a valid
 `NEXT_PUBLIC_MERCHANT_ADDRESS`, keep the network on `testnet`, connect a testnet
@@ -1450,10 +1460,10 @@ complete track submission.
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
 | Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, published Protected Transfer package, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | A real direct or protected testnet-USDC artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
-| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance; public Sui contract and human-reviewed release evidence | Successful live two-model artifacts joined to the public Sui lifecycle remain required |
+| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; publicly verified two-model Family Steward artifact; Created-receipt Evidence Council with server-resolved exact evidence; bounded protected-plan issuance; public Sui contract and human-reviewed release evidence | A successful live Evidence Council artifact joined to a product-generated Sui Created receipt remains required |
 | Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 1–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, live signed-order selection, customer review, wallet execution boundary, and independently checked outcome | Mapping is deterministic rather than model-routed; a live order and real transaction artifact remain uncaptured |
-| Gonka AI for Society | Mixed-language remittance interpretation plus Family Steward and protected-evidence advisory review with distinct-model provenance, exact-evidence span resolution, deterministic checks, verification questions, and honest unavailable states | The configured local key's 2026-08-31 Family Steward attempt was unavailable; captured successful live advisory artifacts and a multilingual remittance artifact remain required |
+| Gonka AI for Society | Mixed-language remittance interpretation plus a publicly verified live two-model Family Steward council with distinct-model provenance, exact-evidence span resolution, deterministic checks, verification questions, and honest unavailable states | A captured multilingual remittance artifact and a live Created-receipt Evidence Council artifact remain required |
 
 ## Project map
 
@@ -1544,10 +1554,9 @@ tests/
 
 ## Known limitations and next proof points
 
-- Capture successful GonkaRouter request/model provenance and a reproducible
-  live multilingual remittance run. The local key is configured, but the
-  **2026-08-31** two-model Family Steward attempt timed out or returned
-  unavailable, so no successful council artifact is claimed.
+- Capture a reproducible live multilingual remittance run. The independent
+  two-model Family Steward artifact was captured and publicly verified on
+  **2026-09-02**; its exact request/model receipts are linked above.
 - Capture a reproducible capped testnet-USDC payment with a real explorer digest
   and preserve the independent verifier result. The current public reference is
   native SUI, not USDC.

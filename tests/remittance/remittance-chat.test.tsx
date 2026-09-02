@@ -991,7 +991,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     );
   });
 
-  it("uses a centered desktop instrument with no left marketing rail", () => {
+  it("uses a centered desktop instrument with a contextual journey rail", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
     expect(section.className).toContain("max-w-[1320px]");
@@ -1002,10 +1002,8 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     expect(heading).toHaveTextContent(/Send money home/i);
     const hero = screen.getByTestId("remittance-hero");
     expect(hero.className).toContain("rounded-2xl");
-    // The entry composition is a centered ~1290px stage (heading column +
-    // content up to ~1080px), not a left-heavy prototype ending mid-fold.
     const stage = hero.closest(".flex.w-full.flex-1");
-    expect(stage?.className).toContain("max-w-[1290px]");
+    expect(stage?.className).toContain("max-w-[1380px]");
     expect(stage?.className).toContain("mx-auto");
   });
 });
@@ -1468,27 +1466,27 @@ describe("RemittanceChat — blocker matrix: one primary next action per blocker
 // ---------------------------------------------------------------------------
 
 describe("RemittanceChat — desktop workspace, two groups, and mobile order", () => {
-  it("entry composition is a centered ~1290px grid: heading column + content, top-aligned, no doc panel", () => {
+  it("entry composition is a centered 1380px grid with a product journey rail", () => {
     render(<RemittanceChat />);
     const section = screen.getByTestId("remittance-chat");
     const stage = section.querySelector(".flex.w-full.flex-1");
     expect(stage).not.toBeNull();
-    // Centered ~1290px composition (not a left-heavy prototype ending mid-fold).
-    expect(stage?.className).toContain("max-w-[1290px]");
+    expect(stage?.className).toContain("max-w-[1380px]");
     expect(stage?.className).toContain("mx-auto");
     // Mobile stays flex-column; desktop becomes a heading-column + content grid.
     expect(stage?.className).toContain("flex-col");
     expect(stage?.className).toContain("lg:grid");
     expect(stage?.className).toContain("lg:grid-cols-[180px_minmax(0,1fr)]");
+    expect(stage?.className).toContain("xl:grid-cols-[180px_minmax(0,1fr)_260px]");
     // Top-aligned on every breakpoint — never vertically centered.
     expect(stage?.className).toContain("items-start");
     expect(stage?.className).not.toMatch(/lg:items-center/);
     expect(stage?.className).not.toMatch(/lg:min-h-/);
     const hero = screen.getByTestId("remittance-hero");
     expect(hero.className).not.toMatch(/lg:min-h-/);
-    // No documentation panel / supporting aside — the 3-part story (headline /
-    // transfer instrument / corridor) lives inside the grid, not a side rail.
-    expect(screen.queryByTestId("remittance-entry-summary")).not.toBeInTheDocument();
+    const journey = screen.getByTestId("remittance-journey");
+    expect(journey).toHaveTextContent(/from request to receipt/i);
+    expect(journey).toHaveTextContent(/prepare the quote first/i);
   });
 
   it("entry stage is flex-col below lg so the heading stacks above the instrument at 390px", () => {
