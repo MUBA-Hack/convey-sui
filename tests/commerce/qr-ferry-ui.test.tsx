@@ -91,13 +91,13 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("QrFerry — structure and transport explanation", () => {
-  it("renders the Continue elsewhere heading and the Scan a payment section", () => {
+  it("renders the QR workspace heading and scan section", () => {
     render(<QrFerry />);
     expect(
-      screen.getByRole("heading", { name: /Continue elsewhere/i }),
+      screen.getByRole("heading", { name: /Scan, pay, or collect/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Scan a payment/i }),
+      screen.getByRole("heading", { name: /Scan and pay/i }),
     ).toBeInTheDocument();
   });
 
@@ -146,7 +146,7 @@ describe("QrFerry — structure and transport explanation", () => {
   it("renders the page route with the main heading", () => {
     render(<QrFerryPage />);
     expect(
-      screen.getByRole("heading", { name: /Continue elsewhere/i }),
+      screen.getByRole("heading", { name: /Scan, pay, or collect/i }),
     ).toBeInTheDocument();
   });
 });

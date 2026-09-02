@@ -11,7 +11,7 @@ import "@testing-library/jest-dom/vitest";
  * DOM tests pinning the commerce site header navigation.
  *
  * The header is the commerce shell's primary nav: the Convey brand mark,
- * Home, Pay, Continue elsewhere, Activity, Treasury, and the wallet control. These tests pin
+ * Home, Pay, Scan and Pay, Activity, Treasury, Settings, and the wallet control. These tests pin
  * that the commerce routes render and are marked active for the current
  * path, that the brand mark is present, that the wallet control renders,
  * and that no dead legacy hrefs (/app, /fact-check, /claims, /agents,
@@ -70,12 +70,12 @@ describe("SiteHeader — commerce navigation", () => {
     pathname.current = "/qr-ferry";
     render(<SiteHeader />);
 
-    expect(screen.queryByRole("link", { name: /Continue elsewhere/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Scan and pay/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
 
     const assistant = screen.getByRole("link", { name: "Assistant" });
     const pay = screen.getByRole("link", { name: "Pay" });
-    const relay = screen.getByRole("link", { name: /Continue elsewhere/ });
+    const relay = screen.getByRole("link", { name: /Scan and pay/ });
     const activity = screen.getByRole("link", { name: /Activity/ });
     const treasury = screen.getByRole("link", { name: /Treasury/ });
 
@@ -90,14 +90,14 @@ describe("SiteHeader — commerce navigation", () => {
     pathname.current = "/";
     render(<SiteHeader />);
 
-    expect(screen.queryByRole("link", { name: /Continue elsewhere/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Scan and pay/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Activity/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Treasury/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
     expect(screen.getByRole("link", { name: "Assistant" })).toHaveAttribute("href", "/app");
     expect(screen.getByRole("link", { name: "Pay" })).toHaveAttribute("href", "/pay");
-    expect(screen.getByRole("link", { name: /Continue elsewhere/ })).toHaveAttribute("href", "/qr-ferry");
+    expect(screen.getByRole("link", { name: /Scan and pay/ })).toHaveAttribute("href", "/qr-ferry");
     expect(screen.getByRole("link", { name: /Activity/ })).toHaveAttribute("href", "/proof");
     expect(screen.getByRole("link", { name: /Treasury/ })).toHaveAttribute("href", "/strategy");
   });
@@ -107,7 +107,7 @@ describe("SiteHeader — commerce navigation", () => {
     render(<SiteHeader />);
 
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
-    const relay = screen.getByRole("link", { name: /Continue elsewhere/ });
+    const relay = screen.getByRole("link", { name: /Scan and pay/ });
     expect(relay).toHaveAttribute("aria-current", "page");
     expect(relay).toHaveAttribute("data-active", "true");
 
@@ -230,7 +230,7 @@ describe("SiteHeader — strict monochrome", () => {
     pathname.current = "/qr-ferry";
     render(<SiteHeader />);
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
-    const active = screen.getByRole("link", { name: /Continue elsewhere/ });
+    const active = screen.getByRole("link", { name: /Scan and pay/ });
     expect(active.getAttribute("data-active")).toBe("true");
     const cls = active.getAttribute("class") ?? "";
     expect(cls).toContain("cv-nav-chip");

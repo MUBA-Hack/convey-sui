@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { QrFerry } from "@/components/commerce/qr-ferry";
 
 export const metadata: Metadata = {
-  title: "Continue elsewhere — Convey",
+  title: "Scan and pay | Convey",
   description:
-    "Carry an exact quote or payment request between devices, then reconnect, review, approve, and submit on Sui testnet.",
+    "Scan, receive, split, or carry an exact payment request offline, then review and approve it with Convey.",
 };
 
 /**

@@ -11,8 +11,8 @@ const COMMERCE_ITEMS = [
   { href: "/pay", label: "Pay", description: "Send money nearby or abroad" },
   {
     href: "/qr-ferry",
-    label: "Continue elsewhere",
-    description: "Carry a quote to another device",
+    label: "Scan and pay",
+    description: "Pay, collect, split, or issue a pass by QR",
   },
   { href: "/proof", label: "Activity", description: "Review recent transfers" },
   {
@@ -20,6 +20,7 @@ const COMMERCE_ITEMS = [
     label: "Treasury",
     description: "Explore separate market protection",
   },
+  { href: "/settings", label: "Settings", description: "Preferences, privacy, and QR defaults" },
 ];
 
 /**

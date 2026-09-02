@@ -3,20 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, DocumentText, Flash, MoneyRecive, ShieldTick } from "@/components/icons";
+import { ArrowRight, Code1, DocumentText, Flash, ShieldTick } from "@/components/icons";
 import { BrandMark } from "@/components/site-header";
 import productDesktop from "@/docs/screenshots/convey-app-desktop.png";
 
 const MOMENTS = [
-  ["01", "Say it naturally", "Ask by voice or text. Convey remembers the people and context that make a request meaningful."],
-  ["02", "Review one clear move", "Recipient, amount, evidence, limits, and risk checks arrive together before anything can move."],
-  ["03", "Approve, then prove", "Your wallet remains the final authority and the resulting receipt can be checked independently."],
+  ["01", "Scan or show", "Pay a merchant, collect from a friend, split a bill, or issue a limited pass from one QR workspace."],
+  ["02", "Carry exact details", "The amount, person, purpose, and expiry travel inside the code when signal disappears."],
+  ["03", "Reconnect and approve", "Your wallet remains the final authority. Every settled outcome produces a receipt you can check."],
 ] as const;
 
 const REQUESTS = [
-  { icon: MoneyRecive, text: "Send Dave 12 USDC", meta: "Dinner · ready to review" },
-  { icon: DocumentText, text: "Split this receipt", meta: "4 people · 10.35 USDC" },
-  { icon: ShieldTick, text: "Protect my overnight balance", meta: "Spend and loss limits set" },
+  { icon: Code1, text: "Pay River Cafe offline", meta: "Scan now, approve when connected" },
+  { icon: DocumentText, text: "Split dinner with Maya, Idris, and Sam", meta: "Personal WhatsApp links ready" },
+  { icon: ShieldTick, text: "Give Maya a grocery allowance", meta: "Purpose and expiry included" },
 ] as const;
 
 export function ConveyLanding() {
@@ -50,16 +50,16 @@ export function ConveyLanding() {
             transition={{ duration: reduceMotion ? 0 : 0.72, ease: [0.22, 1, 0.36, 1] }}
             className="landing-hero-copy"
           >
-            <p className="companion-eyebrow text-white/52">Money that understands the assignment</p>
-            <h1>Say what should happen.</h1>
+            <p className="companion-eyebrow text-white/52">QR payments built for unreliable signal</p>
+            <h1>Pay by QR. Even when signal fails.</h1>
             <p className="landing-hero-lede">
-              Pay a friend, split a receipt, or protect a treasury. Start with one natural conversation and keep going when the connection changes.
+              Scan, receive, split, or carry a payment offline. Reconnect once for wallet approval and a verifiable Sui receipt.
             </p>
             <div className="landing-hero-actions">
-              <Link href="/app" className="landing-primary-cta">
-                Open Convey <ArrowRight size={17} />
+              <Link href="/qr-ferry" className="landing-primary-cta">
+                Scan or show QR <ArrowRight size={17} />
               </Link>
-              <a href="#how-it-works" className="landing-secondary-cta">See how it works</a>
+              <Link href="/app" className="landing-secondary-cta">Ask Convey</Link>
             </div>
           </motion.div>
 
@@ -81,8 +81,8 @@ export function ConveyLanding() {
 
       <section id="how-it-works" className="landing-story">
         <motion.div {...reveal} className="landing-story-intro">
-          <h2>Your financial life, without the financial interface.</h2>
-          <p>Convey keeps complexity behind the conversation and the important decision in front of you.</p>
+          <h2>One QR can do more than checkout.</h2>
+          <p>Use it to pay, collect, split, set a purpose limit, or carry a request between devices.</p>
         </motion.div>
         <div className="landing-moment-grid">
           {MOMENTS.map(([number, title, body], index) => (
@@ -95,32 +95,31 @@ export function ConveyLanding() {
 
       <section className="landing-handoff" aria-labelledby="landing-handoff-title">
         <motion.div {...reveal} className="landing-handoff-copy">
-          <p className="companion-eyebrow text-black/45">One request · any device</p>
-          <h2 id="landing-handoff-title">Start here. Finish anywhere.</h2>
+          <p className="companion-eyebrow text-black/45">Offline QR, built into every money task</p>
+          <h2 id="landing-handoff-title">The code carries the agreement.</h2>
           <p>
-            Prepare the payment in conversation. If signal or battery becomes the problem,
-            carry that same review to another device and approve only after you reconnect.
+            Amount, recipient, purpose, and expiry stay together. Send a personal split link on WhatsApp, show a merchant code, or pass a request to another device.
           </p>
-          <Link href="/pay" className="landing-handoff-link">
-            Send money <ArrowRight size={17} />
+          <Link href="/qr-ferry" className="landing-handoff-link">
+            Open QR payments <ArrowRight size={17} />
           </Link>
         </motion.div>
         <motion.div {...reveal} className="landing-handoff-flow" aria-label="A payment request moving between two devices">
           <article className="landing-device-card">
-            <span className="landing-device-status">Phone · prepared</span>
-            <strong>Send Ana RM500</strong>
-            <small>School supplies · family limit RM520</small>
-            <div><span>Review ready</span><ShieldTick size={17} /></div>
+            <span className="landing-device-status">Dinner split</span>
+            <strong>Maya owes 12.43 USDC</strong>
+            <small>Personal QR and WhatsApp link</small>
+            <div><span>Request ready</span><ShieldTick size={17} /></div>
           </article>
           <div className="landing-transfer-pulse" aria-hidden>
             <span><Flash size={18} /></span>
             <i />
-            <b>Carry</b>
+            <b>Scan</b>
           </div>
           <article className="landing-device-card landing-device-card--dark">
-            <span className="landing-device-status">Laptop · reconnected</span>
-            <strong>Same request</strong>
-            <small>Recipient, amount and limit checked again</small>
+            <span className="landing-device-status">Maya&apos;s phone</span>
+            <strong>Review 12.43 USDC</strong>
+            <small>Dinner share, recipient, and expiry checked</small>
             <div><span>Ready for wallet approval</span><ArrowRight size={17} /></div>
           </article>
         </motion.div>
@@ -128,9 +127,9 @@ export function ConveyLanding() {
 
       <section className="landing-stage">
         <motion.div {...reveal} className="landing-stage-copy">
-          <h2>From a thought to a trustworthy outcome.</h2>
-          <p>Pay, split, protect, or collect. Each request becomes a reviewable move with hard limits and a durable receipt.</p>
-          <Link href="/app" className="landing-stage-link">Start a conversation <ArrowRight size={17} /></Link>
+          <h2>Scan first. Ask when you need more.</h2>
+          <p>QR handles the handoff. Convey&apos;s companion remembers people, turns receipt photos into requests, and prepares bounded actions for review.</p>
+          <Link href="/qr-ferry" className="landing-stage-link">Create a payment code <ArrowRight size={17} /></Link>
         </motion.div>
         <motion.div {...reveal} className="landing-request-stack">
           {REQUESTS.map(({ icon: Icon, text, meta }, index) => (
@@ -154,16 +153,16 @@ export function ConveyLanding() {
         </motion.div>
         <div className="landing-proof-grid">
           <div><ShieldTick size={20} /><strong>Guarded intent</strong><p>AI prepares a bounded action. It never becomes wallet authority.</p></div>
-          <div><Flash size={20} /><strong>Carry it anywhere</strong><p>Install on mobile or desktop and continue a request when connectivity changes.</p></div>
+          <div><Flash size={20} /><strong>Offline-ready QR</strong><p>Install on mobile or desktop and carry exact payment details through weak connectivity.</p></div>
           <div><DocumentText size={20} /><strong>Receipts that explain</strong><p>See what was requested, checked, approved, and settled.</p></div>
         </div>
       </section>
 
       <section className="landing-final-cta">
         <BrandMark size={34} />
-        <h2>What should happen?</h2>
-        <p>Tell Convey in your own words.</p>
-        <Link href="/app" className="landing-primary-cta">Open Convey <ArrowRight size={17} /></Link>
+        <h2>What should this QR do?</h2>
+        <p>Pay, collect, split, or set a limit.</p>
+        <Link href="/qr-ferry" className="landing-primary-cta">Open QR payments <ArrowRight size={17} /></Link>
       </section>
     </div>
   );

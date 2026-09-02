@@ -214,7 +214,7 @@ replay authority is future work.
 
 ## Product principles
 
-- Use one primary customer job—**Pay**—with **Continue elsewhere** and
+- Use one primary customer job, **Scan and Pay**, with QR creation and
   **Receipts** as contextual branches. Keep **Treasury** visibly separate.
 - Abstract wallet complexity without hiding user authority or transaction risk.
 - Separate the states **draft**, **reviewed**, **authorized**, **submitted**,
@@ -362,7 +362,7 @@ Customer flow:
 
 1. Get a signed quote on Pay.
 2. Choose **Carry quote** to render a QR of the signed quote envelope.
-3. On a connected device, open **Continue elsewhere** and tap **Scan QR**.
+3. On a connected device, open **Scan and Pay** and tap **Scan QR**.
 4. The connected device discriminates kind, decodes the handoff, verifies
    attestation/recipient/corridor/amount/expiry, and shows a **Quote carried —
    Not paid yet** review card.

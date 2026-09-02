@@ -413,6 +413,6 @@ describe("Pay Offline — remittance quote import", () => {
     expect(screen.getByTestId("scan-card")).toBeInTheDocument();
     expect(screen.getByTestId("scan-qr-button")).toBeInTheDocument();
     // The page identity returns to the empty destination.
-    expect(screen.getByRole("heading", { name: /Continue elsewhere/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Scan, pay, or collect/i })).toBeInTheDocument();
   });
 });

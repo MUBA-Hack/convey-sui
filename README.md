@@ -39,6 +39,14 @@ safe to prepare; only the wallet can authorize value.
   <img src="docs/screenshots/convey-landing-mobile.png" alt="Convey product landing page on mobile" width="300" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/qr-pay-desktop.png" alt="Convey Scan and Pay workspace creating personal split requests and WhatsApp links on desktop" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/qr-pay-mobile.png" alt="Convey Scan and Pay workspace on mobile" width="300" />
+</p>
+
 ## One companion, focused money journeys
 
 The `/app` companion combines text, voice, bounded contact context, strict tool
@@ -114,6 +122,8 @@ blocked.
 
 The public prototype uses a visibly labelled sample contact so `Pay Dave` is
 immediately demonstrable without claiming that the sample is already saved.
+People can add another recipient from the companion, validate and save a full
+Sui address on the device, then start a payment to that person immediately.
 The integrated Agentic Memory store validates a bounded device-local envelope
 and exposes deliberate remember, inspect, forget, and clear controls. The
 shared schema, redacted Gonka manifest, deterministic contact rebind, companion
@@ -182,7 +192,8 @@ payout.
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
 | Published single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, deterministic replay, and public native-SUI release and expiry-refund references | A real testnet-USDC Created/terminal artifact, a captured successful live Evidence Council artifact, and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
-| Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
+| First-class Scan and Pay workspace with signed-quote carry, checksum-protected offline commerce, receive and request codes, per-person split QR and WhatsApp links, purpose allowances, and conditional payment passes | Production cross-device replay authority, on-chain enforcement for purpose allowances and payment passes, and a cryptographically authorized offline payer envelope |
+| Device-local Settings for preferred asset, home currency, QR start mode, memory, alerts, and low-data mode | Encrypted multi-device preference sync and production notification delivery |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
 | Purchase Power Shield: strict 1–3 USDC cap; live signed-order refetch; exact approval/fill requests; external Base-wallet approval; durable duplicate-submit recovery; signed-order, option-expiry, calldata, and `OrderFilled` verification; portable `/proof?o=` receipt | Restore access to the currently unavailable official live order index, then capture a customer-approved minimal Base-mainnet purchase and independently verified receipt |
 
@@ -568,9 +579,21 @@ River Cafe native-SUI commerce remains its own flow.
   the customer surface says **Not submitted** or **Preview — no on-chain
   settlement**. This is not the remittance path and never proves payment.
 
-### Continue elsewhere — cross-device handoff
+### Scan and Pay: offline QR plus personal payment links
 
-The `/qr-ferry` flow transports a native-SUI commerce purchase intent across an
+`/qr-ferry` is the primary QR workspace. It can scan an existing payment or
+create a receive code, direct request, personal split, purpose allowance, or
+conditional payment pass. For a split, Convey divides integer minor units
+deterministically, creates one QR per participant, and provides one-tap
+WhatsApp sharing with that participant's exact amount and review link.
+
+Opening a shared link parses a strict `convey.qr-task` envelope, displays the
+person, amount, purpose, and expiry, then offers to prepare the request in the
+companion. A QR task never signs or submits a payment. Allowance and pass codes
+are reviewable proposals in this prototype; production category enforcement,
+revocation, and settlement require an on-chain policy contract.
+
+The same route also transports a native-SUI commerce purchase intent across an
 air gap. It does not authorize payment.
 
 - Canonical, versioned envelope covering item, quantity, amount, merchant,
@@ -831,7 +854,8 @@ approval, fill, or receipt artifact is claimed.
 | `/` — **Product site** | Explain Convey's value, trust model, and primary customer journeys before opening the product | Public, read-only presentation; no transaction authority |
 | `/app` — **Companion** | Chat or speak to Convey; prepare a bounded payment, receipt split, protected support mission, or treasury policy | Gonka sees a redacted contact manifest; deterministic code rebinds opaque IDs; no signer or transaction submission |
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
-| `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
+| `/qr-ferry` — **Scan and Pay** | Scan, receive, request, split by personal QR or WhatsApp link, propose a purpose allowance or payment pass, carry a signed remittance quote, or transport an offline commerce request | QR task proposals are local; settlement and enforced conditions still require connection, policy support, and wallet approval |
+| `/settings` — **Settings** | Choose device-local money, QR, memory, alert, and low-data preferences | Local preferences only; no signing or payment authority |
 | `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 1–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |
 | `/proof` — **Activity / Receipts** | Review bounded device-local receipt links, or open/import commerce, remittance, Protected Transfer, terminal, or Base protection-purchase receipts | Local Activity is convenience history only; receipt views use strict local binding plus matching read-only chain checks; no signing authority or payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
@@ -886,7 +910,7 @@ flowchart TB
     Choice -->|Hold for family review| HoldPlan --> HoldWallet --> HoldPending --> CreatedCheck --> HoldReceipt
   end
 
-  subgraph Carry["Continue elsewhere"]
+  subgraph Carry["Scan and Pay"]
     Qr["Carry signed quote by QR"]
     Scan["Camera scan on connected device"]
     QuoteCheck["Connected verify before approval"]
@@ -1036,7 +1060,7 @@ sequenceDiagram
 
   Customer->>Source: Get signed quote on Pay while connected
   Source->>Qr: Carry stored quote without a network
-  Customer->>Connected: Open Continue elsewhere and Scan QR
+  Customer->>Connected: Open Scan and Pay and scan QR
   Connected->>Connected: Discriminate kind and decode handoff
   Connected->>Verify: Verify attestation recipient amount rule expiry
   Verify-->>Connected: Verified or rejected
@@ -1404,7 +1428,7 @@ Additional boundaries:
    or family payout. With the default empty configuration, the hold path fails
    closed and the direct path remains available.
 7. To carry the quote, choose **Carry quote** from the ticket, then on a
-   connected device open **Continue elsewhere**, tap **Scan QR**, and let the camera
+   connected device open **Scan and Pay**, tap **Scan QR**, and let the camera
    feed the payload into the same strict import discrimination. The carried
    quote opens a review card that re-runs connected verification before your
    wallet opens.
@@ -1426,7 +1450,7 @@ Additional boundaries:
    strict local evidence and the independent Sui check. A confirmed check still
    shows **Awaiting family payout** because chain settlement is not bank or cash
    payout.
-5. **Cross the air gap.** Open **Continue elsewhere** (`/qr-ferry`), generate and
+5. **Cross the air gap.** Open **Scan and Pay** (`/qr-ferry`), generate and
    import the commerce envelope, then show duplicate nonce or checksum-tamper
    rejection. The camera scanner starts only on an explicit **Scan QR** tap.
 6. **Show the bounded Treasury purchase flow.** Open **Treasury**
@@ -1471,7 +1495,7 @@ complete track submission.
 app/
   page.tsx                     chat-first companion Home
   pay/page.tsx                 Send abroad / Buy nearby workspace
-  qr-ferry/page.tsx            Continue elsewhere: signed-quote carry and commerce handoff
+  qr-ferry/page.tsx            Scan and Pay: QR tasks, signed-quote carry, commerce handoff
   proof/page.tsx               Activity ledger plus portable Sui/Base receipt verification
   strategy/page.tsx            ETH/BTC treasury protective-put purchase workspace
   offline/page.tsx             PWA navigation fallback

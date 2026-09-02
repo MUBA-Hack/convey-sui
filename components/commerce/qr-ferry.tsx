@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { PurchaseIntentPreview } from "@/lib/commerce/intent";
 import {
@@ -22,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { PaymentAction } from "./payment-action";
 import { QrScanner } from "./qr-scanner";
 import { RemittanceHandoffCard } from "@/components/remittance/remittance-handoff-card";
+import { parseQrTaskEnvelope, type QrTaskEnvelope } from "@/lib/commerce/qr-task";
+import { QrTaskStudio } from "./qr-task-studio";
 
 // --- Demo purchase (simulation) -------------------------------------------
 
@@ -224,14 +227,14 @@ function shortId(value: string, head = 10, tail = 8): string {
 /** Friendly error messages keyed by QrFerryError reason. */
 const FRIENDLY_ERRORS: Record<string, string> = {
   duplicate_nonce:
-    "Already used — this envelope's nonce was already consumed (replay rejected).",
-  expired: "Expired — this envelope has passed its expiry time.",
+    "Already used. This envelope's nonce was already consumed (replay rejected).",
+  expired: "Expired. This envelope has passed its expiry time.",
   checksum_mismatch:
-    "Checksum mismatch — the payload may have been tampered with.",
-  malformed_json: "Malformed JSON — the payload is not valid JSON.",
+    "Checksum mismatch. The payload may have been tampered with.",
+  malformed_json: "Malformed JSON. The payload is not valid JSON.",
   unsupported_version:
-    "Unsupported version — this envelope uses an unknown wire version.",
-  invalid_shape: "Invalid shape — the payload is not a well-formed envelope.",
+    "Unsupported version. This envelope uses an unknown wire version.",
+  invalid_shape: "Invalid shape. The payload is not a well-formed envelope.",
   invalid_merchant: "Invalid merchant address.",
   invalid_payer: "Invalid payer address.",
   invalid_amount: "Invalid amount.",
@@ -240,7 +243,7 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   invalid_nonce: "Invalid nonce.",
   invalid_timestamps: "Invalid timestamps.",
   future:
-    "Future-dated — this envelope's creation time is too far ahead of now.",
+    "Future-dated. This envelope's creation time is too far ahead of now.",
 };
 
 function errorMessage(err: unknown): string {
@@ -251,11 +254,11 @@ function errorMessage(err: unknown): string {
 }
 
 const REMITTANCE_HANDOFF_ERRORS: Record<string, string> = {
-  malformed_json: "Malformed JSON — the carried quote is not valid JSON.",
-  oversized: "Oversized — the carried quote payload is too large.",
-  wrong_kind: "Wrong kind — this payload is not a carried remittance quote.",
-  unsupported_version: "Unsupported version — this carried quote uses an unknown version.",
-  invalid_shape: "Invalid shape — the carried quote is not well-formed.",
+  malformed_json: "Malformed JSON. The carried quote is not valid JSON.",
+  oversized: "Oversized. The carried quote payload is too large.",
+  wrong_kind: "Wrong kind. This payload is not a carried remittance quote.",
+  unsupported_version: "Unsupported version. This carried quote uses an unknown version.",
+  invalid_shape: "Invalid shape. The carried quote is not well-formed.",
 };
 
 function remittanceHandoffErrorMessage(err: unknown): string {
@@ -278,7 +281,8 @@ export interface QrFerryProps {
 
 type ImportedPayment =
   | { kind: "commerce"; envelope: QrFerryEnvelope }
-  | { kind: "remittance"; quote: QuoteEnvelope };
+  | { kind: "remittance"; quote: QuoteEnvelope }
+  | { kind: "task"; task: QrTaskEnvelope };
 
 export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
   const [envelope, setEnvelope] = useState<QrFerryEnvelope | null>(null);
@@ -293,8 +297,10 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     importedPayment?.kind === "commerce" ? importedPayment.envelope : null;
   const importedRemittance =
     importedPayment?.kind === "remittance" ? importedPayment.quote : null;
+  const importedTask = importedPayment?.kind === "task" ? importedPayment.task : null;
 
   const registryRef = useRef<LocalStorageReplayRegistry | null>(null);
+  const importedUrlRef = useRef(false);
   const [, setReplayRevision] = useState(0);
   const replayDegraded = useSyncExternalStore(
     () => () => {},
@@ -352,8 +358,17 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     setPayload(text);
   };
 
-  const runImport = (raw: string) => {
+  const runImport = useCallback((raw: string) => {
     if (replayDegraded) return;
+
+    const task = parseQrTaskEnvelope(raw);
+    if (task) {
+      setImportedPayment({ kind: "task", task });
+      setCheckoutPreview(null);
+      setError(null);
+      setPayload("");
+      return;
+    }
 
     const kind = sniffHandoffKind(raw);
     if (kind === "convey.remittance-quote") {
@@ -387,7 +402,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
       setError(errorMessage(err));
       setManualOpen(true);
     }
-  };
+  }, [onValidatedEnvelope, replayDegraded]);
 
   const handleImport = () => {
     runImport(payload);
@@ -397,6 +412,18 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     setPayload(text);
     runImport(text);
   };
+
+  useEffect(() => {
+    if (importedUrlRef.current) return;
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (!code) return;
+    const timer = window.setTimeout(() => {
+      if (importedUrlRef.current) return;
+      importedUrlRef.current = true;
+      runImport(code);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [runImport]);
 
   const handoffToCheckout = () => {
     if (!imported) return;
@@ -448,10 +475,12 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
     ? { eyebrow: "Quote carried", title: "Continue to Ana" }
     : imported
       ? { eyebrow: "Payment carried", title: "Review and pay" }
-      : { eyebrow: "Connected-device handoff", title: "Continue elsewhere" };
+      : importedTask
+        ? { eyebrow: "QR request opened", title: "Review the details" }
+        : { eyebrow: "Offline-ready QR", title: "Scan, pay, or collect" };
 
   return (
-    <section className="cv-shell mx-auto w-full max-w-[760px] px-4 pt-5 md:pt-8">
+    <section className="cv-shell mx-auto w-full max-w-[1040px] px-4 pt-5 md:pt-8">
       <header className="mb-5 flex flex-col gap-1 px-1">
         <p className="font-narrow text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
           {pageIdentity.eyebrow}
@@ -461,7 +490,31 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
         </h1>
       </header>
 
-      {importedRemittance ? (
+      {importedTask ? (
+        <div role="status" className="cv-money-sheet cv-preview-in overflow-hidden rounded-2xl bg-white p-5">
+          <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+            {importedTask.task === "split" ? "Personal split request" : importedTask.task === "allowance" ? "Purpose allowance" : importedTask.task === "pass" ? "Conditional payment pass" : "Payment request"}
+          </p>
+          <div className="mt-4 rounded-xl bg-black p-5 text-white">
+            <span className="text-xs text-white/58">{importedTask.recipient ?? importedTask.beneficiary ?? "Receive"}</span>
+            <strong className="mt-1 block text-3xl font-semibold tracking-[-0.04em]">
+              {importedTask.amount ?? importedTask.limit} {importedTask.asset}
+            </strong>
+            {(importedTask.note || importedTask.category || importedTask.condition) && (
+              <span className="mt-2 block text-sm text-white/65">{importedTask.note ?? importedTask.category ?? importedTask.condition}</span>
+            )}
+          </div>
+          <p className="mt-4 text-sm leading-6 text-neutral-600">
+            Check the person, amount, and purpose. Opening this QR does not approve or move funds.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <Link href={`/app?request=${encodeURIComponent(`Pay ${importedTask.recipient ?? importedTask.beneficiary ?? "this request"} ${importedTask.amount ?? importedTask.limit} ${importedTask.asset}${importedTask.note ? ` for ${importedTask.note}` : ""}`)}`} className="cv-btn-solid flex min-h-12 items-center justify-center px-4 text-xs font-semibold">
+              Prepare in assistant
+            </Link>
+            <button type="button" onClick={handleScanAnother} className="cv-btn-ghost min-h-12 px-4 text-xs font-semibold">Scan another</button>
+          </div>
+        </div>
+      ) : importedRemittance ? (
         <>
           <RemittanceHandoffCard quote={importedRemittance} />
           <div className="mt-4 flex justify-center">
@@ -587,11 +640,10 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
           >
             <div className="px-5 pt-5 pb-3">
               <h2 className="text-sm font-semibold tracking-[-0.01em] text-black">
-                Scan a payment
+                Scan and pay
               </h2>
               <p className="mt-1 text-[12px] text-neutral-500">
-                Open a carried payment on a connected device — scan the code,
-                then approve.
+                Scan a payment, personal request, split, allowance, or pass. You review every detail before approval.
               </p>
             </div>
 
@@ -608,7 +660,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
                   Payment protection unavailable
                 </p>
                 <p className="mt-1">
-                  This device&apos;s replay protection could not be loaded —
+                  This device&apos;s replay protection could not be loaded.
                   its stored data is corrupt, so approving a payment is
                   blocked until protection is deliberately reset. No payment
                   can be accepted until then.
@@ -641,6 +693,8 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
               </div>
             )}
           </div>
+
+          <QrTaskStudio />
 
           <div className="mt-4 overflow-hidden rounded-xl border border-black/8 bg-[var(--cv-paper)]">
             <button
@@ -932,7 +986,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
             envelope</strong>, not cryptographic payer authorization. A
             checksum detects any change to the item, quantity, amount, or
             merchant, and a consume-once code prevents the same payment from
-            being approved twice. No signature or authorization is implied —
+            being approved twice. No signature or authorization is implied.
             the connected device must still approve any payment.
           </p>
           <p className="text-neutral-500">

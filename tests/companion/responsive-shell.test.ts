@@ -16,7 +16,7 @@ describe("companion responsive shell", () => {
     expect(tablet).toContain("display: block;");
     expect(tablet).toContain(".companion-shell--app .companion-sidebar { display: none; }");
     expect(tablet).toContain(".companion-mobile-nav");
-    expect(tablet).toContain("grid-template-columns: repeat(4, 1fr);");
+    expect(tablet).toContain("grid-template-columns: repeat(5, 1fr);");
   });
 
   it("lets the app workspace replace duplicate site chrome without changing the React tree", () => {
