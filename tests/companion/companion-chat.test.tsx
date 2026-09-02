@@ -34,6 +34,18 @@ describe("Companion demo lifecycles", () => {
     expect(trace.at(-1)?.settlement).toBe("not_submitted");
   });
 
+  it("links the protected-support story to the real public reference without merging claims", () => {
+    render(<ProtectedSupportDemoCard />);
+
+    const receipt = screen.getByRole("link", { name: /view receipt/i });
+    expect(receipt).toHaveAttribute(
+      "href",
+      "https://suiscan.xyz/testnet/tx/D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1",
+    );
+    expect(screen.getByText(/separate 0\.01 SUI testnet lifecycle/i)).toBeInTheDocument();
+    expect(screen.getByText(/not Ana's 25 USDC scenario or a fiat payout/i)).toBeInTheDocument();
+  });
+
   it("plays protected support and keeps simulation truth in details", async () => {
     vi.useFakeTimers();
     render(<ProtectedSupportDemoCard />);

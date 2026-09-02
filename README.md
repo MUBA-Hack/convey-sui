@@ -179,7 +179,7 @@ payout.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Tested single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, and a deterministic create-to-release/refund replay backed by the tested lifecycle | Testnet publication/configuration, reproducible real Created/terminal artifacts, a captured successful live Evidence Council artifact, captured release/refund evidence, and production review/payout policy |
+| Published single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, deterministic replay, and one public native-SUI Created → Released reference | A real testnet-USDC Created/terminal artifact, a captured successful live Evidence Council artifact, a public refund-path artifact, and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | Signed-quote QR continuation plus checksum-protected offline commerce requests | Production cross-device replay authority and a cryptographically authorized offline payer envelope |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
@@ -187,11 +187,33 @@ payout.
 
 This is an unaudited build. Reference MYR/PHP figures do not collect or
 disburse fiat, and a carried receipt or digest alone is not proof. Receipts can
-independently check an eligible remittance settlement on Sui testnet, but no
-reproducible live real-digest artifact has been captured and no screen proves
-that Ana received a bank or cash payout. The Treasury path targets Base mainnet,
+independently check an eligible remittance settlement on Sui testnet. A separate
+0.01 native-SUI reference now proves the published Protected Transfer contract's
+Created → Released lifecycle; it is not testnet USDC and no screen proves that
+Ana received a bank or cash payout. The Treasury path targets Base mainnet,
 but no real transaction was submitted or captured in this work; the official
 live order index is currently unavailable. Do not use real funds.
+
+### Public Sui lifecycle evidence
+
+The first complete reference lifecycle was executed on Sui testnet on
+**2 September 2026**. The payer created a shared 0.01 SUI escrow with immutable
+beneficiary and reviewer roles. The distinct reviewer then released the entire
+balance to the beneficiary; the terminal call deleted the escrow object and
+emitted the matching asset-bound `Released<0x2::sui::SUI>` event.
+
+| Evidence | Public identifier |
+| --- | --- |
+| Published package | [`0x265d…12c7`](https://suiscan.xyz/testnet/object/0x265dcb32526bbe87973752b6164d1860a2f7e6fa16520948a83c4c9de60212c7) |
+| Package publication | [`5S8MrD…vXHx`](https://suiscan.xyz/testnet/tx/5S8MrDB5PEHRztJ3isbxGJBu3qHBdi3qgtRJ2aKgvXHx) |
+| Created transaction | [`CuJbcP…qAgb`](https://suiscan.xyz/testnet/tx/CuJbcPfWcuUCWVuNbga3iuAvKGduGPx15tWDCVxsqAgb) |
+| Shared escrow | `0xf00261b8172f11b635b7715b89f3e2f6fd650abbd62a07c9f6ab45516f5a3fcd` |
+| Reviewer release | [`D8fXy9…qoi1`](https://suiscan.xyz/testnet/tx/D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1) |
+| Verified outcome | 0.01 SUI delivered to the immutable beneficiary; escrow object consumed |
+
+This is contract-lifecycle evidence only. It does not prove a USDC remittance,
+fiat funding, FX, bank/cash payout, Evidence Council success, or production
+review policy.
 
 ## Why the boundary matters
 
@@ -1307,7 +1329,7 @@ presentation.
 | Provider failure is mistaken for AI success | Request/model provenance; safe fallback enum; visible route label | No live Gonka evidence without a configured key and successful call |
 | AI message warning changes payment authority | Advisory-only result; deterministic quote, path, wallet, and chain checks remain authoritative | A review can only suggest questions or foreground the existing hold option |
 | Server steals wallet authority | No server-side Sui signer; wallet signs client-side | Acting payer or reviewer must hold testnet gas |
-| Failed or mismatched chain evidence looks successful | Fixed-testnet settlement check requires exact digest, successful transaction, pinned-USDC canonical-recipient balance change, and exact micro amount; strict client binding gates actions | Public testnet RPC can be unavailable; no reproducible live real-digest artifact has been captured; fiat payout remains unverified |
+| Failed or mismatched chain evidence looks successful | Fixed-testnet settlement check requires exact digest, successful transaction, pinned-USDC canonical-recipient balance change, and exact micro amount; strict client binding gates actions | Public testnet RPC can be unavailable; the public Protected Transfer reference uses native SUI rather than USDC; fiat payout remains unverified |
 | Demo looks like settlement | `DEMO-` digest, explicit label, no explorer URL | Demo proves UI flow only |
 | QR payload is modified | Canonical blake2b256 checksum and strict bounds (commerce envelope) | Checksum is not a payer signature |
 | QR payload is replayed | Consume-once local nonce registry; fail-closed corrupt storage (commerce envelope) | Device-local, not globally authoritative |
@@ -1423,8 +1445,8 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, and Protected Transfer creation, advisory Evidence Council, role/deadline-gated terminal wallet actions, plus strict `/proof?t=` lifecycle verification | Protected Transfer publication/configuration, reproducible real Created/terminal artifacts, a real direct-USDC digest artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
-| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance and commerce intent candidate path | Successful live two-model artifacts, protected lifecycle evidence, and live Gonka + Sui evidence remain required |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, published Protected Transfer package, public native-SUI Created → Released lifecycle, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | A real direct or protected testnet-USDC artifact, public refund-path artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
+| Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance; public Sui contract and human-reviewed release evidence | Successful live two-model artifacts joined to the public Sui lifecycle remain required |
 | Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 1–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, live signed-order selection, customer review, wallet execution boundary, and independently checked outcome | Mapping is deterministic rather than model-routed; a live order and real transaction artifact remain uncaptured |
 | Gonka AI for Society | Mixed-language remittance interpretation plus Family Steward and protected-evidence advisory review with distinct-model provenance, exact-evidence span resolution, deterministic checks, verification questions, and honest unavailable states | The configured local key's 2026-08-31 Family Steward attempt was unavailable; captured successful live advisory artifacts and a multilingual remittance artifact remain required |
@@ -1522,13 +1544,13 @@ tests/
   live multilingual remittance run. The local key is configured, but the
   **2026-08-31** two-model Family Steward attempt timed out or returned
   unavailable, so no successful council artifact is claimed.
-- Capture a reproducible capped Sui testnet payment with a real explorer digest
-  and preserve the independent verifier result as release evidence.
-- Publish the Protected Transfer package, configure the protected endpoints,
-  capture a real independently verified Created receipt, exercise the existing
-  reviewer release and payer refund bridge with eligible wallets, and preserve
-  independently verified terminal lifecycle evidence. The direct-transfer path
-  remains separate and unchanged.
+- Capture a reproducible capped testnet-USDC payment with a real explorer digest
+  and preserve the independent verifier result. The current public reference is
+  native SUI, not USDC.
+- Capture the published package's payer-refund branch and a product-generated
+  `/proof?t=` receipt with eligible extension wallets. The 2 September 2026
+  command-line Created → Released reference proves the on-chain lifecycle but
+  does not replace those customer-path artifacts.
 - From that real freshly verified Created receipt, capture a successful live
   Evidence Council artifact with two distinct model/request identifiers, exact
   spans, deterministic checks, and a reproducible artifact digest. Until then,

@@ -193,9 +193,11 @@ verification must match before the product builds the receipt and navigates to
 `/proof?t=...`. After a valid digest returns, the action stays locked against
 resubmission; `not_found`/`unavailable` retain an explorer link and can retry
 verification only, while mismatched evidence remains review-needed. The
-protected endpoints remain unconfigured by default, the
-package is not published, and no real Created/terminal artifact or payout
-evidence exists. The freshly verified Created receipt also embeds the shipped
+package is published on Sui testnet and a public 0.01 native-SUI
+Created → Released lifecycle now exists. That reference proves the role-gated
+contract path, event payload, beneficiary delivery, and terminal object
+consumption; it is not a testnet-USDC remittance, product-generated
+`/proof?t=` receipt, or payout artifact. The freshly verified Created receipt also embeds the shipped
 Evidence Council: bounded pasted text, a repeated Sui Created check, two
 distinct configured Gonka models, server-resolved exact spans, deterministic
 recipient/purpose/bound-MYR-or-PHP checks, and a stable advisory artifact for the human
@@ -438,10 +440,11 @@ Exit evidence:
 Complete the narrow, human-reviewed escrow lifecycle already initiated inside
 the existing Pay journey.
 
-**Status: contract, transaction core, bounded verification endpoints, creation
-path, advisory Evidence Council, role/deadline-gated terminal wallet bridge, and portable
-Created/terminal receipt lifecycle implemented; publication and live evidence
-incomplete.**
+**Status: contract published; transaction core, bounded verification endpoints,
+creation path, advisory Evidence Council, role/deadline-gated terminal wallet
+bridge, and portable Created/terminal receipt lifecycle implemented; one public
+native-SUI release reference captured; USDC, refund, council, and product-wallet
+evidence incomplete.**
 Executable quotes now offer
 **Send directly** or **Hold for family review** inside the existing Pay surface.
 The direct path is unchanged. The hold path requests a strict plan, builds the
@@ -472,9 +475,10 @@ exact terminal digest/event, builds the bound receipt, and navigates to
 `/proof?t=...`. A valid submitted digest keeps that action attempt locked
 against resubmission and preserves its explorer link. Only `not_found` or
 `unavailable` can retry strict verification; mismatched evidence stays
-review-needed. No real wallet-produced terminal artifact is captured, and no
-receipt state proves bank or cash payout. The Move package passes 20/20 tests
-with Sui CLI v1.78.1.
+review-needed. A command-line reviewer wallet produced the public native-SUI
+terminal artifact `D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1`; no
+product-generated USDC terminal receipt or bank/cash payout is claimed. The Move
+package passes 20/20 tests with Sui CLI v1.78.1.
 
 The implemented Sui Move escrow object records:
 
@@ -497,19 +501,19 @@ authorizes an on-chain action.
 
 Next implementation sequence:
 
-1. Publish the package on Sui testnet and record the package, upgrade authority,
-   source, and bytecode evidence without claiming immutability prematurely.
-2. Configure both bounded endpoints after publication; retain strict quote,
+1. Preserve the published package, upgrade authority, source, bytecode, and
+   explorer evidence without claiming immutability prematurely.
+2. Keep both bounded endpoints configured to the published package and reviewer; retain strict quote,
    package, reviewer, event-field, and response binding.
-3. Capture a reproducible real Created receipt showing the escrow object, payer,
-   beneficiary, reviewer, asset, amount, deadline, evidence commitment, and
-   independent re-check result.
+3. Capture a product-generated real testnet-USDC Created receipt showing the
+   escrow object, payer, beneficiary, reviewer, asset, amount, deadline,
+   evidence commitment, and independent re-check result.
 4. From that freshly verified receipt, capture a successful live Evidence
    Council artifact with two distinct model/request identifiers, exact spans,
    deterministic checks, and a reproducible artifact digest.
-5. Exercise the implemented reviewer release and post-deadline payer refund
-   bridge with eligible wallets on the published package.
-6. Capture reproducible wallet-produced terminal receipts for `Released` and
+5. Exercise the post-deadline payer refund bridge and product-wallet release
+   path on the published package; the native-SUI command-line release is done.
+6. Capture reproducible product-generated terminal receipts for `Released` and
    `Refunded`, plus the verified-open state; keep every escrow state separate
    from bank or cash payout.
 
@@ -688,8 +692,8 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, and Protected Transfer creation, advisory Evidence Council, role/deadline-gated terminal wallet actions, plus strict `/proof?t=` lifecycle verification | Protected Transfer publication/configuration, reproducible real Created/terminal evidence, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Real Sui digest or contract state, exact asset, explorer-linked receipt or vault share state |
-| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance; commerce intent candidate path | Successful live two-model artifacts, protected lifecycle evidence, and live Gonka request evidence | Distinct model/request provenance, validated schema, deterministic checks, Family Rule binding, human review, and Sui wallet action |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, published Protected Transfer package, public native-SUI Created → Released lifecycle, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | Product-generated testnet-USDC lifecycle, public refund evidence, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Published package plus Created and Released digests, exact asset, terminal event, and beneficiary balance change |
+| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; Family Steward and Created-receipt Evidence Council two-model advisory reviews with server-resolved exact evidence; bounded protected-plan issuance; public human-reviewed Sui release | Successful live two-model artifacts joined to the public Sui lifecycle | Distinct model/request provenance, validated schema, deterministic checks, Family Rule binding, human review, and Sui wallet action |
 | Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 1–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
 | GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and advisory Family Steward plus protected-evidence review with distinct provenance, exact evidence, deterministic checks, verification questions, and honest unavailable states | The 2026-08-31 Family Steward attempt was unavailable; captured successful advisory artifacts and multilingual live-request evidence remain required | Real router requests, uncertainty handling, exact evidence, social-impact user path |

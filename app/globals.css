@@ -1637,6 +1637,10 @@
 .thetanuts-demo-play { display: flex; min-height: 44px; width: 100%; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; border-radius: 999px; background: #090909; color: #fff; font-size: 12px; font-weight: 620; transition: transform 180ms ease, opacity 180ms ease; }
 .protected-support-play:disabled,
 .thetanuts-demo-play:disabled { cursor: wait; opacity: 0.68; }
+.protected-support-reference { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; border: 1px solid rgb(9 9 9 / 10%); border-radius: 14px; padding: 11px 12px; background: rgb(9 9 9 / 3%); }
+.protected-support-reference span { display: inline-flex; align-items: center; gap: 6px; color: #090909; font-size: 10px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+.protected-support-reference p { margin-top: 3px; color: rgb(9 9 9 / 52%); font-size: 10px; line-height: 1.4; }
+.protected-support-reference a { display: inline-flex; min-height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; background: #fff; padding: 0 11px; color: #090909; font-size: 10px; font-weight: 650; box-shadow: inset 0 0 0 1px rgb(9 9 9 / 10%); transition: transform 180ms ease, box-shadow 180ms ease; }
 .companion-demo-disclosure { margin-top: 12px; border-top: 1px solid rgb(9 9 9 / 8%); padding-top: 10px; color: rgb(9 9 9 / 48%); font-size: 10px; line-height: 1.55; }
 .companion-demo-disclosure summary { min-height: 28px; cursor: pointer; color: rgb(9 9 9 / 60%); font-weight: 600; }
 .companion-demo-disclosure p { margin-top: 6px; }
@@ -2219,6 +2223,8 @@ body:has(.companion-shell--app) .site-header { display: none; }
     .companion-mobile-nav a:focus-visible { outline: 2px solid #0a0a0a; outline-offset: -2px; }
     .protected-support-card { padding: 17px; }
     .protected-support-head { grid-template-columns: minmax(0, 1fr) auto; }
+    .protected-support-reference { align-items: stretch; flex-direction: column; }
+    .protected-support-reference a { width: 100%; }
     .thetanuts-demo-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (hover: hover) and (pointer: fine) {
@@ -2226,6 +2232,7 @@ body:has(.companion-shell--app) .site-header { display: none; }
     .landing-secondary-cta:hover,
     .landing-stage-link:hover,
     .protected-support-play:hover,
+    .protected-support-reference a:hover,
     .thetanuts-demo-play:hover { transform: translateY(-2px); }
 }
 @media (prefers-reduced-motion: reduce) {

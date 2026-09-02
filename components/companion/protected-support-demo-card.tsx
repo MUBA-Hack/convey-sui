@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Clock, Lock, ShieldTick, TickCircle } from "@/components/icons";
+import { Clock, ExportSquare, Lock, ShieldTick, TickCircle } from "@/components/icons";
 import { USDC_COIN_TYPE_TESTNET } from "@/lib/remittance/constants";
+import { PROTECTED_TRANSFER_REFERENCE } from "@/lib/remittance/protected-transfer-reference";
 import {
   createProtectedTransferDemo,
   releaseProtectedTransferDemo,
@@ -113,9 +114,20 @@ export function ProtectedSupportDemoCard() {
         {running ? <><Clock size={16} /> Checking pickup…</> : frame === trace.length - 1 ? "Replay protected journey" : "Play protected journey"}
       </button>
 
+      <div className="protected-support-reference">
+        <div>
+          <span><TickCircle size={15} variant="Bold" aria-hidden="true" /> Public reference</span>
+          <p>The same release rule has completed on Sui.</p>
+        </div>
+        <a href={PROTECTED_TRANSFER_REFERENCE.releasedExplorerUrl} target="_blank" rel="noreferrer">
+          View receipt <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+        </a>
+      </div>
+
       <details className="companion-demo-disclosure">
         <summary>About this replay</summary>
         <p>{state.truthNotice} It executes the same role, evidence, deadline, replay, and terminal-state rules locally.</p>
+        <p>The linked public reference is a separate {PROTECTED_TRANSFER_REFERENCE.amountDisplay} testnet lifecycle, not Ana&apos;s 25 USDC scenario or a fiat payout.</p>
         <code>{state.demoId}</code>
       </details>
     </div>
