@@ -23,13 +23,17 @@ reproduced.
   recipient, changed address, unusual amount, duplicate invoice, QR mismatch,
   expiry/replay, urgency, and prompt-injection signals produce explicit hold or
   reject questions. AI disagreement can hold a request but cannot reject it
-  without a blocking deterministic fact.
+  without a blocking deterministic fact. The companion now calls the bounded
+  two-model route and presents live, partial, local, or unavailable review
+  states without exposing model jargon in the primary action.
 - **Receipt obligations are implemented as a strict domain core.** Confirmed
   receipt candidates must reconcile item subtotal, tax, service and total;
   shared items use deterministic rounding; duplicate names remain ambiguous;
   chat acknowledgement cannot mark anything paid; settlement requires an
-  independent transaction check. Camera intake is visible on Home. Connected
-  OCR remains pending.
+  independent transaction check. Home now includes browser-local photo preview,
+  editable receipt lines, duplicate-name disambiguation, explicit confirmation,
+  reconciled obligation previews, and honest requested—not settled—status.
+  Connected OCR, persistence, messaging, and settlement remain pending.
 - **Overnight protection policy is implemented without autonomous execution.**
   A canonical policy hash binds underlying, option side/type, objective,
   premium and loss caps, trade count, expiry, quote age, slippage, active
@@ -40,7 +44,10 @@ reproduced.
   expose a compact verification link backed by Gonka's unauthenticated receipt
   endpoint. The strict proxy returns request ID, devshard, exact model,
   timestamp, outcome, status, streaming flag, tokens, TTFT and duration only.
-  This is metadata provenance, not a gateway signature.
+  Device-local Activity retains at most 20 bounded request/model/timestamp
+  records and re-verifies the exact request and model into explicit verified,
+  mismatch, not-found, or unavailable states. This is metadata provenance, not
+  a gateway signature.
 
 The current source implements the Ana remittance **quote-to-wallet software
 path** on Sui testnet — from natural-language request through a signed

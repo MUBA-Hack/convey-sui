@@ -69,6 +69,11 @@ export async function POST(req: Request) {
     memory: input.memory,
   };
 
+  const deterministic = CompanionResolutionSchema.parse(parseCompanionTurn(input));
+  if (deterministic.toolId === "splits.propose" || deterministic.toolId === "strategies.propose") {
+    return noStoreJson(deterministic);
+  }
+
   const envConfig = resolveCompanionGonkaConfig(process.env);
   if (envConfig.config.apiKey.trim().length > 0 || TEST_ROUTER_FACTORY.current !== null) {
     try {
@@ -98,5 +103,5 @@ export async function POST(req: Request) {
     } catch {}
   }
 
-  return noStoreJson(CompanionResolutionSchema.parse(parseCompanionTurn(input)));
+  return noStoreJson(deterministic);
 }

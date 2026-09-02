@@ -19,11 +19,13 @@ import { CompanionResolutionSchema, type CompanionResolution } from "@/lib/compa
 import type { CompanionMemory } from "@/lib/companion/memory";
 import { EMPTY_COMPANION_MEMORY } from "@/lib/companion/memory";
 import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
+import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
 
 type Message = {
   id: number;
   role: "user" | "assistant";
   text: string;
+  sourceMessage?: string;
   resolution?: CompanionResolution;
 };
 
@@ -63,6 +65,12 @@ function MicGlyph({ active }: { active: boolean }) {
 }
 
 function responseText(result: CompanionResolution): string {
+  if (result.toolId === "splits.propose") {
+    return "Add the receipt, check each line, and I’ll prepare the requests.";
+  }
+  if (result.toolId === "strategies.propose") {
+    return "I prepared a limited overnight protection policy for you to shape.";
+  }
   if (result.outcome === "proposal" && result.proposal) {
     return `I prepared ${result.proposal.amountMajor} ${result.proposal.asset} for ${result.proposal.contactLabel}.`;
   }
@@ -116,7 +124,15 @@ export function CompanionChat({
       if (!response.ok) throw new Error("request_failed");
       const parsed = CompanionResolutionSchema.safeParse(await response.json());
       if (!parsed.success) throw new Error("invalid_response");
-      addMessage({ role: "assistant", text: responseText(parsed.data), resolution: parsed.data });
+      if (parsed.data.routing.mode === "live" && parsed.data.routing.requestId && parsed.data.routing.responseModel) {
+        recordAiDecisionReceipt({
+          requestId: parsed.data.routing.requestId,
+          model: parsed.data.routing.responseModel,
+          timestamp: new Date().toISOString(),
+          status: "unverified",
+        });
+      }
+      addMessage({ role: "assistant", text: responseText(parsed.data), sourceMessage: message, resolution: parsed.data });
     } catch {
       addMessage({
         role: "assistant",
@@ -188,7 +204,7 @@ export function CompanionChat({
                   <div className={message.role === "user" ? "companion-bubble companion-bubble--user" : "companion-bubble"}>
                     {message.text}
                   </div>
-                  {message.resolution && <CompanionOutcomeCard result={message.resolution} message={message.text} memory={memory} />}
+                  {message.resolution && <CompanionOutcomeCard result={message.resolution} message={message.sourceMessage ?? message.text} memory={memory} />}
                 </motion.article>
               ))}
             </AnimatePresence>
@@ -233,7 +249,7 @@ export function CompanionChat({
                     void send(input);
                   }
                 }}
-                placeholder="Ask Convey to pay, split, collect, or protect…"
+                placeholder="Ask Convey anything…"
                 rows={1}
                 aria-label="Companion message"
                 className="min-h-12 min-w-0 flex-1 resize-none bg-transparent px-1 py-3.5 text-sm leading-5 text-black outline-none placeholder:text-black/35"

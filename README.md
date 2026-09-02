@@ -57,6 +57,21 @@ The companion has two inference paths:
    asks for clarification when a person, amount, asset, or confirmation is
    missing.
 
+Receipt and protection starters stay on their first-party bounded tools rather
+than asking an inference model to rediscover product navigation. A receipt can
+be entered or photographed for a browser-local preview, corrected, assigned to
+specific people, explicitly confirmed, and converted into exactly reconciled
+requests. The photo is not persisted, the sample is labelled, and a chat reply
+never becomes a settlement claim.
+
+<p align="center">
+  <img src="docs/screenshots/companion-receipt-split-desktop.png" alt="Convey receipt split companion on desktop" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/companion-receipt-split-mobile.png" alt="Convey receipt split companion on mobile" width="300" />
+</p>
+
 The public prototype uses a visibly labelled sample contact so `Pay Dave` is
 immediately demonstrable without claiming persistence. The long-term Agentic
 Memory adapter is tracked in GitHub issue #4. The shared
@@ -117,10 +132,10 @@ payout.
 
 | Works in this repository | Still required for a complete production transfer |
 | --- | --- |
-| Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, visibly labelled sample contact, receipt intake, payment risk checks, and bounded protection review | Durable user-controlled Agentic Memory, production receipt OCR, live two-model council evidence, and execution authority for an approved overnight policy |
+| Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, visibly labelled sample contact, full manual receipt split, bounded two-review payment risk route, and explicit overnight limits | Durable user-controlled Agentic Memory, production receipt OCR, a captured successful live two-model council artifact, and execution authority for an approved overnight policy |
 | Strict receipt-to-obligation allocator with reconciled subtotal/tax/service, shared items, deterministic rounding, explicit confirmation, and independently verified settlement transitions | Connected receipt extraction and production request delivery |
 | Strict overnight protection policy with policy hash, time/spend/loss/trade/slippage limits, authority binding, kill switch, and fail-closed evaluation | Customer-approved scoped execution authority and independently verified Thetanuts fills |
-| Public Gonka request-receipt proxy with strict metadata schema plus pinned-model no-fallback routing | Gateway-signed request and response hashes when Gonka ships signed receipts |
+| Public Gonka request-receipt proxy with strict metadata schema, bounded device-local Activity records, exact request/model re-verification, and explicit verified/mismatch/not-found/unavailable states | Gateway-signed request and response hashes when Gonka ships signed receipts |
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback | Production pricing, independent recipient/payout-provider verification, and a captured successful live two-model Steward artifact |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
@@ -744,6 +759,8 @@ approval, fill, or receipt artifact is claimed.
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
 | `POST /api/companion/turn` | Strict companion tool selection, deterministic contact rebind, and approval-gated payment proposal | 16 KiB body cap; redacted contact manifest; live Gonka result used only after schema and memory checks; deterministic fallback; `no-store`; no signer |
+| `POST /api/companion/risk` | Deterministic payment risk checks plus two distinct advisory Gonka reviews | Message-only inference; addresses and transaction authority never reach models; disagreement can hold but only deterministic QR/policy mismatch can reject; `no-store`; no signer |
+| `POST /api/companion/receipt/verify` | Re-check one saved companion routing record against Gonka's public receipt | 1 KiB body cap; exact request/model match; fixed provider origin; six-second read; `no-store`; no prompt, key, signer, or transaction data |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional bounded Gonka interpretation | Structured product actions may explicitly bypass inference; interactive Gonka calls use at most a six-second adapter timeout and no retries; server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
@@ -1236,8 +1253,9 @@ preview binding, strict 1–3 USDC purchase plans, approval and fill calldata
 binding, live order refetch, expiry checks, durable cross-tab recovery, direct
 `OrderFilled` verification, `/proof?o=` receipt binding and retry states, route
 fail-closed behavior, the remittance-context ETH preview, PWA cache policy,
-navigation, accessibility, and the responsive
-experience.
+navigation, accessibility, responsive companion receipt allocation, two-model
+risk routing, bounded AI receipt storage/re-verification, and overnight-policy
+presentation.
 
 ## Security and threat model
 

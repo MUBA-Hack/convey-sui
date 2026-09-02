@@ -110,7 +110,7 @@ describe("CompanionChat", () => {
     render(<CompanionChat />);
     fireEvent.change(screen.getByLabelText(/companion message/i), { target: { value: "Split this receipt" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
-    expect(await screen.findByText(/add the receipt/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /turn one bill into clear requests/i })).toBeInTheDocument();
     expect(screen.getByText(/choose receipt photo/i)).toBeInTheDocument();
   });
 });

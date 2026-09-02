@@ -103,4 +103,21 @@ describe("POST /api/companion/turn", () => {
       },
     });
   });
+
+  it("keeps first-party receipt and protection starters on their bounded tools", async () => {
+    const run = vi.fn();
+    __setGonkaCompanionRouterFactoryForTest(() => ({ run }));
+
+    const response = await POST(request({
+      message: "Split this receipt",
+      localeHint: "en",
+      memory: EMPTY_COMPANION_MEMORY,
+    }));
+
+    expect(run).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({
+      toolId: "splits.propose",
+      clarification: null,
+    });
+  });
 });

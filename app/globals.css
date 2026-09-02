@@ -1684,6 +1684,11 @@
     background: #fff;
     box-shadow: 0 0 0 3px rgb(0 0 0 / 5%), 0 18px 34px -28px rgb(0 0 0 / 60%);
 }
+.companion-composer textarea {
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+.companion-composer textarea::-webkit-scrollbar { display: none; }
 .companion-icon-button,
 .companion-send-button {
     display: inline-flex;

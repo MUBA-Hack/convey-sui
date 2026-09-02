@@ -72,7 +72,7 @@ const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/;
 // Gonka/OpenAI-style request id shape (`req_<token>`). It excludes API-key
 // shapes (`sk-...`, `sk_...`) and any query/path-injecting character. The id is
 // the only payload ever placed in the receipt URL, so it must be a safe token.
-const REQUEST_ID_PATTERN = /^req_[A-Za-z0-9_-]+$/;
+const REQUEST_ID_PATTERN = /^req[-_][A-Za-z0-9_-]+$/;
 
 // Syntactic no-secret boundary on the token after `req_`. The runtime cannot
 // prove arbitrary opaque token content is never a secret, so any key-like
