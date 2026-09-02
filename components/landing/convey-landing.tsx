@@ -3,20 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Code1, DocumentText, Flash, ShieldTick } from "@/components/icons";
+import { ArrowRight, DocumentText, Flash, People, ShieldTick } from "@/components/icons";
 import { BrandMark } from "@/components/site-header";
 import productDesktop from "@/docs/screenshots/convey-app-desktop.png";
 
 const MOMENTS = [
-  ["01", "Scan or show", "Pay a merchant, collect from a friend, split a bill, or issue a limited pass from one QR workspace."],
-  ["02", "Carry exact details", "The amount, person, purpose, and expiry travel inside the code when signal disappears."],
-  ["03", "Reconnect and approve", "Your wallet remains the final authority. Every settled outcome produces a receipt you can check."],
+  ["01", "Say it naturally", "Speak or type what should happen. Convey remembers people, understands receipts, and keeps the request in context."],
+  ["02", "Let agents prepare", "AI agents map the request, compare risk, and stop for clarification whenever important details conflict."],
+  ["03", "Review and move", "Approve the exact action in your wallet, use QR when it helps, and keep a receipt you can check independently."],
 ] as const;
 
 const REQUESTS = [
-  { icon: Code1, text: "Pay River Cafe offline", meta: "Scan now, approve when connected" },
-  { icon: DocumentText, text: "Split dinner with Maya, Idris, and Sam", meta: "Personal WhatsApp links ready" },
-  { icon: ShieldTick, text: "Give Maya a grocery allowance", meta: "Purpose and expiry included" },
+  { icon: People, text: "Send Dave 12 USDC for dinner", meta: "Known person, exact intent" },
+  { icon: DocumentText, text: "Split this receipt with Maya and Sam", meta: "Personal requests and QR links" },
+  { icon: ShieldTick, text: "Protect 500 USDC overnight", meta: "Bounded strategy, approval required" },
 ] as const;
 
 export function ConveyLanding() {
@@ -50,16 +50,16 @@ export function ConveyLanding() {
             transition={{ duration: reduceMotion ? 0 : 0.72, ease: [0.22, 1, 0.36, 1] }}
             className="landing-hero-copy"
           >
-            <p className="companion-eyebrow text-white/52">QR payments built for unreliable signal</p>
-            <h1>Pay by QR. Even when signal fails.</h1>
+            <p className="companion-eyebrow text-white/52">Your money, in plain language</p>
+            <h1>What should happen?</h1>
             <p className="landing-hero-lede">
-              Scan, receive, split, or carry a payment offline. Reconnect once for wallet approval and a verifiable Sui receipt.
+              Speak or type. Convey remembers people, coordinates AI checks, and prepares payments, strategies, or QR handoffs for your approval.
             </p>
             <div className="landing-hero-actions">
-              <Link href="/qr-ferry" className="landing-primary-cta">
-                Scan or show QR <ArrowRight size={17} />
+              <Link href="/app" className="landing-primary-cta">
+                Ask Convey <ArrowRight size={17} />
               </Link>
-              <Link href="/app" className="landing-secondary-cta">Ask Convey</Link>
+              <Link href="/qr-ferry" className="landing-secondary-cta">Scan or show QR</Link>
             </div>
           </motion.div>
 
@@ -81,8 +81,8 @@ export function ConveyLanding() {
 
       <section id="how-it-works" className="landing-story">
         <motion.div {...reveal} className="landing-story-intro">
-          <h2>One QR can do more than checkout.</h2>
-          <p>Use it to pay, collect, split, set a purpose limit, or carry a request between devices.</p>
+          <h2>One conversation. Every money move.</h2>
+          <p>Convey turns natural language into a checked action, then waits for you to approve it.</p>
         </motion.div>
         <div className="landing-moment-grid">
           {MOMENTS.map(([number, title, body], index) => (
@@ -95,8 +95,8 @@ export function ConveyLanding() {
 
       <section className="landing-handoff" aria-labelledby="landing-handoff-title">
         <motion.div {...reveal} className="landing-handoff-copy">
-          <p className="companion-eyebrow text-black/45">Offline QR, built into every money task</p>
-          <h2 id="landing-handoff-title">The code carries the agreement.</h2>
+          <p className="companion-eyebrow text-black/45">When a code is the easiest way</p>
+          <h2 id="landing-handoff-title">Carry the request by QR.</h2>
           <p>
             Amount, recipient, purpose, and expiry stay together. Send a personal split link on WhatsApp, show a merchant code, or pass a request to another device.
           </p>
@@ -127,9 +127,9 @@ export function ConveyLanding() {
 
       <section className="landing-stage">
         <motion.div {...reveal} className="landing-stage-copy">
-          <h2>Scan first. Ask when you need more.</h2>
-          <p>QR handles the handoff. Convey&apos;s companion remembers people, turns receipt photos into requests, and prepares bounded actions for review.</p>
-          <Link href="/qr-ferry" className="landing-stage-link">Create a payment code <ArrowRight size={17} /></Link>
+          <h2>Your companion, backed by careful agents.</h2>
+          <p>Ask naturally. Convey remembers who people are, understands receipt splits, checks risk, and prepares bounded actions without taking wallet control.</p>
+          <Link href="/app" className="landing-stage-link">Start a conversation <ArrowRight size={17} /></Link>
         </motion.div>
         <motion.div {...reveal} className="landing-request-stack">
           {REQUESTS.map(({ icon: Icon, text, meta }, index) => (
@@ -160,9 +160,9 @@ export function ConveyLanding() {
 
       <section className="landing-final-cta">
         <BrandMark size={34} />
-        <h2>What should this QR do?</h2>
-        <p>Pay, collect, split, or set a limit.</p>
-        <Link href="/qr-ferry" className="landing-primary-cta">Open QR payments <ArrowRight size={17} /></Link>
+        <h2>Tell Convey what should happen.</h2>
+        <p>Speak, type, scan, or share a receipt.</p>
+        <Link href="/app" className="landing-primary-cta">Ask Convey <ArrowRight size={17} /></Link>
       </section>
     </div>
   );
