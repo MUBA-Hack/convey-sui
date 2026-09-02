@@ -12,28 +12,53 @@
   <a href="https://convey-sui.fly.dev"><strong>Open the live app</strong></a>
 </p>
 
-Convey turns one plain-language request into one understandable family transfer.
-Say `Send RM500 to Ana in Manila for rent, maximum RM600`; Convey resolves the
-recipient and corridor, shows the complete reference cost, checks the request
-against the family rule, and asks the customer's wallet for one explicit
-approval. The exact quote can continue on another device, and a confirmed
-transfer keeps a portable receipt instead of losing the decision trail.
+Convey is a chat-first financial companion for Sui. One voice or text request
+can become a payment proposal, receipt split, protected family transfer, or
+treasury action without turning language into authority. Ask `Pay Dave 12 USDC
+for dinner`; GonkaRouter may select an allowlisted proposal tool, deterministic
+code rebinds the selected opaque contact to confirmed client memory, and the
+customer still reviews and approves the final wallet action.
 
 The product is designed for people who should not need to understand seed
-phrases, token decimals, transaction builders, or AI routing to support family
-abroad. Google/Enoki onboarding and extension wallets converge on the same
-customer-controlled approval. AI interprets the request; deterministic policy
-decides whether it is safe to prepare; only the wallet can authorize value.
+phrases, token decimals, transaction builders, or AI routing. The companion is
+the front door; the existing Pay, cross-device continuation, Activity, and
+Treasury workspaces remain focused destinations behind it. Google/Enoki
+onboarding and extension wallets converge on the same customer-controlled
+approval. AI interprets a request; deterministic policy decides whether it is
+safe to prepare; only the wallet can authorize value.
 
 <p align="center">
-  <img src="docs/screenshots/convey-desktop.png" alt="Convey desktop interface" width="820" />
+  <img src="docs/screenshots/companion-desktop.jpg" alt="Convey companion desktop interface" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-mobile.png" alt="Convey mobile interface" width="300" />
+  <img src="docs/screenshots/companion-mobile.jpg" alt="Convey companion mobile interface" width="300" />
 </p>
 
-## One family-transfer journey
+## One companion, focused money journeys
+
+The Home companion combines text, voice, bounded contact context, strict tool
+contracts, and approval-first outcomes in one responsive surface. Its Wave 1
+tool registry allows contact resolution, payment proposals, split proposals,
+mission proposals, strategy proposals, and clarification. The implemented
+payment path can return a typed proposal; no companion tool signs, submits,
+releases escrow, or executes an options trade.
+
+The companion has two inference paths:
+
+1. A configured GonkaRouter call sees only contact names, aliases,
+   relationship labels, confirmation state, and opaque IDs—never wallet
+   addresses or transaction authority.
+2. A bounded deterministic fallback recognizes supported payment language and
+   asks for clarification when a person, amount, asset, or confirmation is
+   missing.
+
+The long-term Agentic Memory adapter is tracked in GitHub issue #4. The shared
+schema, redacted Gonka manifest, deterministic contact rebind, companion API,
+and responsive Home UI are implemented in this wave; durable user-controlled
+storage is not claimed until that issue lands.
+
+### One family-transfer journey
 
 1. **Sign in simply.** Use Google through Enoki or an installed Sui wallet. The
    customer still controls every approval.
@@ -695,12 +720,14 @@ approval, fill, or receipt artifact is claimed.
 
 | Route | Purpose | Network / authority |
 | --- | --- | --- |
-| `/` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
+| `/` — **Home** | Chat or speak to the companion; prepare a bounded payment proposal or receive a safe clarification | Gonka sees a redacted contact manifest; deterministic code rebinds opaque IDs; no signer or transaction submission |
+| `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Continue elsewhere** | Carry a signed remittance quote by QR, or transport an offline commerce request | Envelope work is local; settlement still requires connection and wallet approval |
 | `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 1–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |
 | `/proof` — **Activity / Receipts** | Review bounded device-local receipt links, or open/import commerce, remittance, Protected Transfer, terminal, or Base protection-purchase receipts | Local Activity is convenience history only; receipt views use strict local binding plus matching read-only chain checks; no signing authority or payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
+| `POST /api/companion/turn` | Strict companion tool selection, deterministic contact rebind, and approval-gated payment proposal | 16 KiB body cap; redacted contact manifest; live Gonka result used only after schema and memory checks; deterministic fallback; `no-store`; no signer |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional bounded Gonka interpretation | Structured product actions may explicitly bypass inference; interactive Gonka calls use at most a six-second adapter timeout and no retries; server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
@@ -1331,12 +1358,14 @@ complete track submission.
 
 ```text
 app/
-  page.tsx                     Pay workspace: Send abroad / Buy nearby
+  page.tsx                     chat-first companion Home
+  pay/page.tsx                 Send abroad / Buy nearby workspace
   qr-ferry/page.tsx            Continue elsewhere: signed-quote carry and commerce handoff
   proof/page.tsx               Activity ledger plus portable Sui/Base receipt verification
   strategy/page.tsx            ETH/BTC treasury protective-put purchase workspace
   offline/page.tsx             PWA navigation fallback
   api/commerce/intent/route.ts Gonka commerce route + deterministic fallback
+  api/companion/turn/route.ts  redacted Gonka tool choice + deterministic memory rebind
   api/remittance/quote/route.ts reference quote + optional Gonka interpretation + attestation
   api/remittance/quote/verify/route.ts quote verification + authorization
   api/remittance/family-steward/route.ts bounded two-model advisory message review
@@ -1351,6 +1380,7 @@ app/
   api/strategy/protection/verify/route.ts direct Base transaction and OrderFilled verification
   manifest.ts                  installable PWA manifest
 components/
+  companion/                   responsive chat, voice, proposal and clarification UI
   commerce/                    chat, voice, checkout, ferry, scanner, receipt and proof UI, including Base purchase proof
     activity-*.tsx             device-local receipt-link ledger and empty state
     remittance-settlement-status.tsx strict result-first Sui and payout states

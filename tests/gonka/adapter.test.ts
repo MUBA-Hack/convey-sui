@@ -114,6 +114,7 @@ describe("createGonkaCommerceRouter — successful run", () => {
     expect(result.attempts).toHaveLength(1);
     expect(result.attempts[0]?.status).toBe("SCHEMA_VALID");
     expect(result.attempts[0]?.kind).toBe("PRIMARY");
+    expect(deps._calls[0]?.headers["x-gonka-no-fallback"]).toBe("true");
   });
 });
 

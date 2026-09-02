@@ -254,6 +254,7 @@ export function createGonkaStructuredRouter<TInput extends { prompt: string; loc
   const client = new OpenAI({
     apiKey: cfg.apiKey,
     baseURL: baseUrl,
+    defaultHeaders: { "X-Gonka-No-Fallback": "true" },
     timeout: timeoutMs,
     // SDK retries stay disabled so every application retry is visible.
     maxRetries: 0,

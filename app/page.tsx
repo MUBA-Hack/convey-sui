@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
-import { PayWorkspace } from "@/components/commerce/pay-workspace";
+import { CompanionChat } from "@/components/companion/companion-chat";
 
 export const metadata: Metadata = {
-  title: "Pay — Convey",
+  title: "Convey",
   description:
-    "Voice-first cross-border remittance with transparent reference fees and a guarded Sui testnet USDC transfer. Say it, review it, approve it on testnet.",
+    "A chat-first AI companion for payments, splits, receipts, and guarded treasury actions on Sui.",
 };
 
 /**
- * The home route is the Convey Pay workspace.
- *
- * Send abroad (the default voice-first cross-border remittance money sheet)
- * dominates the first fold. Buy nearby (the existing catalog purchase flow,
- * unchanged) is reachable only through a quiet secondary link on the sheet.
- * The remittance module lives beside the commerce purchase module; neither is
- * rewritten. No new top-level route is added.
+ * The home route is now the companion workspace.
+ * Existing remittance and commerce routes remain intact elsewhere in the app.
  */
 export default function HomePage() {
-  return <PayWorkspace />;
+  return <CompanionChat />;
 }

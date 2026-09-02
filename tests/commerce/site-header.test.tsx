@@ -11,7 +11,7 @@ import "@testing-library/jest-dom/vitest";
  * DOM tests pinning the commerce site header navigation.
  *
  * The header is the commerce shell's primary nav: the Convey brand mark,
- * Pay, Continue elsewhere, Activity, Treasury, and the wallet control. These tests pin
+ * Home, Pay, Continue elsewhere, Activity, Treasury, and the wallet control. These tests pin
  * that the commerce routes render and are marked active for the current
  * path, that the brand mark is present, that the wallet control renders,
  * and that no dead legacy hrefs (/app, /fact-check, /claims, /agents,
@@ -73,18 +73,20 @@ describe("SiteHeader — commerce navigation", () => {
     expect(screen.queryByRole("link", { name: /Continue elsewhere/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
 
+    const home = screen.getByRole("link", { name: "Home" });
     const pay = screen.getByRole("link", { name: "Pay" });
     const relay = screen.getByRole("link", { name: /Continue elsewhere/ });
     const activity = screen.getByRole("link", { name: /Activity/ });
     const treasury = screen.getByRole("link", { name: /Treasury/ });
 
-    expect(pay).toHaveAttribute("href", "/");
+    expect(home).toHaveAttribute("href", "/");
+    expect(pay).toHaveAttribute("href", "/pay");
     expect(relay).toHaveAttribute("href", "/qr-ferry");
     expect(activity).toHaveAttribute("href", "/proof");
     expect(treasury).toHaveAttribute("href", "/strategy");
   });
 
-  it("keeps the Pay homepage focused while the menu describes secondary journeys", () => {
+  it("keeps the companion homepage focused while the menu exposes payment journeys", () => {
     pathname.current = "/";
     render(<SiteHeader />);
 
@@ -93,7 +95,8 @@ describe("SiteHeader — commerce navigation", () => {
     expect(screen.queryByRole("link", { name: /Treasury/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /toggle navigation menu/i }));
-    expect(screen.getByRole("link", { name: "Pay" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Pay" })).toHaveAttribute("href", "/pay");
     expect(screen.getByRole("link", { name: /Continue elsewhere/ })).toHaveAttribute("href", "/qr-ferry");
     expect(screen.getByRole("link", { name: /Activity/ })).toHaveAttribute("href", "/proof");
     expect(screen.getByRole("link", { name: /Treasury/ })).toHaveAttribute("href", "/strategy");

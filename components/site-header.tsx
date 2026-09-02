@@ -7,7 +7,8 @@ import { WalletConnectButton } from "@/components/wallet/connect-button";
 import { cn } from "@/lib/utils";
 
 const COMMERCE_ITEMS = [
-  { href: "/", label: "Pay", description: "Send money home" },
+  { href: "/", label: "Home", description: "Ask Convey" },
+  { href: "/pay", label: "Pay", description: "Send money nearby or abroad" },
   {
     href: "/qr-ferry",
     label: "Continue elsewhere",
