@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Clock, ExportSquare, Lock, ShieldTick, TickCircle } from "@/components/icons";
+import { Clock, CloseCircle, ExportSquare, Lock, ShieldTick, TickCircle } from "@/components/icons";
 import { USDC_COIN_TYPE_TESTNET } from "@/lib/remittance/constants";
 import { PROTECTED_TRANSFER_REFERENCE } from "@/lib/remittance/protected-transfer-reference";
 import { parseUsdcDecimalToMicro } from "@/lib/remittance/receipt-split";
@@ -51,16 +51,24 @@ export function buildProtectedSupportDemoTrace(amountMajor = "25"): readonly Pro
   return Object.freeze([created, approved, released]);
 }
 
-export function ProtectedSupportDemoCard({ amountMajor = "25" }: { amountMajor?: string }) {
+export function ProtectedSupportDemoCard({
+  amountMajor = "25",
+  referenceMode = false,
+  onClose,
+}: {
+  amountMajor?: string;
+  referenceMode?: boolean;
+  onClose?: () => void;
+}) {
   const [trace] = useState(() => buildProtectedSupportDemoTrace(amountMajor));
   const [frame, setFrame] = useState(0);
   const [running, setRunning] = useState(false);
   const reduceMotion = useReducedMotion();
   const state = trace[frame] ?? trace[0]!;
   const steps = [
-    { status: "created", label: "Support protected", detail: `${amountMajor} USDC held for Ana`, icon: Lock },
-    { status: "evidence_approved", label: "Pickup checked", detail: "Evidence matches the commitment", icon: ShieldTick },
-    { status: "released", label: "Ready for Ana", detail: "Replay reached approved release", icon: TickCircle },
+    { status: "created", label: referenceMode ? "Locked by contract" : "Support protected", detail: referenceMode ? "1 USDC entered protected custody" : `${amountMajor} USDC held for Ana`, icon: Lock },
+    { status: "evidence_approved", label: referenceMode ? "Reviewed independently" : "Pickup checked", detail: referenceMode ? "Reviewer approved the agreed evidence" : "Evidence matches the commitment", icon: ShieldTick },
+    { status: "released", label: referenceMode ? "Released to Ana" : "Ready for Ana", detail: referenceMode ? "Contract paid the fixed beneficiary" : "Replay reached approved release", icon: TickCircle },
   ] as const;
 
   useEffect(() => {
@@ -76,14 +84,19 @@ export function ProtectedSupportDemoCard({ amountMajor = "25" }: { amountMajor?:
   }, [frame, reduceMotion, running, trace.length]);
 
   return (
-    <div className="companion-result protected-support-card">
+    <div className={`companion-result protected-support-card${referenceMode ? " protected-support-card--reference" : ""}`}>
+      {onClose && (
+        <button type="button" className="protected-support-close" aria-label="Close smart contract demo" onClick={onClose} autoFocus>
+          <CloseCircle size={20} />
+        </button>
+      )}
       <div className="protected-support-head">
         <div>
-          <p className="companion-eyebrow text-black/45">Medicine support</p>
-          <h3>Protected until pickup.</h3>
-          <p>Ana receives the money after the agreed evidence is checked. If time runs out, you can reclaim it.</p>
+          <p className="companion-eyebrow text-black/45">{referenceMode ? "Completed on Sui testnet" : "Medicine support"}</p>
+          <h3>{referenceMode ? "1 USDC moved by contract." : "Protected until pickup."}</h3>
+          <p>{referenceMode ? "Watch a real protected payment move from lock to independent review to Ana, then inspect the public transactions." : "Ana receives the money after the agreed evidence is checked. If time runs out, you can reclaim it."}</p>
         </div>
-        <span className="protected-support-amount">{amountMajor} <small>USDC</small></span>
+        {!referenceMode && <span className="protected-support-amount">{amountMajor} <small>USDC</small></span>}
       </div>
 
       <div className="protected-support-rail" aria-live="polite">
@@ -113,29 +126,50 @@ export function ProtectedSupportDemoCard({ amountMajor = "25" }: { amountMajor?:
           setRunning(true);
         }}
       >
-        {running ? <><Clock size={16} /> Checking pickup…</> : frame === trace.length - 1 ? "Replay protected journey" : "Play protected journey"}
+        {running ? <><Clock size={16} /> {referenceMode ? "Following transactions…" : "Checking pickup…"}</> : frame === trace.length - 1 ? (referenceMode ? "Replay contract lifecycle" : "Replay protected journey") : (referenceMode ? "Play contract lifecycle" : "Play protected journey")}
       </button>
 
       <div className="protected-support-reference">
         <div>
-          <span><TickCircle size={15} variant="Bold" aria-hidden="true" /> Public reference</span>
-          <p>The same release and refund rules have completed on Sui.</p>
+          <span><TickCircle size={15} variant="Bold" aria-hidden="true" /> {referenceMode ? "Public testnet receipt" : "Public reference"}</span>
+          <p>{referenceMode ? "Both transaction digests and the published package are independently inspectable." : "The same release and refund rules have completed on Sui."}</p>
         </div>
         <div className="protected-support-reference-links">
+          {referenceMode && (
+            <a href={PROTECTED_TRANSFER_REFERENCE.createdExplorerUrl} target="_blank" rel="noreferrer">
+              Lock transaction <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+            </a>
+          )}
           <a href={PROTECTED_TRANSFER_REFERENCE.releasedExplorerUrl} target="_blank" rel="noreferrer">
-            Release <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+            {referenceMode ? "Release transaction" : "Release"} <ExportSquare size={14} variant="Linear" aria-hidden="true" />
           </a>
-          <a href={PROTECTED_TRANSFER_REFERENCE.refundedExplorerUrl} target="_blank" rel="noreferrer">
-            Refund <ExportSquare size={14} variant="Linear" aria-hidden="true" />
-          </a>
+          {referenceMode ? (
+            <a href={PROTECTED_TRANSFER_REFERENCE.packageExplorerUrl} target="_blank" rel="noreferrer">
+              View contract <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+            </a>
+          ) : (
+            <a href={PROTECTED_TRANSFER_REFERENCE.refundedExplorerUrl} target="_blank" rel="noreferrer">
+              Refund <ExportSquare size={14} variant="Linear" aria-hidden="true" />
+            </a>
+          )}
         </div>
       </div>
 
       <details className="companion-demo-disclosure">
-        <summary>About this replay</summary>
-        <p>{state.truthNotice} It executes the same role, evidence, deadline, replay, and terminal-state rules locally.</p>
-        <p>The public reference proves a separate {PROTECTED_TRANSFER_REFERENCE.amountDisplay} on-chain lifecycle. This card remains a local replay, not a fiat payout.</p>
-        <code>{state.demoId}</code>
+        <summary>{referenceMode ? "Contract details" : "About this replay"}</summary>
+        {referenceMode ? (
+          <>
+            <p>This animation replays an already completed public {PROTECTED_TRANSFER_REFERENCE.amountDisplay} payment. It does not request a new wallet signature.</p>
+            <p>Beneficiary {PROTECTED_TRANSFER_REFERENCE.beneficiaryAddress.slice(0, 10)}… · reviewer {PROTECTED_TRANSFER_REFERENCE.reviewerAddress.slice(0, 10)}…</p>
+            <code>{PROTECTED_TRANSFER_REFERENCE.escrowObjectId}</code>
+          </>
+        ) : (
+          <>
+            <p>{state.truthNotice} It executes the same role, evidence, deadline, replay, and terminal-state rules locally.</p>
+            <p>The public reference proves a separate {PROTECTED_TRANSFER_REFERENCE.amountDisplay} on-chain lifecycle. This card remains a local replay, not a fiat payout.</p>
+            <code>{state.demoId}</code>
+          </>
+        )}
       </details>
     </div>
   );

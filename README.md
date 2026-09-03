@@ -79,7 +79,8 @@ specific people, explicitly confirmed, and converted into exactly reconciled
 requests. The photo is not persisted, the sample is labelled, and a chat reply
 never becomes a settlement claim.
 
-The companion also includes two product-grade, deterministic journey replays:
+The companion includes two product-grade, deterministic journey replays and a
+first-class public smart-contract demo:
 
 - **Protected support** turns “Send Ana 25 USDC for medicine, release after
   pickup evidence” into a reviewable support mission. The replay exercises the
@@ -89,12 +90,17 @@ The companion also includes two product-grade, deterministic journey replays:
   exact approval, order check, and independently checked outcome journal. Its
   replay exercises the same cap, authority, stale-order, duplicate-submit, and
   retry rules used by the tested strategy core.
+- **Smart contract demo** opens directly from the app and replays Convey's
+  completed **1 USDC Sui testnet lifecycle**: protected custody, independent
+  evidence review, and release to Ana. Judges can open the exact lock and
+  release transactions plus the published Move package from the demo itself.
 
-Both replays are explicitly disclosed inside their expandable evidence details.
-They do not connect a wallet, submit a Sui transaction, broadcast a Thetanuts
-order, or claim a live settlement. Their purpose is to make the complete
-customer journey usable while the separately listed live-proof work remains
-blocked.
+The two interactive product replays are explicitly disclosed inside their
+expandable evidence details and do not silently request a wallet signature. The
+smart-contract demo is different: its animation replays an already completed
+public testnet transaction pair and links directly to independently inspectable
+evidence. The overnight strategy remains a simulation and does not claim a live
+Thetanuts fill.
 
 <p align="center">
   <img src="docs/screenshots/convey-app-desktop.png" alt="Convey app preparing protected family support on desktop" width="820" />
@@ -105,11 +111,11 @@ blocked.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-protected-demo-desktop.png" alt="Convey protected support journey on desktop" width="820" />
+  <img src="docs/screenshots/convey-app-protected-demo-desktop.png" alt="Convey public smart contract lifecycle demo on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-protected-demo-mobile.png" alt="Convey protected support journey on mobile" width="300" />
+  <img src="docs/screenshots/convey-app-protected-demo-mobile.png" alt="Convey public smart contract lifecycle demo on mobile" width="300" />
 </p>
 
 <p align="center">

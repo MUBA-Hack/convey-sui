@@ -25,6 +25,7 @@ import {
   type CompanionMemoryStore,
 } from "@/lib/companion/memory-store";
 import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
+import { ProtectedSupportDemoCard } from "@/components/companion/protected-support-demo-card";
 import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
 import { BrandMark } from "@/components/site-header";
 import { WalletConnectButton } from "@/components/wallet/connect-button";
@@ -113,6 +114,7 @@ export function CompanionChat({
   const [personRelationship, setPersonRelationship] = useState("");
   const [personAddress, setPersonAddress] = useState("");
   const [personError, setPersonError] = useState<string | null>(null);
+  const [contractDemoOpen, setContractDemoOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: "assistant", text: "I’m ready. Tell me what should happen with your money." },
   ]);
@@ -398,8 +400,26 @@ export function CompanionChat({
                   {message.resolution && <CompanionOutcomeCard result={message.resolution} message={message.sourceMessage ?? message.text} memory={memory} />}
                 </motion.article>
               ))}
+              {contractDemoOpen && (
+                <motion.div
+                  key="smart-contract-demo"
+                  initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className="companion-message companion-message--contract-demo"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Smart contract demo"
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setContractDemoOpen(false);
+                  }}
+                >
+                  <ProtectedSupportDemoCard amountMajor="1" referenceMode onClose={() => setContractDemoOpen(false)} />
+                </motion.div>
+              )}
             </AnimatePresence>
-            {messages.length === 1 && !loading && (
+            {messages.length === 1 && !loading && !contractDemoOpen && (
               <div className="companion-empty-actions">
                 <Link href="/qr-ferry" className="companion-empty-action companion-empty-action--primary">
                   <Code1 size={22} />
@@ -414,6 +434,11 @@ export function CompanionChat({
                 <button type="button" onClick={() => setInput("Split dinner with Maya, Idris, and Sam")} className="companion-empty-action">
                   <DocumentText size={20} />
                   <span><strong>Split by WhatsApp</strong><small>Create one request per person</small></span>
+                  <ArrowRight size={17} />
+                </button>
+                <button type="button" onClick={() => setContractDemoOpen(true)} className="companion-empty-action companion-empty-action--contract">
+                  <ShieldTick size={20} />
+                  <span><strong>Demo smart contract</strong><small>Replay a real 1 USDC testnet payment</small></span>
                   <ArrowRight size={17} />
                 </button>
               </div>

@@ -1640,7 +1640,13 @@
     color: rgb(255 255 255 / 48%);
 }
 .companion-limit b { color: #fff; font-size: 13px; font-weight: 600; }
-.protected-support-card { width: min(100%, 430px); padding: 20px; }
+.protected-support-card { position: relative; width: min(100%, 430px); padding: 20px; }
+.protected-support-card--reference { width: min(100%, 590px); border-color: rgb(9 9 9 / 16%); box-shadow: 0 24px 60px rgb(9 9 9 / 10%); }
+.protected-support-close { position: absolute; z-index: 2; top: 13px; right: 13px; display: inline-flex; width: 38px; height: 38px; align-items: center; justify-content: center; border-radius: 50%; color: rgb(9 9 9 / 52%); transition: background 160ms ease, color 160ms ease, transform 160ms ease; }
+.protected-support-close:focus-visible { outline: 2px solid #090909; outline-offset: 2px; }
+.protected-support-card--reference .protected-support-head { padding-right: 44px; }
+.companion-message--contract-demo { position: fixed; z-index: 50; inset: 0; display: grid; width: 100%; max-width: none; place-items: center; overflow-y: auto; background: rgb(9 9 9 / 72%); padding: 28px; backdrop-filter: blur(14px); }
+.companion-message--contract-demo .protected-support-card { max-height: calc(100dvh - 56px); overflow-y: auto; }
 .protected-support-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; }
 .protected-support-head h3 { margin-top: 9px; font-size: 24px; font-weight: 560; line-height: 1.05; letter-spacing: -0.045em; }
 .protected-support-head > div > p:last-child { max-width: 28rem; margin-top: 10px; color: rgb(9 9 9 / 58%); font-size: 12px; line-height: 1.55; }
@@ -2277,6 +2283,7 @@ body:has(.companion-shell--app) .site-header { display: none; }
 .companion-empty-action small { display: block; margin-top: 5px; color: rgb(10 10 10 / 48%); font-size: 10px; line-height: 1.45; }
 .companion-empty-action--primary { background: #0a0a0a; color: white; }
 .companion-empty-action--primary small { color: rgb(255 255 255 / 58%); }
+.companion-empty-action--contract { grid-column: 1 / -1; min-height: 72px; align-items: center; background: #ececea; }
 .qr-task-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .qr-task-layout { display: grid; grid-template-columns: 1fr; }
 
@@ -2387,6 +2394,8 @@ body:has(.companion-shell--app) .site-header { display: none; }
     .companion-mobile-nav a[aria-current="page"] { color: #0a0a0a; }
     .companion-mobile-nav a:focus-visible { outline: 2px solid #0a0a0a; outline-offset: -2px; }
     .protected-support-card { padding: 17px; }
+    .companion-message--contract-demo { align-items: end; padding: 12px; }
+    .companion-message--contract-demo .protected-support-card { width: 100%; max-height: calc(100dvh - 24px); border-radius: 24px; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
     .protected-support-head { grid-template-columns: minmax(0, 1fr) auto; }
     .protected-support-reference { align-items: stretch; flex-direction: column; }
     .protected-support-reference-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2400,6 +2409,7 @@ body:has(.companion-shell--app) .site-header { display: none; }
     .protected-support-play:hover,
     .protected-support-reference a:hover,
     .thetanuts-demo-play:hover { transform: translateY(-2px); }
+    .protected-support-close:hover { background: rgb(9 9 9 / 7%); color: #090909; transform: rotate(4deg); }
 }
 @media (prefers-reduced-motion: reduce) {
     .landing-product-frame { transform: none; }

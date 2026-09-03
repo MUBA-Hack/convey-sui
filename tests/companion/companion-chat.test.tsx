@@ -54,6 +54,25 @@ describe("Companion demo lifecycles", () => {
     expect(screen.getByText(/this card remains a local replay, not a fiat payout/i)).toBeInTheDocument();
   });
 
+  it("presents the completed Sui lifecycle as a first-class public replay", () => {
+    render(<ProtectedSupportDemoCard amountMajor="1" referenceMode />);
+
+    expect(screen.getByRole("heading", { name: /1 usdc moved by contract/i })).toBeInTheDocument();
+    expect(screen.getByText(/completed on sui testnet/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /lock transaction/i })).toHaveAttribute(
+      "href",
+      "https://suiscan.xyz/testnet/tx/DMuGFRfWvYtXUZHFXsftvQEk69BzdukeZ3SSqwoWydok",
+    );
+    expect(screen.getByRole("link", { name: /release transaction/i })).toHaveAttribute(
+      "href",
+      "https://suiscan.xyz/testnet/tx/CkE9cGZaWR5A4UrskdK2Wd58XQCEy5BU7tcKxLBaYGhB",
+    );
+    expect(screen.getByRole("link", { name: /view contract/i })).toHaveAttribute(
+      "href",
+      "https://suiscan.xyz/testnet/object/0x265dcb32526bbe87973752b6164d1860a2f7e6fa16520948a83c4c9de60212c7",
+    );
+  });
+
   it("plays protected support and keeps simulation truth in details", async () => {
     vi.useFakeTimers();
     render(<ProtectedSupportDemoCard />);
@@ -93,6 +112,16 @@ describe("Companion demo lifecycles", () => {
 });
 
 describe("CompanionChat", () => {
+  it("opens the smart contract demo without requiring a chat prompt", () => {
+    render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /demo smart contract/i }));
+
+    expect(screen.getByRole("dialog", { name: /smart contract demo/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /1 usdc moved by contract/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /close smart contract demo/i })).toBeInTheDocument();
+  });
+
   it("keeps every promoted recipient available in sample memory", () => {
     render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
     expect(screen.getByText(/sample people · dave, ana/i)).toBeInTheDocument();
