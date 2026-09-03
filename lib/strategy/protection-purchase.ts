@@ -7,9 +7,9 @@ export const PROTECTION_PURCHASE_CHAIN_ID = 8453 as const;
 export const PROTECTION_PURCHASE_CHAIN_ID_HEX = "0x2105" as const;
 export const PROTECTION_PURCHASE_VERSION = 1 as const;
 export const PROTECTION_PURCHASE_MAX_BODY_BYTES = 4_096;
-export const PROTECTION_PURCHASE_MIN_PREMIUM_USD = 1;
+export const PROTECTION_PURCHASE_MIN_PREMIUM_USD = 0.000001;
 export const PROTECTION_PURCHASE_MAX_PREMIUM_USD = 3;
-export const PROTECTION_PURCHASE_MIN_PREMIUM_MICRO = 1_000_000n;
+export const PROTECTION_PURCHASE_MIN_PREMIUM_MICRO = 1n;
 export const PROTECTION_PURCHASE_MAX_PREMIUM_MICRO = 3_000_000n;
 const PRICE_SCALE_8D = 100_000_000n;
 
@@ -26,7 +26,7 @@ const AssetSchema = z.enum(["ETH", "BTC"]);
 function isPurchaseBudget(value: number): boolean {
   if (!Number.isFinite(value)) return false;
   if (value < PROTECTION_PURCHASE_MIN_PREMIUM_USD || value > PROTECTION_PURCHASE_MAX_PREMIUM_USD) return false;
-  return Math.round(value * 100) / 100 === value;
+  return Number.isSafeInteger(value * 1_000_000);
 }
 
 export const ProtectionPurchasePlanRequestSchema = z

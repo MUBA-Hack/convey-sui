@@ -61,7 +61,7 @@ export function CompanionOutcomeCard({ result, message, memory }: { result: Comp
   }
 
   if (result.toolId === "missions.propose") {
-    return <ProtectedSupportDemoCard />;
+    return <ProtectedSupportDemoCard amountMajor={result.candidate?.amountMajor ?? "25"} />;
   }
 
   if (result.clarification) {

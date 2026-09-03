@@ -161,7 +161,7 @@ onboarding are not claimed.
 
 **Treasury is separate.** The optional `/strategy` workspace turns an explicit
 ETH or BTC downside goal into a reviewable protective-put offer. For the
-purchase path, the customer sets a strict 1–3 USDC premium cap, reviews the
+purchase path, the customer sets a strict 0.000001–3 USDC premium cap, reviews the
 floor and expiry, connects an external wallet on Base, and explicitly approves
 each required transaction. Convey refetches the live signed order at wallet
 connection, after any approval confirms, and immediately before fill, failing
@@ -190,26 +190,28 @@ payout.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback plus two public Gonka receipts | Production pricing and independent recipient/payout-provider verification |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Published single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, deterministic replay, and public native-SUI release and expiry-refund references | A real testnet-USDC Created/terminal artifact, a captured successful live Evidence Council artifact, and production review/payout policy |
+| Published single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, deterministic replay, public native-SUI release/refund references, and a public 1 testnet-USDC reviewer-release lifecycle | A captured successful live Evidence Council artifact and production review/payout policy |
 | Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
 | First-class Scan and Pay workspace with signed-quote carry, checksum-protected offline commerce, receive and request codes, per-person split QR and WhatsApp links, purpose allowances, and conditional payment passes | Production cross-device replay authority, on-chain enforcement for purpose allowances and payment passes, and a cryptographically authorized offline payer envelope |
 | Device-local Settings for preferred asset, home currency, QR start mode, memory, alerts, and low-data mode | Encrypted multi-device preference sync and production notification delivery |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
-| Purchase Power Shield: strict 1–3 USDC cap; live signed-order refetch; exact approval/fill requests; external Base-wallet approval; durable duplicate-submit recovery; signed-order, option-expiry, calldata, and `OrderFilled` verification; portable `/proof?o=` receipt | Restore access to the currently unavailable official live order index, then capture a customer-approved minimal Base-mainnet purchase and independently verified receipt |
+| Purchase Power Shield: strict 0.000001–3 USDC cap; live signed-order refetch; exact approval/fill requests; external Base-wallet approval; durable duplicate-submit recovery; signed-order, option-expiry, calldata, and `OrderFilled` verification; portable `/proof?o=` receipt | Restore access to the currently unavailable official live order index, then capture a customer-approved minimal Base-mainnet purchase and independently verified receipt |
 
 This is an unaudited build. Reference MYR/PHP figures do not collect or
 disburse fiat, and a carried receipt or digest alone is not proof. Receipts can
-independently check an eligible remittance settlement on Sui testnet. A separate
-0.01 native-SUI reference now proves the published Protected Transfer contract's
-Created → Released lifecycle; it is not testnet USDC and no screen proves that
-Ana received a bank or cash payout. The Treasury path targets Base mainnet,
+independently check an eligible remittance settlement on Sui testnet. A public
+1 testnet-USDC reference now proves the published Protected Transfer contract's
+Created → Released lifecycle and Ana's exact on-chain receipt. It does not
+prove fiat funding or bank/cash payout. The Treasury path targets Base mainnet,
 but no real transaction was submitted or captured in this work; the official
 live order index is currently unavailable. Do not use real funds.
 
 ### Public Sui lifecycle evidence
 
-Two complete reference lifecycles were executed on Sui testnet on
-**2 September 2026**. In the first, the payer created a shared 0.01 SUI escrow
+Three complete reference lifecycles were executed on Sui testnet. On
+**3 September 2026**, the payer created a shared 1 USDC escrow for Ana and a
+distinct reviewer released the full balance. On **2 September 2026**, the payer
+created a shared 0.01 SUI escrow
 with immutable beneficiary and reviewer roles. The distinct reviewer released
 the entire balance to the beneficiary. In the second, a 0.005 SUI escrow expired
 and only the payer reclaimed it. Both terminal calls deleted their escrow object
@@ -219,6 +221,11 @@ and emitted the matching asset-bound event.
 | --- | --- |
 | Published package | [`0x265d…12c7`](https://suiscan.xyz/testnet/object/0x265dcb32526bbe87973752b6164d1860a2f7e6fa16520948a83c4c9de60212c7) |
 | Package publication | [`5S8MrD…vXHx`](https://suiscan.xyz/testnet/tx/5S8MrDB5PEHRztJ3isbxGJBu3qHBdi3qgtRJ2aKgvXHx) |
+| USDC funding transfer | [`3JxyKx…bDanQ`](https://suiscan.xyz/testnet/tx/3JxyKxPwN3DgLbNXy3f9WMxFGCMajZzKQjkyu1jbDanQ) |
+| 1 USDC escrow created | [`DMuGFR…Wydok`](https://suiscan.xyz/testnet/tx/DMuGFRfWvYtXUZHFXsftvQEk69BzdukeZ3SSqwoWydok) |
+| USDC shared escrow | `0x430306da79654c36634148c57201cfede2b3f51b13b89c8e2a1a662f66822c54` |
+| Independent reviewer release | [`CkE9cG…aYGhB`](https://suiscan.xyz/testnet/tx/CkE9cGZaWR5A4UrskdK2Wd58XQCEy5BU7tcKxLBaYGhB) |
+| Verified USDC outcome | 1,000,000 micro-USDC delivered to Ana's immutable beneficiary address; escrow object consumed |
 | Created transaction | [`CuJbcP…qAgb`](https://suiscan.xyz/testnet/tx/CuJbcPfWcuUCWVuNbga3iuAvKGduGPx15tWDCVxsqAgb) |
 | Shared escrow | `0xf00261b8172f11b635b7715b89f3e2f6fd650abbd62a07c9f6ab45516f5a3fcd` |
 | Reviewer release | [`D8fXy9…qoi1`](https://suiscan.xyz/testnet/tx/D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1) |
@@ -227,9 +234,8 @@ and emitted the matching asset-bound event.
 | Payer refund after deadline | [`7x5YRg…GKCv`](https://suiscan.xyz/testnet/tx/7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv) |
 | Verified refund outcome | 0.005 SUI returned to the immutable payer; escrow object consumed |
 
-This is contract-lifecycle evidence only. It does not prove a USDC remittance,
-fiat funding, FX, bank/cash payout, Evidence Council success, or production
-review policy.
+This proves testnet-USDC custody and release, not fiat funding, FX, bank/cash
+payout, Evidence Council success, or production review policy.
 
 ## Why the boundary matters
 
@@ -740,7 +746,7 @@ a higher one.
 `/strategy` maps a plain-language ETH or BTC risk goal through a strict
 deterministic parser that extracts asset, objective, and integer horizon. A
 protective-put goal with a positive integer horizon (1..365 days) plus a
-separate exact-cent premium cap enters the actionable **Purchase Power Shield**
+separate exact-micro premium cap enters the actionable **Purchase Power Shield**
 branch; earn-premium, collar,
 missing-horizon, or missing-budget goals keep the original educational
 read-only mapping and never touch the SDK.
@@ -754,7 +760,7 @@ read-only mapping and never touch the SDK.
   horizon 1..365. Fractional horizons (`30.5 days`) and oversized horizons
   (`9999 days`) are rejected as a safe `safe_goal` clarification. The
   purchase cap is a separate `premiumBudgetUsd` field, strictly bounded from
-  1.00 through 3.00 USDC with at most two decimals. The parser never extracts
+  0.000001 through 3.00 USDC with at most six decimals. The parser never extracts
   or implies a cap from goal text.
 - Deterministic selection: only maker-sell puts, matching ETH/BTC asset,
   expiry at/after `now + horizonDays * 86_400`, valid Base USDC collateral,
@@ -856,7 +862,7 @@ approval, fill, or receipt artifact is claimed.
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Scan and Pay** | Scan, receive, request, split by personal QR or WhatsApp link, propose a purpose allowance or payment pass, carry a signed remittance quote, or transport an offline commerce request | QR task proposals are local; settlement and enforced conditions still require connection, policy support, and wallet approval |
 | `/settings` — **Settings** | Choose device-local money, QR, memory, alert, and low-data preferences | Local preferences only; no signing or payment authority |
-| `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 1–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |
+| `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 0.000001–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |
 | `/proof` — **Activity / Receipts** | Review bounded device-local receipt links, or open/import commerce, remittance, Protected Transfer, terminal, or Base protection-purchase receipts | Local Activity is convenience history only; receipt views use strict local binding plus matching read-only chain checks; no signing authority or payout proof |
 | `/offline` | Honest PWA fallback | No checkout or settlement authority |
 | `POST /api/commerce/intent` | Gonka commerce candidate route with deterministic fallback | No signer and no transaction construction |
@@ -874,7 +880,7 @@ approval, fill, or receipt artifact is claimed.
 | `POST /api/remittance/protected-transfer/terminal/verify` | Check one submitted Protected Transfer digest for an exact `Released` or `Refunded` event | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; at most one read-only `getTransaction`; exact action, package, actor, escrow, parties, asset, amount, deadline, and commitment binding; strict safe response union; `no-store`; no action authority or payout proof |
 | `POST /api/remittance/protected-transfer/terminal/open` | Check whether the exact Created escrow remains open | Fixed server-side Sui testnet/RPC; 4 KiB streamed body cap; one bounded read-only object lookup; exact shared type, parties, amount, deadline, commitment, and full balance binding; strict safe response union; `no-store`; absence is never treated as open |
 | `POST /api/strategy` | Strict goal parse plus protective-put discovery or educational mapping | Bounded Base order read and preview; no key or submission authority |
-| `POST /api/strategy/protection/plan` | Refetch the fingerprinted signed order and prepare the next exact approval or fill request | Strict 1–3 USDC cap, 4 KiB body, six-second bounded provider path, short-lived content-bound plan, allowance read, `no-store`; no server signer or submission |
+| `POST /api/strategy/protection/plan` | Refetch the fingerprinted signed order and prepare the next exact approval or fill request | Strict 0.000001–3 USDC cap, 4 KiB body, six-second bounded provider path, short-lived content-bound plan, allowance read, `no-store`; no server signer or submission |
 | `POST /api/strategy/protection/verify` | Independently verify a submitted fill against Base | 4 KiB body, six-second fixed Base-mainnet read; exact transaction, decoded signed order, both expiries, and one `OrderFilled` event; `no-store`; no write authority |
 
 ## Architecture
@@ -1094,7 +1100,7 @@ sequenceDiagram
   participant Verify as Verification API
   participant Proof as Portable receipt
 
-  Customer->>Desk: Set downside goal and 1 to 3 USDC cap
+  Customer->>Desk: Set downside goal and 0.000001 to 3 USDC cap
   Desk->>Orders: Discover bounded matching offers
   Orders-->>Desk: Current signed offer
   Desk-->>Customer: Show floor expiry and premium cap
@@ -1350,7 +1356,7 @@ lifecycle binding and tamper rejection, bounded route
 bodies, one-lookup and timeout behavior, safe response/no-leak contracts,
 strict active-receipt client binding, stale/abort/retry handling, settlement
 no-call cases, strategy goal parsing, shield policy and 200-order bound, exact
-preview binding, strict 1–3 USDC purchase plans, approval and fill calldata
+preview binding, strict 0.000001–3 USDC purchase plans, approval and fill calldata
 binding, live order refetch, expiry checks, durable cross-tab recovery, direct
 `OrderFilled` verification, `/proof?o=` receipt binding and retry states, route
 fail-closed behavior, the remittance-context ETH preview, PWA cache policy,
@@ -1373,7 +1379,7 @@ presentation.
 | QR payload is replayed | Consume-once local nonce registry; fail-closed corrupt storage (commerce envelope) | Device-local, not globally authoritative |
 | Carried quote is tampered | Handoff wrapper contains the strict QuoteEnvelope; attestation/expiry and connected verify remain authoritative | The wrapper adds no outer signature or replay promise |
 | Sensitive traffic is served from PWA cache | API, wallet, RPC, payment, transaction, auth, and cross-origin bypass rules | Offline settlement is intentionally unavailable |
-| Server or stale UI submits an unintended options trade | Server has no key; strict 1–3 USDC cap; exact account, chain, zero-value, target and calldata binding; signed-order refetch before each wallet step; short validity; customer approves in an external Base wallet | External wallet and Base mainnet remain real-value boundaries; official live order index currently unavailable; no real transaction captured |
+| Server or stale UI submits an unintended options trade | Server has no key; strict 0.000001–3 USDC cap; exact account, chain, zero-value, target and calldata binding; signed-order refetch before each wallet step; short validity; customer approves in an external Base wallet | External wallet and Base mainnet remain real-value boundaries; official live order index currently unavailable; no real transaction captured |
 | Reload or competing tab submits the fill twice | Browser-wide exclusive lock; durable intent-before-wallet and hash-after-wallet recovery; submitted states allow verification only | A lost hash stops for manual wallet review rather than guessing; browser storage and lock support are required |
 | A carried options receipt is mistaken for proof | Local receipt binding plus a fresh direct Base check of transaction, signed order, both expiries and exactly one matching `OrderFilled` event | Verification can be pending or unavailable; premium and fee fields are separate and no fee-inclusive total cost is claimed |
 | Family Rule is changed before payment | Purpose and max cap are in the HMAC canonical message, verified before execution, bound at the transfer boundary | Server configuration remains trusted; no independent beneficiary-ownership proof |
@@ -1454,7 +1460,7 @@ Additional boundaries:
    import the commerce envelope, then show duplicate nonce or checksum-tamper
    rejection. The camera scanner starts only on an explicit **Scan QR** tap.
 6. **Show the bounded Treasury purchase flow.** Open **Treasury**
-   (`/strategy`); enter `Protect ETH downside for 30 days` and set a 1–3 USDC
+   (`/strategy`); enter `Protect ETH downside for 30 days` and set a 0.000001–3 USDC
    premium cap. Show the reviewed floor and expiry. If the live order index is
    available, continue to the external Base wallet and explain that approval
    and fill are separate customer-approved requests, followed by independent
@@ -1483,9 +1489,9 @@ complete track submission.
 
 | Track | Evidence in Convey now | Honest remaining gap |
 | --- | --- | --- |
-| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, published Protected Transfer package, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | A real direct or protected testnet-USDC artifact, production review policy, live FX, fiat funding, and payout integration remain unproven |
+| Sui Payments & Stablecoins | Native-SUI purchase path plus reference MYR-to-PHP quoting, Family Rule binding, pinned testnet-USDC execution, independent settlement verification, published Protected Transfer package, public 1 testnet-USDC reviewer-release lifecycle, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | Production review policy, live FX, fiat funding, and payout integration remain unproven |
 | Sui AI x Sui | GonkaRouter remittance interpretation behind deterministic rebind/policy; publicly verified two-model Family Steward artifact; Created-receipt Evidence Council with server-resolved exact evidence; bounded protected-plan issuance; public Sui contract and human-reviewed release evidence | A successful live Evidence Council artifact joined to a product-generated Sui Created receipt remains required |
-| Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 1–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
+| Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 0.000001–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, live signed-order selection, customer review, wallet execution boundary, and independently checked outcome | Mapping is deterministic rather than model-routed; a live order and real transaction artifact remain uncaptured |
 | Gonka AI for Society | Mixed-language remittance interpretation plus a publicly verified live two-model Family Steward council with distinct-model provenance, exact-evidence span resolution, deterministic checks, verification questions, and honest unavailable states | A captured multilingual remittance artifact and a live Created-receipt Evidence Council artifact remain required |
 
@@ -1551,7 +1557,7 @@ lib/
   strategy/                    goal parse, offer policy, purchase planning, wallet binding, recovery, verification, and receipts
   protocol/                    shared hashing utilities
 move/
-  protected_transfer/         tested single-milestone escrow package used by Pay's creation path; not yet published
+  protected_transfer/         tested and published single-milestone escrow package used by Pay's creation path
 public/
   brand/                       Convey mark
   icons/                       PWA icons

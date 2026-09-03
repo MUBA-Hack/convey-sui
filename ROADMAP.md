@@ -132,8 +132,8 @@ FX, fiat funding, or bank disbursement in this path.
   capability, never relabeled as the Ana remittance.
 - **Treasury Purchase Power Shield purchase and proof are implemented.** A
   strict deterministic goal parser extracts ETH/BTC asset, objective, and
-  integer horizon (1..365 days). The actionable path enforces an exact-cent
-  1–3 USDC premium cap, discovers and previews bounded Base-mainnet orders, and
+  integer horizon (1..365 days). The actionable path enforces an exact-micro
+  0.000001–3 USDC premium cap, discovers and previews bounded Base-mainnet orders, and
   requires review before an external wallet is connected. A short-lived plan
   refetches the exact signed order, checks current allowance, and returns exact
   approval or fill calldata. The order is refetched after approval and again
@@ -197,11 +197,11 @@ verification must match before the product builds the receipt and navigates to
 `/proof?t=...`. After a valid digest returns, the action stays locked against
 resubmission; `not_found`/`unavailable` retain an explorer link and can retry
 verification only, while mismatched evidence remains review-needed. The
-package is published on Sui testnet and public native-SUI release and
-expiry-refund lifecycles now exist. Those references prove both role-gated
-contract paths, event payloads, immutable destinations, deadlines, and terminal
-object consumption; they are not testnet-USDC remittances, product-generated
-`/proof?t=` receipt, or payout artifact. The freshly verified Created receipt also embeds the shipped
+package is published on Sui testnet; public native-SUI release and
+expiry-refund lifecycles exist, and a separate public 1 testnet-USDC lifecycle
+now proves Created, independent-reviewer Released, exact beneficiary credit,
+and terminal escrow consumption. These are not a product-generated `/proof?t=`
+receipt or fiat payout artifact. The freshly verified Created receipt also embeds the shipped
 Evidence Council: bounded pasted text, a repeated Sui Created check, two
 distinct configured Gonka models, server-resolved exact spans, deterministic
 recipient/purpose/bound-MYR-or-PHP checks, and a stable advisory artifact for the human
@@ -235,14 +235,15 @@ replay authority is future work.
 Turn a spoken or typed request into a transparent cross-border payment review
 with a signed Family Rule.
 
-**Status: software implementation complete; live artifact exit evidence
-incomplete.** The source has a single
+**Status: software implementation complete; protected testnet-USDC lifecycle
+captured.** The source has a single
 MYR-to-PHP reference corridor, integer fee/FX calculations, expiring quote
 envelopes, server-only attestation and verification, explicit recipient
 mapping, Family Rule (purpose and per-transfer maximum) binding, and
 client-built testnet-USDC execution. It also has an independent receipt verifier
-for exact Sui testnet settlement evidence. Live pricing, fiat funding/payout,
-and a reproducible real-digest settlement artifact remain outstanding.
+for exact Sui testnet settlement evidence. The published contract now has a
+public 1 testnet-USDC Created → reviewer Released artifact. Live pricing and
+fiat funding/payout remain outstanding.
 
 Customer flow:
 
@@ -574,7 +575,7 @@ settlement feature and does not protect the MYR→PHP rate.
 **Status: bounded external-wallet purchase, independent verification, and
 portable proof implemented; live transaction evidence remaining.** Discovery
 uses a deterministic goal parse and a bounded Base-mainnet order read. The
-purchase boundary enforces a strict exact-cent 1–3 USDC cap. Preparation
+purchase boundary enforces a strict exact-micro 0.000001–3 USDC cap. Preparation
 refetches the selected signed order, checks its identity and freshness, previews
 the exact cap, reads allowance, and returns exact approval or fill calldata in a
 short-lived plan. The server has no key and cannot approve or submit. The
@@ -585,11 +586,11 @@ no real order, approval, fill, or verified receipt was captured in this work.
 
 Customer flow:
 
-1. Describe a protective-put goal in natural language and choose a 1–3 USDC
+1. Describe a protective-put goal in natural language and choose a 0.000001–3 USDC
    premium cap.
 2. Strict deterministic parse extracts ETH/BTC asset, objective, and integer
    horizon 1..365; fractional or oversized horizons return a safe
-   clarification. The cap is a separate exact-cent field; the parser never
+   clarification. The cap is a separate exact-micro field; the parser never
    extracts or implies it from goal text.
 3. Fetch live Thetanuts OptionBook orders (one bounded call, at most 200
    inspected).
@@ -623,7 +624,7 @@ Customer flow:
 Exit evidence:
 
 - Bounded order read, deterministic selection, exact preview and calldata,
-  strict 1–3 USDC cap, allowance branching, live refetch, and fail-closed tests.
+  strict 0.000001–3 USDC cap, allowance branching, live refetch, and fail-closed tests.
 - External Base-wallet approval and fill submission with no server key.
 - Durable reload/cross-tab no-double-submit recovery.
 - Direct transaction, signed-order, dual-expiry, and unique `OrderFilled`
@@ -697,9 +698,9 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, published Protected Transfer package, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | Product-generated testnet-USDC lifecycle, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Published package plus both terminal digests, exact assets, events, beneficiary delivery, and payer reclaim |
+| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, published Protected Transfer package, public 1 testnet-USDC reviewer-release lifecycle, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | Product-generated `/proof?t=` artifact, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Published package plus USDC and native-SUI terminal digests, exact assets, events, beneficiary delivery, and payer reclaim |
 | Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; publicly verified two-model Family Steward artifact; Created-receipt Evidence Council with server-resolved exact evidence; bounded protected-plan issuance; public human-reviewed Sui release | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, validated schema, deterministic checks, Family Rule binding, human review, and Sui wallet action |
-| Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 1–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
+| Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 0.000001–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
 | GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and a publicly verified live two-model Family Steward artifact with exact evidence, deterministic aggregation, verification questions, and honest unavailable states | Captured multilingual remittance evidence and a live Created-receipt Evidence Council artifact | Real router requests, uncertainty handling, exact evidence, social-impact user path |
 
@@ -740,7 +741,7 @@ complete:
 - Offline commerce value limit, maximum age, nonce authority,
   merchant-loss allocation, and clock-skew tolerance.
 - Supported option-market policy, production RPC/index availability, wallet
-  support policy, and evidence procedure for the existing 1–3 USDC
+  support policy, and evidence procedure for the existing 0.000001–3 USDC
   Base-mainnet purchase cap.
 - Convey Earn stablecoin type, yield source, strategy allowlist, tranche
   parameters, oracle policy, governance, and loss-coverage disclosure.

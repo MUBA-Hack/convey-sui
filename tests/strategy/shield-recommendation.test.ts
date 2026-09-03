@@ -41,13 +41,21 @@ describe("premiumBudgetUsdToMicro", () => {
     expect(premiumBudgetUsdToMicro(0.01)).toBe(10_000n);
   });
 
+  it("supports a minimal 0.0001 USDC judge demo", () => {
+    expect(premiumBudgetUsdToMicro(0.0001)).toBe(100n);
+  });
+
+  it("supports the exact one micro-USDC protocol floor", () => {
+    expect(premiumBudgetUsdToMicro(0.000001)).toBe(1n);
+  });
+
   it("converts 1_000_000 USD to 1_000_000_000_000 micro", () => {
     expect(premiumBudgetUsdToMicro(1_000_000)).toBe(1_000_000_000_000n);
   });
 
-  it("rejects more than 2 fractional display decimals", () => {
-    expect(() => premiumBudgetUsdToMicro(3.001)).toThrow();
-    expect(() => premiumBudgetUsdToMicro(0.005)).toThrow();
+  it("rejects values below USDC precision", () => {
+    expect(() => premiumBudgetUsdToMicro(0.0000001)).toThrow();
+    expect(() => premiumBudgetUsdToMicro(1.0000001)).toThrow();
   });
 
   it("rejects non-positive or non-finite budgets", () => {

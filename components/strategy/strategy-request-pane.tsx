@@ -19,9 +19,9 @@ export const STRATEGY_NOTIONAL_LIMITS = {
 
 export const STRATEGY_PREMIUM_LIMITS = {
   defaultValue: 3,
-  min: 1,
+  min: 0.000001,
   max: 3,
-  step: 1,
+  step: 0.000001,
 } as const;
 
 interface StrategyRequestPaneProps {

@@ -44,8 +44,8 @@ function clampPremiumBudget(value: number): number {
   if (!Number.isFinite(value) || value < STRATEGY_PREMIUM_LIMITS.min) {
     return STRATEGY_PREMIUM_LIMITS.min;
   }
-  const cents = Math.round(value * 100);
-  const clamped = Math.min(cents / 100, STRATEGY_PREMIUM_LIMITS.max);
+  const micro = Math.round(value * 1_000_000);
+  const clamped = Math.min(micro / 1_000_000, STRATEGY_PREMIUM_LIMITS.max);
   return clamped;
 }
 

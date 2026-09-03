@@ -44,7 +44,6 @@ const BaseUsdcAddressSchema = EvmAddressSchema.refine(
   { message: "collateral token is not Base USDC" },
 );
 
-/** Shared exact policy: finite, positive, ≤ max, at most 2 fractional decimals. */
 function isValidPremiumBudgetUsd(value: unknown): boolean {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return false;
@@ -52,21 +51,21 @@ function isValidPremiumBudgetUsd(value: unknown): boolean {
   if (value > SHIELD_MAX_PREMIUM_USD) {
     return false;
   }
-  const cents = Math.round(value * 100);
-  return cents > 0 && Math.abs(cents / 100 - value) === 0;
+  const micro = value * 1_000_000;
+  return Number.isSafeInteger(micro) && micro > 0;
 }
 
 /** Zod schema for the HTTP boundary and the runtime constraints seam. */
 export const PremiumBudgetUsdSchema = z
   .number()
-  .refine(isValidPremiumBudgetUsd, "Premium budget must be a positive USD value with at most 2 fractional decimals, up to 1,000,000.");
+  .refine(isValidPremiumBudgetUsd, "Premium budget must be a positive USD value with at most 6 fractional decimals, up to 1,000,000.");
 
 /** Convert a validated USD budget to exact 6-decimal USDC micro. Throws defensively. */
 export function premiumBudgetUsdToMicro(premiumBudgetUsd: number): bigint {
   if (!isValidPremiumBudgetUsd(premiumBudgetUsd)) {
     throw new Error("Invalid premium budget.");
   }
-  return BigInt(Math.round(premiumBudgetUsd * 100)) * 10_000n;
+  return BigInt(premiumBudgetUsd * 1_000_000);
 }
 
 export interface ShieldConstraints {

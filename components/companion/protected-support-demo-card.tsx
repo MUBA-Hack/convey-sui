@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Clock, ExportSquare, Lock, ShieldTick, TickCircle } from "@/components/icons";
 import { USDC_COIN_TYPE_TESTNET } from "@/lib/remittance/constants";
 import { PROTECTED_TRANSFER_REFERENCE } from "@/lib/remittance/protected-transfer-reference";
+import { parseUsdcDecimalToMicro } from "@/lib/remittance/receipt-split";
 import {
   createProtectedTransferDemo,
   releaseProtectedTransferDemo,
@@ -17,7 +18,9 @@ const BENEFICIARY = `0x${"2".repeat(64)}`;
 const REVIEWER = `0x${"3".repeat(64)}`;
 const COMMITMENT = `0x${"ab".repeat(32)}`;
 
-export function buildProtectedSupportDemoTrace(): readonly ProtectedTransferDemoState[] {
+export function buildProtectedSupportDemoTrace(amountMajor = "25"): readonly ProtectedTransferDemoState[] {
+  const parsedAmount = parseUsdcDecimalToMicro(amountMajor);
+  const amountMicro = parsedAmount.ok ? parsedAmount.micro : "25000000";
   const createdAtMs = Date.parse("2026-09-02T12:00:00.000Z");
   const created = createProtectedTransferDemo({
     mode: "demo",
@@ -26,7 +29,7 @@ export function buildProtectedSupportDemoTrace(): readonly ProtectedTransferDemo
     beneficiaryAddress: BENEFICIARY,
     reviewerAddress: REVIEWER,
     coinType: USDC_COIN_TYPE_TESTNET,
-    amountMicro: "25000000",
+    amountMicro,
     deadlineMs: createdAtMs + 3 * 86_400_000,
     evidenceCommitmentHex: COMMITMENT,
     createdAtMs,
@@ -48,18 +51,17 @@ export function buildProtectedSupportDemoTrace(): readonly ProtectedTransferDemo
   return Object.freeze([created, approved, released]);
 }
 
-const STEPS = [
-  { status: "created", label: "Support protected", detail: "25 USDC held for Ana", icon: Lock },
-  { status: "evidence_approved", label: "Pickup checked", detail: "Evidence matches the commitment", icon: ShieldTick },
-  { status: "released", label: "Ready for Ana", detail: "Replay reached approved release", icon: TickCircle },
-] as const;
-
-export function ProtectedSupportDemoCard() {
-  const [trace] = useState(() => buildProtectedSupportDemoTrace());
+export function ProtectedSupportDemoCard({ amountMajor = "25" }: { amountMajor?: string }) {
+  const [trace] = useState(() => buildProtectedSupportDemoTrace(amountMajor));
   const [frame, setFrame] = useState(0);
   const [running, setRunning] = useState(false);
   const reduceMotion = useReducedMotion();
   const state = trace[frame] ?? trace[0]!;
+  const steps = [
+    { status: "created", label: "Support protected", detail: `${amountMajor} USDC held for Ana`, icon: Lock },
+    { status: "evidence_approved", label: "Pickup checked", detail: "Evidence matches the commitment", icon: ShieldTick },
+    { status: "released", label: "Ready for Ana", detail: "Replay reached approved release", icon: TickCircle },
+  ] as const;
 
   useEffect(() => {
     if (!running || frame >= trace.length - 1) return;
@@ -81,11 +83,11 @@ export function ProtectedSupportDemoCard() {
           <h3>Protected until pickup.</h3>
           <p>Ana receives the money after the agreed evidence is checked. If time runs out, you can reclaim it.</p>
         </div>
-        <span className="protected-support-amount">25 <small>USDC</small></span>
+        <span className="protected-support-amount">{amountMajor} <small>USDC</small></span>
       </div>
 
       <div className="protected-support-rail" aria-live="polite">
-        {STEPS.map(({ status, label, detail, icon: Icon }, index) => {
+        {steps.map(({ status, label, detail, icon: Icon }, index) => {
           const reached = index <= frame;
           return (
             <motion.div
@@ -132,7 +134,7 @@ export function ProtectedSupportDemoCard() {
       <details className="companion-demo-disclosure">
         <summary>About this replay</summary>
         <p>{state.truthNotice} It executes the same role, evidence, deadline, replay, and terminal-state rules locally.</p>
-        <p>The linked public reference is a separate {PROTECTED_TRANSFER_REFERENCE.amountDisplay} testnet lifecycle, not Ana&apos;s 25 USDC scenario or a fiat payout.</p>
+        <p>The public reference proves a separate {PROTECTED_TRANSFER_REFERENCE.amountDisplay} on-chain lifecycle. This card remains a local replay, not a fiat payout.</p>
         <code>{state.demoId}</code>
       </details>
     </div>

@@ -38,18 +38,19 @@ describe("Companion demo lifecycles", () => {
   });
 
   it("links the protected-support story to the real public reference without merging claims", () => {
-    render(<ProtectedSupportDemoCard />);
+    render(<ProtectedSupportDemoCard amountMajor="1" />);
 
     expect(screen.getByRole("link", { name: /release/i })).toHaveAttribute(
       "href",
-      "https://suiscan.xyz/testnet/tx/D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1",
+      "https://suiscan.xyz/testnet/tx/CkE9cGZaWR5A4UrskdK2Wd58XQCEy5BU7tcKxLBaYGhB",
     );
     expect(screen.getByRole("link", { name: /refund/i })).toHaveAttribute(
       "href",
       "https://suiscan.xyz/testnet/tx/7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv",
     );
-    expect(screen.getByText(/separate 0\.01 SUI testnet lifecycle/i)).toBeInTheDocument();
-    expect(screen.getByText(/not Ana's 25 USDC scenario or a fiat payout/i)).toBeInTheDocument();
+    expect(screen.getByText(/public reference proves a separate 1 USDC on-chain lifecycle/i)).toBeInTheDocument();
+    expect(screen.getByText(/^1$/)).toBeInTheDocument();
+    expect(screen.getByText(/this card remains a local replay, not a fiat payout/i)).toBeInTheDocument();
   });
 
   it("plays protected support and keeps simulation truth in details", async () => {
