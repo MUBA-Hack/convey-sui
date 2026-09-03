@@ -289,7 +289,9 @@ export function CompanionChat({
               <p className="truncate text-xs font-medium text-black">
                 {rememberedPeople.length > 0
                   ? activeMemoryMode === "sample"
-                    ? `Sample person · ${rememberedPeople[0]?.displayName}`
+                    ? rememberedPeople.length === 1
+                      ? `Sample person · ${rememberedPeople[0]?.displayName}`
+                      : `Sample people · ${rememberedPeople.map((person) => person.displayName).join(", ")}`
                     : `${rememberedPeople.length} remembered ${rememberedPeople.length === 1 ? "person" : "people"}`
                   : "Ready for your first request"}
               </p>

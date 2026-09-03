@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { CompanionChat } from "@/components/companion/companion-chat";
+import { SAMPLE_COMPANION_MEMORY } from "@/components/companion/sample-context";
 import {
   buildProtectedSupportDemoTrace,
   ProtectedSupportDemoCard,
@@ -92,6 +93,12 @@ describe("Companion demo lifecycles", () => {
 });
 
 describe("CompanionChat", () => {
+  it("keeps every promoted recipient available in sample memory", () => {
+    render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
+    expect(screen.getByText(/sample people · dave, ana/i)).toBeInTheDocument();
+    expect(SAMPLE_COMPANION_MEMORY.contacts.map((contact) => contact.displayName)).toEqual(["Dave", "Ana"]);
+  });
+
   it("keeps sample context explicit until the user chooses device-local memory", async () => {
     const memory = {
       version: "convey.companion-memory.v1" as const,

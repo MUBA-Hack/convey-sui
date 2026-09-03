@@ -14,6 +14,16 @@ export const SAMPLE_COMPANION_MEMORY: CompanionMemory = {
       confirmation: "confirmed",
       confirmedAt: 1_788_134_400_000,
     },
+    {
+      id: "ana",
+      displayName: "Ana",
+      aliases: [],
+      relationshipLabel: "sister",
+      address: "0x705c6669bbf247264d7344fead9a8371fbf6aa818379fc84a4ba2538578a587b",
+      previousAddress: null,
+      confirmation: "confirmed",
+      confirmedAt: 1_788_134_400_000,
+    },
   ],
   interactions: [
     {
