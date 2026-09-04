@@ -101,6 +101,24 @@ The bounded workspace and organization context enter the redacted Gonka
 manifest for routing only. They never grant payment, wallet, reviewer, member,
 or treasury authority.
 
+Organization workspaces add a **Chat / Controls** switch. Chat supports spoken
+or typed delegation; Controls exposes the same organization-specific releases,
+collections, reviews, receipts, and treasury tasks as direct buttons for power
+users. A direct action returns to the conversation with its prepared result, so
+both modes share the same deterministic policy, exact-term review, and wallet
+approval boundary. Personal stays chat-first and does not show this operator
+switch.
+
+Organizations also have a **Resolve a dispute** protocol for a user or employer
+who challenges an AI-assisted evaluation. Convey preserves the original
+evaluation and provenance, records which side raised the challenge, accepts the
+missing context, invites the other side to respond, and routes the record to a
+neutral human. AI may summarize the disagreement but cannot decide the appeal;
+the original agreement continues to govern until the required authority accepts
+a release, refund, or escalation. The current UI prepares this review locally.
+Server persistence, counterparty invitations, reviewer assignment, and an
+on-chain dispute hold remain production work.
+
 Wide desktop adds a contextual action rail; tablet and mobile switch to one
 full-height conversation canvas, fixed safe-area navigation, and a
 thumb-reachable composer instead of compressing desktop columns. Its current
@@ -167,6 +185,10 @@ Thetanuts fill.
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/convey-organization-controls-desktop.png" alt="Convey NGO operations workspace in direct Controls mode on desktop" width="820" />
+</p>
+
+<p align="center">
   <img src="docs/screenshots/convey-app-protected-demo-desktop.png" alt="Convey public smart contract lifecycle demo on desktop" width="820" />
 </p>
 
@@ -221,9 +243,12 @@ onboarding are not claimed.
    settlement, and fiat payout remain separate states so one cannot silently
    stand in for another.
 
-**Treasury is separate.** The optional `/strategy` workspace turns an explicit
-ETH or BTC downside goal into a reviewable protective-put offer. For the
-purchase path, the customer sets a strict 0.000001–3 USDC premium cap, reviews the
+**Treasury is separate.** The optional `/strategy` workspace begins with three
+clear routes: protect downside, scan premium-income orders, or map a balanced
+goal. Its four-stage rail keeps limits, live matching, wallet approval, and
+position verification visible. Read-only scans show representative orders only
+when asset, side, and option type match the selected goal. For the actionable
+protective-put path, the customer sets a strict 0.000001–3 USDC premium cap, reviews the
 floor and expiry, connects an external wallet on Base, and explicitly approves
 each required transaction. Convey refetches the live signed order at wallet
 connection, after any approval confirms, and immediately before fill, failing
@@ -258,16 +283,16 @@ payout.
 | First-class Scan and Pay workspace with signed-quote carry, checksum-protected offline commerce, receive and request codes, per-person split QR and WhatsApp links, purpose allowances, and conditional payment passes; connected import leads to wallet approval and Sui verification | Production cross-device replay authority and a cryptographically authorized offline payer envelope; the QR transport itself is not payer authorization |
 | Device-local Settings for preferred asset, home currency, QR start mode, memory, alerts, and low-data mode | Encrypted multi-device preference sync and production notification delivery |
 | Result-oriented portable receipts with local binding, quote re-check, independent read-only Sui lookup, and reproducible protected-transfer, threshold-collection, recurring-cap, and sponsored-gas digests | Fiat-payout evidence and production notification delivery |
-| Purchase Power Shield: strict 0.000001–3 USDC cap; live signed-order refetch; exact approval/fill requests; external Base-wallet approval; durable duplicate-submit recovery; signed-order, option-expiry, calldata, and `OrderFilled` verification; portable `/proof?o=` receipt | Restore access to the currently unavailable official live order index, then capture a customer-approved minimal Base-mainnet purchase and independently verified receipt |
+| Purchase Power Shield: strict 0.000001–3 USDC cap; live asset/type-specific order scans; signed-order refetch; exact approval/fill requests; external Base-wallet approval; durable duplicate-submit recovery; signed-order, option-expiry, calldata, and `OrderFilled` verification; portable `/proof?o=` receipt | Capture a customer-approved minimal Base-mainnet purchase and independently verified receipt while a qualifying order is available |
 
 This is an unaudited build. Reference MYR/PHP figures do not collect or
 disburse fiat, and a carried receipt or digest alone is not proof. Receipts can
 independently check an eligible remittance settlement on Sui testnet. A public
 1 testnet-USDC reference now proves the published Protected Transfer contract's
 Created → Released lifecycle and Ana's exact on-chain receipt. It does not
-prove fiat funding or bank/cash payout. The Treasury path targets Base mainnet,
-but no real transaction was submitted or captured in this work; the official
-live order index is currently unavailable. Do not use real funds.
+prove fiat funding or bank/cash payout. The Treasury path targets Base mainnet.
+Live SDK market reads were responding during the latest rendered QA, but no real
+transaction was submitted or captured in this work. Do not use real funds.
 
 ### Public Sui lifecycle evidence
 
@@ -890,8 +915,9 @@ read-only mapping and never touch the SDK.
 - The discovery response remains a strict `live`, `no_match`, or `unavailable`
   union. It reads Base-mainnet OptionBook orders, inspects at most 200, selects
   the lowest-price qualifying maker-sell put, and previews the exact cap. The
-  official live order index is currently unavailable, so no successful live
-  purchase artifact is claimed.
+  workspace also samples the full order feed by asset, side, and option type so
+  an income goal cannot surface an ETH-priced or put-shaped mismatch. No
+  successful live purchase artifact is claimed.
 - Strict deterministic goal parser: ETH/BTC asset, objective, and integer
   horizon 1..365. Fractional horizons (`30.5 days`) and oversized horizons
   (`9999 days`) are rejected as a safe `safe_goal` clarification. The
@@ -974,7 +1000,7 @@ The purchase and verification path is implemented, but this work did not submit
 or capture a real transaction. A purchase can proceed only when the official
 live order index returns a qualifying current order, the customer explicitly
 approves the Base wallet requests, and independent verification matches the
-result. The index is currently unavailable, so no successful live order,
+result. Live read-only scans were responding during the latest rendered QA; no
 approval, fill, or receipt artifact is claimed.
 
 ### PWA and offline behavior
@@ -996,7 +1022,7 @@ approval, fill, or receipt artifact is claimed.
 | Route | Purpose | Network / authority |
 | --- | --- | --- |
 | `/` — **Product site** | Explain Convey's value, trust model, and primary customer journeys before opening the product | Public, read-only presentation; no transaction authority |
-| `/app` — **Companion** | Switch between Personal, NGO operations, Club treasury, and device-local custom organizations; chat or speak to prepare a bounded payment, receipt split, aid release, or treasury policy | Gonka sees a redacted contact manifest plus bounded workspace and organization context; deterministic code rebinds opaque IDs; context grants no signer, membership, or transaction authority |
+| `/app` — **Companion** | Use chat or voice in Personal; organization workspaces can switch between natural-language delegation and direct controls for bounded payments, collections, reviews, releases, receipts, treasury policies, and neutral dispute-review preparation | Gonka sees a redacted contact manifest plus bounded workspace and organization context; deterministic code rebinds opaque IDs; AI cannot decide an appeal and context grants no signer, membership, or transaction authority |
 | `/verify` — **Verify** | Paste text or a public page and inspect claim extraction, two independent reviews, truth score, reasoning, evidence, disagreement, and request IDs | All inference runs through Gonka; bounded source text only; strict fail-closed report; no wallet or transaction authority |
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Scan and Pay** | Scan, receive, request, split by personal QR or WhatsApp link, propose a purpose allowance or payment pass, carry a signed remittance quote, or transport an offline commerce request | QR task proposals are local; settlement and enforced conditions still require connection, policy support, and wallet approval |
@@ -1291,8 +1317,8 @@ sequenceDiagram
 
 The server prepares exact requests but never holds a key or calls the wallet.
 Durable intent and hash recovery plus a browser-wide lock prevent silent repeat
-submission. No real transaction was submitted or captured in this work because
-the official live order index is currently unavailable.
+submission. Live SDK reads were responding during the latest rendered QA, but
+no real transaction was submitted or captured in this work.
 
 ### Deployment and runtime boundaries
 
@@ -1537,7 +1563,7 @@ presentation.
 | QR payload is replayed | Consume-once local nonce registry; fail-closed corrupt storage (commerce envelope) | Device-local, not globally authoritative |
 | Carried quote is tampered | Handoff wrapper contains the strict QuoteEnvelope; attestation/expiry and connected verify remain authoritative | The wrapper adds no outer signature or replay promise |
 | Sensitive traffic is served from PWA cache | API, wallet, RPC, payment, transaction, auth, and cross-origin bypass rules | Offline settlement is intentionally unavailable |
-| Server or stale UI submits an unintended options trade | Server has no key; strict 0.000001–3 USDC cap; exact account, chain, zero-value, target and calldata binding; signed-order refetch before each wallet step; short validity; customer approves in an external Base wallet | External wallet and Base mainnet remain real-value boundaries; official live order index currently unavailable; no real transaction captured |
+| Server or stale UI submits an unintended options trade | Server has no key; strict 0.000001–3 USDC cap; exact account, chain, zero-value, target and calldata binding; signed-order refetch before each wallet step; short validity; customer approves in an external Base wallet | External wallet and Base mainnet remain real-value boundaries; no real transaction captured |
 | Reload or competing tab submits the fill twice | Browser-wide exclusive lock; durable intent-before-wallet and hash-after-wallet recovery; submitted states allow verification only | A lost hash stops for manual wallet review rather than guessing; browser storage and lock support are required |
 | A carried options receipt is mistaken for proof | Local receipt binding plus a fresh direct Base check of transaction, signed order, both expiries and exactly one matching `OrderFilled` event | Verification can be pending or unavailable; premium and fee fields are separate and no fee-inclusive total cost is claimed |
 | Family Rule is changed before payment | Purpose and max cap are in the HMAC canonical message, verified before execution, bound at the transfer boundary | Server configuration remains trusted; no independent beneficiary-ownership proof |
@@ -1650,7 +1676,7 @@ complete track submission.
 | --- | --- | --- |
 | Sui Payments & Stablecoins | Canonical four-module Move package; public Enoki-sponsored 1 USDC intent-bound creation and reviewer release; same-transaction Seal policy; verified Walrus ciphertext; 2-of-2 collection release; recurring per-payment/cumulative cap; direct send and portable receipt verification | Production audit, sponsor abuse controls, live FX, fiat funding, KYC, and payout integration remain unproven |
 | Sui AI x Sui | GonkaRouter interpretation behind deterministic rebind/policy; AI provenance included in the commitment the customer signs; public sponsored Sui agreement and human-reviewed release; M-of-N and recurring objects reuse the same committed-intent model | A successful live Evidence Council artifact joined to a product-generated Created receipt remains required |
-| Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 0.000001–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
+| Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery, asset/type-specific live order scans, strict 0.000001–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | No customer-approved real transaction or verified live receipt was captured in this work |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, live signed-order selection, customer review, wallet execution boundary, and independently checked outcome | Mapping is deterministic rather than model-routed; a live order and real transaction artifact remain uncaptured |
 | Gonka AI for Society | First-class text/link verification with claim extraction, two distinct model reviews, 0–100 score, reasoning traces, exact evidence, consensus status, and every Gonka request ID; mixed-language remittance, Family Steward, and AI-decision provenance remain connected to enforceable Sui agreements | Capture one successful hosted verification report, a multilingual remittance artifact, and a live Created-receipt Evidence Council artifact |
 
@@ -1773,10 +1799,10 @@ tests/
   tests demonstrate behavior but no live council success is claimed.
 - Connect a real FX/funding/payout provider only after corridor and compliance
   requirements are verified; keep bank payout distinct from chain settlement.
-- Restore access to the official live order index, then use the implemented
-  external-wallet flow to capture a minimal customer-approved Base-mainnet fill
-  and its independently verified `/proof?o=` receipt. No real transaction was
-  submitted or captured in this work.
+- Use the implemented external-wallet flow while a qualifying live order is
+  available to capture a minimal customer-approved Base-mainnet fill and its
+  independently verified `/proof?o=` receipt. No real transaction was submitted
+  or captured in this work.
 - Replace device-local QR replay storage with a cross-device authoritative nonce
   registry.
 - Expand catalog and merchant onboarding beyond the current sample inventory.

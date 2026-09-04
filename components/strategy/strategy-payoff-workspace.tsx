@@ -4,6 +4,7 @@ import { StrategyPayoffMap } from "@/components/strategy/strategy-payoff-map";
 interface StrategyPayoffWorkspaceProps {
   error: string | null;
   intent: StrategyResult | null;
+  reserveScenarioUsdc: number;
   pending: boolean;
   refinementMessage: string | null;
 }
@@ -11,6 +12,7 @@ interface StrategyPayoffWorkspaceProps {
 export function StrategyPayoffWorkspace({
   error,
   intent,
+  reserveScenarioUsdc,
   pending,
   refinementMessage,
 }: StrategyPayoffWorkspaceProps) {
@@ -37,7 +39,14 @@ export function StrategyPayoffWorkspace({
         )}
 
         {intent ? (
-          <StrategyPayoffMap intent={intent} />
+          <>
+            <StrategyPayoffMap intent={intent} />
+            {intent.objective !== "protect_downside" && (
+              <p className="mt-auto border-t border-black/8 pt-4 text-[12px] leading-5 text-neutral-500">
+                Scenario: {reserveScenarioUsdc.toLocaleString()} USDC. This shapes the goal only; a fresh order and exact wallet approval are still required.
+              </p>
+            )}
+          </>
         ) : refinementMessage ? (
           <div>
             <p className="text-[28px] font-semibold tracking-[-0.04em] text-black">

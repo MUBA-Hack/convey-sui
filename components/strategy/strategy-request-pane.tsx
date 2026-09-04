@@ -11,11 +11,17 @@ export const STRATEGY_PRESETS = [
 ] as const;
 
 export const STRATEGY_NOTIONAL_LIMITS = {
-  defaultValue: 2400,
+  defaultValue: 500,
   min: 1,
   max: 1_000_000,
-  step: 100,
+  step: 50,
 } as const;
+
+const STRATEGY_ROUTE_COPY: Record<(typeof STRATEGY_PRESETS)[number], { label: string; detail: string }> = {
+  "Protect ETH downside for 30 days": { label: "Protect", detail: "Buy a bounded floor" },
+  "Earn premium on BTC": { label: "Earn", detail: "Scan income orders" },
+  "Protect ETH and offset cost with premium": { label: "Balance", detail: "Map a two-sided goal" },
+};
 
 export const STRATEGY_PREMIUM_LIMITS = {
   defaultValue: 3,
@@ -77,6 +83,26 @@ export function StrategyRequestPane({
         </p>
       </div>
 
+      <div className="grid grid-cols-3 gap-1.5 px-6 pb-4 md:px-8" aria-label="Treasury strategy routes">
+        {STRATEGY_PRESETS.map((preset) => {
+          const copy = STRATEGY_ROUTE_COPY[preset];
+          const selected = preset === goal;
+          return (
+            <button
+              key={preset}
+              type="button"
+              aria-label={preset}
+              aria-pressed={selected}
+              onClick={() => onGoalChange(preset)}
+              className={`min-h-16 rounded-xl border px-3 py-2.5 text-left transition-colors ${selected ? "border-black bg-black text-white" : "border-black/10 bg-white text-black hover:border-black/25"}`}
+            >
+              <strong className="block text-[13px] font-semibold">{copy.label}</strong>
+              <small className={`mt-1 block text-[10px] leading-4 ${selected ? "text-white/52" : "text-black/45"}`}>{copy.detail}</small>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="cv-money-tile mx-6 rounded-[22px] bg-black p-5 text-white md:mx-8 md:p-6">
         {protectDownside ? (
           <>
@@ -115,17 +141,14 @@ export function StrategyRequestPane({
               htmlFor="strategy-notional"
               className="text-[13px] font-medium text-white/55"
             >
-              {strategyHeroLabel(payoffIntent)}
+              USDC reserve scenario
             </label>
-            <div className="mt-2 flex items-baseline gap-1">
-              <span className="font-sans text-[44px] font-semibold leading-none tabular-nums tracking-[-0.04em] text-white">
-                RM
-              </span>
+            <div className="mt-2 flex items-baseline gap-2">
               <input
                 id="strategy-notional"
                 type="number"
-                inputMode="numeric"
-                aria-label="Protected notional in MYR"
+                inputMode="decimal"
+                aria-label="Reserve scenario in USDC"
                 min={STRATEGY_NOTIONAL_LIMITS.min}
                 max={STRATEGY_NOTIONAL_LIMITS.max}
                 step={STRATEGY_NOTIONAL_LIMITS.step}
@@ -133,6 +156,7 @@ export function StrategyRequestPane({
                 onChange={(event) => onNotionalChange(Number(event.target.value))}
                 className="w-full min-w-0 bg-transparent font-sans text-[44px] font-semibold leading-none tabular-nums tracking-[-0.04em] text-white outline-none"
               />
+              <span className="text-[12px] font-semibold uppercase tracking-[0.16em] text-white/45">USDC</span>
             </div>
             <p className="mt-3 text-[13px] text-white/55">
               {horizonSublabel(payoffIntent)}
@@ -167,22 +191,10 @@ export function StrategyRequestPane({
               ? "Find treasury protection"
               : protectDownside
                 ? "Find protection"
-                : "Explore this goal"}
+                : payoffIntent?.objective === "earn_premium"
+                  ? "Scan live income"
+                  : "Explore balanced goal"}
         </button>
-
-        <div className="mt-4 flex flex-col gap-2">
-          <p className="text-[13px] font-medium text-neutral-500">Other ideas</p>
-          {STRATEGY_PRESETS.filter((preset) => preset !== goal).map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => onGoalChange(preset)}
-              className="min-h-12 rounded-xl border border-black/10 bg-white px-4 py-3 text-left text-[15px] font-medium leading-snug text-neutral-800 transition-colors hover:border-black/20 hover:bg-neutral-50"
-            >
-              {preset}
-            </button>
-          ))}
-        </div>
 
         {remittanceContext && (
           <div

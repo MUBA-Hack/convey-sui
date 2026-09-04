@@ -58,7 +58,7 @@ function collarIntent(asset: "ETH" | "BTC" = "ETH", horizonDays: number | null =
  * the full accessible disclaimer, so it is removed as a block. */
 function withoutDisclaimer(text: string): string {
   return text
-    .replace(/Conceptual payoff shape — not priced/gi, "")
+    .replace(/Conceptual payoff shape: not priced/gi, "")
     .replace(/No strike, premium, quote, or trade is selected\./gi, "")
     .replace(/Conceptual[\s\S]*?is selected\./gi, "")
     .replace(/not priced/gi, "");
@@ -75,7 +75,7 @@ describe("StrategyPayoffMap", () => {
     for (const [name, intent] of profiles) {
       it(`${name}: states the two required disclaimers`, () => {
         const html = renderToStaticMarkup(<StrategyPayoffMap intent={intent} />);
-        expect(html).toContain("Conceptual payoff shape — not priced");
+        expect(html).toContain("Conceptual payoff shape: not priced");
         expect(html).toContain("No strike, premium, quote, or trade is selected.");
       });
 

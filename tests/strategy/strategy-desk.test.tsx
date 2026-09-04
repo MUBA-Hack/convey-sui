@@ -41,6 +41,7 @@ function ethProtectResponse() {
         orderCount: 12,
         samples: [
           {
+            asset: "ETH",
             side: "maker_sells",
             optionType: "put",
             strikeUsd: 4000,
@@ -84,6 +85,7 @@ function btcProtectResponse() {
         orderCount: 12,
         samples: [
           {
+            asset: "BTC",
             side: "maker_sells",
             optionType: "put",
             strikeUsd: 110000,
@@ -152,7 +154,7 @@ describe("StrategyDesk — static standalone workspace", () => {
 
   it("always states the two payoff truth disclaimers", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
-    expect(html).toContain("Conceptual payoff shape — not priced");
+    expect(html).toContain("Conceptual payoff shape: not priced");
     expect(html).toContain("No strike, premium, quote, or trade is selected.");
   });
 
@@ -160,6 +162,14 @@ describe("StrategyDesk — static standalone workspace", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
     expect(html).toContain("Find protection");
     expect(html).not.toContain("Preview strategy");
+  });
+
+  it("shows the complete customer journey before a wallet decision", () => {
+    const html = renderToStaticMarkup(<StrategyDesk />);
+    expect(html).toContain("Set limits");
+    expect(html).toContain("Match live order");
+    expect(html).toContain("Approve in wallet");
+    expect(html).toContain("Verify position");
   });
 
   it("shows compact preset chips visibly, not buried in a disclosure", () => {
@@ -201,6 +211,15 @@ describe("StrategyDesk — notional accessible name and preset sizing", () => {
   it("sizes preset buttons to a 48px hit target", () => {
     const html = renderToStaticMarkup(<StrategyDesk />);
     expect(html).toContain("min-h-12");
+  });
+
+  it("turns the income route into a USDC reserve scenario and live scan", () => {
+    render(<StrategyDesk />);
+    fireEvent.click(screen.getByRole("button", { name: /earn premium on btc/i }));
+    expect(screen.getByRole("spinbutton", { name: "Reserve scenario in USDC" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Scan live income" })).toBeInTheDocument();
+    expect(screen.queryByText("Other ideas")).not.toBeInTheDocument();
+    cleanup();
   });
 });
 
@@ -266,7 +285,7 @@ describe("StrategyDesk — invalid draft (no submit)", () => {
     expect(screen.getByText("Refine your goal")).toBeInTheDocument();
     // No payoff SVG path is rendered for an invalid draft.
     expect(container.querySelector("svg")).toBeNull();
-    expect(screen.queryByText("Conceptual payoff shape — not priced")).toBeNull();
+    expect(screen.queryByText("Conceptual payoff shape: not priced")).toBeNull();
     cleanup();
   });
 });
@@ -326,7 +345,9 @@ describe("StrategyDesk — resolved strategy", () => {
     ).toBeInTheDocument();
     // Live spot + order cards.
     expect(screen.getByText(/\$4,123/)).toBeInTheDocument();
-    expect(screen.getByText("12 live orders")).toBeInTheDocument();
+    expect(screen.getByText("12 across ETH and BTC")).toBeInTheDocument();
+    expect(screen.getByText("Available to buy")).toBeInTheDocument();
+    expect(screen.getByText("$4,000 strike")).toBeInTheDocument();
   });
 });
 
@@ -433,7 +454,9 @@ describe("StrategyDesk — stale-response race (generation guard)", () => {
     ).toBeInTheDocument();
 
     // Choose the BTC preset — invalidates the ETH result without resubmitting.
-    fireEvent.click(screen.getByText("Earn premium on BTC"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Earn premium on BTC" }),
+    );
 
     // The stale ETH hero label is gone; the BTC draft shape takes over.
     expect(screen.queryByText("ETH protection budget")).toBeNull();
@@ -650,7 +673,9 @@ describe("StrategyDesk — bounded external work (AbortController)", () => {
     render(<StrategyDesk />);
     const form = screen.getByLabelText("Strategy goal").closest("form")!;
     await fireEvent.submit(form);
-    fireEvent.click(screen.getByText("Earn premium on BTC"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Earn premium on BTC" }),
+    );
     expect(signals[0]!.aborted).toBe(true);
     expect(screen.queryByText("Finding protection…")).toBeNull();
   });

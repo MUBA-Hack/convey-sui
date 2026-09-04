@@ -26,6 +26,9 @@ describe("Thetanuts read-only adapter", () => {
           },
           availableAmount: 2000000n,
           signature: "secret-signature",
+          rawApiData: {
+            priceFeed: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+          },
         },
       ]),
     };
@@ -37,9 +40,49 @@ describe("Thetanuts read-only adapter", () => {
       chain: "Base mainnet",
       prices: { ETH: 4123.45, BTC: 112000 },
       orderCount: 1,
+      samples: [{ asset: "ETH" }],
     });
     expect(JSON.stringify(result)).not.toContain("signature");
     expect(JSON.stringify(result)).not.toContain("calldata");
+  });
+
+  it("keeps representative ETH and BTC orders even when one asset dominates the feed", async () => {
+    const makeOrder = (priceFeed: string, strike: bigint, nonce: number) => ({
+      order: {
+        isBuyer: true,
+        optionType: 0,
+        price: 100000000n,
+        strikes: [strike],
+        expiry: BigInt(1_800_000_000 + nonce),
+      },
+      availableAmount: 1000000n,
+      signature: `signature-${nonce}`,
+      rawApiData: { priceFeed },
+    });
+    const ethFeed = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70";
+    const btcFeed = "0x64c911996D3c6aC71f9b455B1E8E7266BcbD848F";
+    const orders = [
+      ...Array.from({ length: 13 }, (_, index) =>
+        makeOrder(ethFeed, 400000000000n, index),
+      ),
+      makeOrder(btcFeed, 11000000000000n, 99),
+    ];
+    const result = await fetchThetanutsSnapshotWith(
+      {
+        getMarketData: vi.fn().mockResolvedValue({
+          prices: { ETH: 4000, BTC: 110000 },
+          metadata: { lastUpdated: 1_777_777_777_000 },
+        }),
+        fetchOrders: vi.fn().mockResolvedValue(orders),
+      },
+      100,
+    );
+
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.samples.some((sample) => sample.asset === "ETH")).toBe(true);
+    expect(result.samples.some((sample) => sample.asset === "BTC")).toBe(true);
+    expect(result.samples.filter((sample) => sample.asset === "ETH")).toHaveLength(3);
   });
 
   it("returns an honest unavailable state when the SDK times out", async () => {

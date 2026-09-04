@@ -61,7 +61,10 @@ reproduced.
   distinct starter requests, operational briefs, main actions, and destination
   rails. Emergency response remains a plain-language request inside Personal.
   Customers can create up to eight device-local NGO, club, business, or
-  community workspaces. Bounded workspace and organization context enter the
+  community workspaces. Every organization workspace can switch between Chat
+  and direct Controls; buttons invoke the same prepared-action and approval
+  paths, while Personal stays chat-first. Bounded workspace and organization
+  context enter the
   redacted Gonka manifest for routing but grant no authority. Requests route
   through a strict Gonka candidate contract with
   pinned-model no-fallback routing and deterministic rebind. The public build
@@ -71,6 +74,12 @@ reproduced.
   server-backed organization membership, invitations, role-based authorization,
   encrypted cross-device sync, and contact onboarding
   remain future work.
+- **Organization dispute review is available as a bounded UI protocol.** A user
+  or employer can preserve the original AI-assisted evaluation, state what
+  should be reconsidered, hear the other side, and prepare a neutral human
+  review. AI can summarize but cannot adjudicate, and the original payment terms
+  keep governing. Durable case storage, counterparty invitations, reviewer
+  assignment, and contract-level dispute holds remain future work.
 - **Payment risk checks are implemented as advisory policy.** Known/new
   recipient, changed address, unusual amount, duplicate invoice, QR mismatch,
   expiry/replay, urgency, and prompt-injection signals produce explicit hold or
@@ -198,9 +207,9 @@ FX, fiat funding, or bank disbursement in this path.
   verification binds the transaction, decoded signed order, signature, both
   expiries, and exactly one matching `OrderFilled` event before `/proof?o=` is
   created. Family Watch remains contextual only: this is not an FX hedge and
-  does not protect the MYR→PHP rate or payout. The official live order index is
-  currently unavailable, and no real transaction was submitted or captured in
-  this work.
+  does not protect the MYR→PHP rate or payout. Live read-only market scans were
+  responding during the latest rendered QA, but no real transaction was
+  submitted or captured in this work.
 - **Receipts** accepts local, asset-aware native-SUI commerce and confirmed Sui
   testnet-USDC remittance receipts. Remittance receipts bind settlement
   evidence to the signed quote, independently check the digest, successful
@@ -659,8 +668,9 @@ the exact cap, reads allowance, and returns exact approval or fill calldata in a
 short-lived plan. The server has no key and cannot approve or submit. The
 customer's external wallet is the only transaction authority. The linked
 remittance context remains informational only and never implies an FX hedge or
-payout protection. The official live order index is currently unavailable, so
-no real order, approval, fill, or verified receipt was captured in this work.
+payout protection. The workspace now samples representative live orders by
+asset, side, and option type, but no approval, fill, or verified receipt was
+captured in this work.
 
 Customer flow:
 
@@ -708,8 +718,7 @@ Exit evidence:
 - Direct transaction, signed-order, dual-expiry, and unique `OrderFilled`
   verification plus portable `/proof?o=` proof.
 - A small customer-approved Base-mainnet fill and verified receipt remains an
-  evidence gate. No real transaction was submitted or captured in this work;
-  the official live order index is currently unavailable.
+  evidence gate. No real transaction was submitted or captured in this work.
 
 ## Later — Sui-native savings
 
@@ -778,7 +787,7 @@ this source) and which are **future** (still required for a complete submission)
 | --- | --- | --- | --- |
 | Sui Payments & Stablecoins | Canonical four-module package; pinned testnet-USDC execution; public Enoki-sponsored 1 USDC creation/release; same-transaction Seal policy; verified Walrus ciphertext; 2-of-2 collection release; recurring per-payment/cumulative cap; portable receipts | Production audit, sponsor abuse controls, compliant FX/funding/KYC/payout, and customer collection/mandate screens | Package, sponsored gas owner, USDC terminal digests, ciphertext digest, threshold approvals, cap event, exact beneficiary delivery |
 | Sui AI x Sui | Gonka-interpreted intent behind deterministic policy; model/request provenance in the wallet-signed commitment; public human-reviewed Sui release; contract-family policies reuse the committed-intent model | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, policy digest, wallet signature, sponsor, Sui objects, and verified terminal action |
-| Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 0.000001–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
+| Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery with representative asset/side/type-specific live scans; strict 0.000001–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
 | GonkaRouter AI For Society | First-class text/link claim verification with extraction, two distinct model reviews, score, reasoning, exact evidence, consensus state, and request IDs; mixed-language remittance, Family Steward, and AI-decision provenance remain tied to enforceable Sui agreements | One successful hosted verification report, captured multilingual remittance evidence, and a live Created-receipt Evidence Council artifact | Three public request IDs, visible model disagreement, exact evidence, uncertainty handling, committed decision, and social-impact payment path |
 

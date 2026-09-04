@@ -31,6 +31,7 @@ import {
   type CompanionMemoryStore,
 } from "@/lib/companion/memory-store";
 import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
+import { ConflictResolutionCard } from "@/components/companion/conflict-resolution-card";
 import { ProtectedSupportDemoCard } from "@/components/companion/protected-support-demo-card";
 import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
 import { BrandMark } from "@/components/site-header";
@@ -61,6 +62,7 @@ type Message = {
 };
 
 type StarterPrompt = {
+  kind?: "prompt" | "dispute";
   label: string;
   prompt: string;
   detail: string;
@@ -75,7 +77,7 @@ type Destination = {
 };
 
 type EmptyAction = {
-  kind: "link" | "prompt" | "memory" | "contract";
+  kind: "link" | "prompt" | "memory" | "contract" | "dispute";
   label: string;
   detail: string;
   icon: IconComponent;
@@ -105,11 +107,11 @@ const STARTER_PROMPTS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly Starte
     { label: "Review field evidence", prompt: "Review this field report before releasing the aid payment", detail: "Compare evidence first", icon: SearchNormal1 },
     { label: "Release emergency aid", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", detail: "Evidence-gated support", icon: ShieldTick },
     { label: "Approve a grant", prompt: "Release a 1000 USDC grant after milestone evidence", detail: "Milestone-gated tranche", icon: Judge },
-    { label: "Reconcile receipts", prompt: "Check these relief receipts against our funded items", detail: "Prepare an audit trail", icon: DocumentText },
+    { kind: "dispute", label: "Challenge a decision", prompt: "Challenge an AI evaluation and request neutral review", detail: "Keep both sides heard", icon: Judge },
   ],
   treasury: [
     { label: "Reimburse Dave", prompt: "Pay Dave 12 USDC for club supplies", detail: "Club supplies", icon: MoneyRecive },
-    { label: "Split club receipt", prompt: "Split this club receipt", detail: "Prepare reimbursements", icon: DocumentText },
+    { kind: "dispute", label: "Resolve a dispute", prompt: "Challenge an AI evaluation and request neutral review", detail: "Route a fair appeal", icon: Judge },
     { label: "Pay Ana after pickup", prompt: "Send Ana 25 USDC for medicine, release after pickup evidence", detail: "Require evidence", icon: ShieldTick },
     { label: "Protect club reserve", prompt: "Protect 500 USDC of our club reserve overnight", detail: "Bound the risk", icon: ShieldTick },
   ],
@@ -161,12 +163,14 @@ const EMPTY_ACTIONS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly EmptyAct
     { kind: "prompt", prompt: "Release a 1000 USDC grant after milestone evidence", label: "Create grant milestone", detail: "Fund one reviewed tranche", icon: Judge },
     { kind: "link", href: "/qr-ferry", label: "Collect donations", detail: "Show or share one QR request", icon: Code1 },
     { kind: "link", href: "/proof", label: "Show donor outcomes", detail: "Trace receipts and releases", icon: Activity },
+    { kind: "dispute", label: "Resolve a dispute", detail: "Hear both sides before release", icon: Judge },
     { kind: "contract", label: "View Sui lifecycle", detail: "Inspect a real protected release", icon: ShieldTick },
   ],
   treasury: [
     { kind: "link", href: "/qr-ferry", label: "Collect dues by QR", detail: "Create a request members can scan", icon: Code1 },
     { kind: "prompt", prompt: "Pay Dave 12 USDC for club supplies", label: "Reimburse a member", detail: "Prepare an exact payment", icon: MoneyRecive },
     { kind: "link", href: "/verify", label: "Review a claim", detail: "Compare two independent reviews", icon: SearchNormal1 },
+    { kind: "dispute", label: "Resolve a dispute", detail: "Prepare a neutral human review", icon: Judge },
     { kind: "link", href: "/strategy", label: "Protect reserves", detail: "Set hard limits before approval", icon: Judge },
     { kind: "contract", label: "View Sui lifecycle", detail: "Inspect a real protected release", icon: ShieldTick },
   ],
@@ -271,6 +275,7 @@ export function CompanionChat({
   const [organizationName, setOrganizationName] = useState("");
   const [organizationKind, setOrganizationKind] = useState<CompanionOrganizationKind>("ngo");
   const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [organizationView, setOrganizationView] = useState<"chat" | "controls">("chat");
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [addingPerson, setAddingPerson] = useState(false);
   const [personName, setPersonName] = useState("");
@@ -278,6 +283,7 @@ export function CompanionChat({
   const [personAddress, setPersonAddress] = useState("");
   const [personError, setPersonError] = useState<string | null>(null);
   const [contractDemoOpen, setContractDemoOpen] = useState(false);
+  const [conflictReviewOpen, setConflictReviewOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: "assistant", text: "I’m ready. Tell me what should happen with your money." },
   ]);
@@ -299,6 +305,7 @@ export function CompanionChat({
   const emptyActions = EMPTY_ACTIONS_BY_WORKSPACE[workspaceId];
   const workspaceBrief = WORKSPACE_BRIEFS[workspaceId];
   const WorkspaceIcon = WORKSPACE_ICONS[workspaceId];
+  const directControls = workspaceId !== "personal" && organizationView === "controls";
   const memorySummary = rememberedPeople.length > 0
     ? activeMemoryMode === "sample"
       ? rememberedPeople.length === 1
@@ -359,6 +366,8 @@ export function CompanionChat({
     setMemoryOpen(false);
     setAddingPerson(false);
     setContractDemoOpen(false);
+    setConflictReviewOpen(false);
+    setOrganizationView("chat");
     setInput("");
     const id = nextId.current;
     nextId.current += 1;
@@ -375,6 +384,8 @@ export function CompanionChat({
     setWorkspaceOpen(false);
     setCreatingOrganization(false);
     setMemoryOpen(false);
+    setConflictReviewOpen(false);
+    setOrganizationView("chat");
     setInput("");
     const id = nextId.current;
     nextId.current += 1;
@@ -406,6 +417,8 @@ export function CompanionChat({
     setWorkspaceId(nextWorkspaceId);
     setWorkspaceOpen(false);
     setCreatingOrganization(false);
+    setConflictReviewOpen(false);
+    setOrganizationView("chat");
     setInput("");
     const id = nextId.current;
     nextId.current += 1;
@@ -483,6 +496,14 @@ export function CompanionChat({
     setMessages((current) => [...current, { ...message, id }]);
   };
 
+  const openConflictReview = () => {
+    setWorkspaceOpen(false);
+    setMemoryOpen(false);
+    setContractDemoOpen(false);
+    setOrganizationView("chat");
+    setConflictReviewOpen(true);
+  };
+
   const send = async (text: string) => {
     const message = text.trim();
     if (!message || loading) return;
@@ -532,7 +553,7 @@ export function CompanionChat({
 
   return (
     <section data-testid="companion-chat" data-variant={variant} className={variant === "app" ? "companion-shell companion-shell--app" : "companion-shell mx-auto w-full max-w-[1380px] px-4 py-4 md:px-6 md:py-6"}>
-      <div className="companion-layout">
+      <div className={directControls ? "companion-layout companion-layout--controls" : "companion-layout"}>
         <div className="companion-window">
           {variant === "app" ? (
             <header className="companion-app-header">
@@ -610,6 +631,33 @@ export function CompanionChat({
             )}
             </div>
           </div>
+
+          {workspaceId !== "personal" && (
+            <div className="companion-organization-view-bar">
+              <span>Workspace view</span>
+              <div role="group" aria-label="Organization view" className="companion-organization-view-switch">
+                <button
+                  type="button"
+                  aria-pressed={organizationView === "chat"}
+                  onClick={() => setOrganizationView("chat")}
+                >
+                  Chat
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={organizationView === "controls"}
+                  onClick={() => {
+                    setWorkspaceOpen(false);
+                    setMemoryOpen(false);
+                    setConflictReviewOpen(false);
+                    setOrganizationView("controls");
+                  }}
+                >
+                  Controls
+                </button>
+              </div>
+            </div>
+          )}
 
           {workspaceOpen && (
               <section
@@ -780,6 +828,77 @@ export function CompanionChat({
             </section>
           )}
 
+          {directControls ? (
+            <section className="companion-controls-view" aria-labelledby="companion-controls-title">
+              <header>
+                <p className="companion-eyebrow">{workspaceLabel} controls</p>
+                <h2 id="companion-controls-title">Choose a task.</h2>
+                <p>
+                  Start a release, collection, review, or treasury move without
+                  writing a prompt. Convey still shows the exact terms before approval.
+                </p>
+              </header>
+              <div className="companion-controls-grid">
+                {emptyActions.map((action, index) => {
+                  const Icon = action.icon;
+                  const className = [
+                    "companion-controls-action",
+                    index === 0 ? "companion-controls-action--primary" : "",
+                  ].filter(Boolean).join(" ");
+                  const content = (
+                    <>
+                      <span className="companion-controls-action-icon"><Icon size={20} /></span>
+                      <span className="min-w-0 flex-1">
+                        <strong>{action.label}</strong>
+                        <small>{action.detail}</small>
+                      </span>
+                      <ArrowRight size={17} />
+                    </>
+                  );
+
+                  if (action.kind === "link" && action.href) {
+                    return <Link key={action.label} href={action.href} className={className}>{content}</Link>;
+                  }
+
+                  return (
+                    <button
+                      key={action.label}
+                      type="button"
+                      className={className}
+                      onClick={() => {
+                        if (action.kind === "prompt" && action.prompt) {
+                          setOrganizationView("chat");
+                          void send(action.prompt);
+                        }
+                        if (action.kind === "memory") {
+                          setOrganizationView("chat");
+                          setMemoryOpen(true);
+                          setAddingPerson(true);
+                        }
+                        if (action.kind === "contract") {
+                          setConflictReviewOpen(false);
+                          setOrganizationView("chat");
+                          setContractDemoOpen(true);
+                        }
+                        if (action.kind === "dispute") openConflictReview();
+                      }}
+                    >
+                      {content}
+                    </button>
+                  );
+                })}
+              </div>
+              <ol className="companion-controls-steps" aria-label={`${workspaceLabel} approval path`}>
+                {workspaceBrief.steps.map((step, index) => (
+                  <li key={step}>
+                    <span>0{index + 1}</span>
+                    <strong>{step}</strong>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : (
+            <>
           <div className="companion-thread" aria-live="polite">
             <AnimatePresence initial={false}>
               {messages.map((message) => (
@@ -814,8 +933,20 @@ export function CompanionChat({
                   <ProtectedSupportDemoCard amountMajor="1" referenceMode onClose={() => setContractDemoOpen(false)} />
                 </motion.div>
               )}
+              {conflictReviewOpen && (
+                <motion.div
+                  key="conflict-review"
+                  initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className="companion-message companion-message--contract-demo"
+                >
+                  <ConflictResolutionCard onClose={() => setConflictReviewOpen(false)} />
+                </motion.div>
+              )}
             </AnimatePresence>
-            {messages.length === 1 && !loading && !contractDemoOpen && (
+            {messages.length === 1 && !loading && !contractDemoOpen && !conflictReviewOpen && (
               <div className="companion-empty-state">
                 {workspaceId !== "personal" && (
                   <section className="companion-workspace-brief" aria-label={`${workspaceLabel} workspace overview`}>
@@ -863,7 +994,11 @@ export function CompanionChat({
                           setMemoryOpen(true);
                           setAddingPerson(true);
                         }
-                        if (action.kind === "contract") setContractDemoOpen(true);
+                        if (action.kind === "contract") {
+                          setConflictReviewOpen(false);
+                          setContractDemoOpen(true);
+                        }
+                        if (action.kind === "dispute") openConflictReview();
                       }}
                     >
                       {content}
@@ -881,8 +1016,8 @@ export function CompanionChat({
           </div>
 
           <div className="companion-quick-row" aria-label="Suggested requests">
-            {starterPrompts.map(({ label, prompt }) => (
-              <button key={label} type="button" onClick={() => setInput(prompt)} className="companion-quick-chip">
+            {starterPrompts.map(({ kind = "prompt", label, prompt }) => (
+              <button key={label} type="button" onClick={() => kind === "dispute" ? openConflictReview() : setInput(prompt)} className="companion-quick-chip">
                 {label}
               </button>
             ))}
@@ -942,9 +1077,11 @@ export function CompanionChat({
               Nothing moves without your approval.
             </p>
           </form>
+            </>
+          )}
         </div>
 
-        <aside className="companion-sidebar">
+        {!directControls && <aside className="companion-sidebar">
           <div className="companion-side-card companion-side-card--actions">
             <div className="flex items-end justify-between gap-4">
               <div>
@@ -954,8 +1091,8 @@ export function CompanionChat({
               <span className="companion-spark"><Flash size={18} /></span>
             </div>
             <div className="mt-5 grid gap-2.5">
-              {starterPrompts.map(({ label, prompt, detail, icon: Icon }) => (
-                <button key={label} type="button" onClick={() => setInput(prompt)} className="companion-action-row">
+              {starterPrompts.map(({ kind = "prompt", label, prompt, detail, icon: Icon }) => (
+                <button key={label} type="button" onClick={() => kind === "dispute" ? openConflictReview() : setInput(prompt)} className="companion-action-row">
                   <span className="companion-action-icon"><Icon size={17} /></span>
                   <span className="min-w-0 flex-1 text-left">
                     <span className="block truncate text-sm font-medium text-black">{label}</span>
@@ -990,7 +1127,7 @@ export function CompanionChat({
               <p className="mt-1 text-[11px] leading-5 text-white/52">{workspaceBrief.trustBody}</p>
             </div>
           </div>
-        </aside>
+        </aside>}
       </div>
 
       {variant === "app" && (

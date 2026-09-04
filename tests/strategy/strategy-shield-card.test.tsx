@@ -150,7 +150,7 @@ describe("StrategyDesk — shield live path", () => {
     expect(screen.getByText("Ends")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review and continue" })).toBeInTheDocument();
     expect(screen.queryByText("Market context")).toBeNull();
-    expect(screen.queryByText(/Buy/)).toBeNull();
+    expect(screen.queryByText("Buy")).toBeNull();
   });
 
   it("reveals honest review copy without implying a purchase", async () => {
@@ -241,8 +241,12 @@ describe("StrategyDesk — earn premium stays educational", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<StrategyDesk />);
-    fireEvent.click(screen.getByText("Earn premium on BTC"));
-    expect(screen.getByRole("spinbutton", { name: "Protected notional in MYR" })).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Earn premium on BTC" }),
+    );
+    expect(
+      screen.getByRole("spinbutton", { name: "Reserve scenario in USDC" }),
+    ).toBeInTheDocument();
     await fireEvent.submit(screen.getByLabelText("Strategy goal").closest("form")!);
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   });

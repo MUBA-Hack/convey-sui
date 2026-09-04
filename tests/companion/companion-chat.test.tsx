@@ -141,6 +141,48 @@ describe("CompanionChat", () => {
     expect(window.localStorage.getItem("convey.companion-organizations.v1")).toContain('"name":"River Aid"');
   });
 
+  it("gives organization operators a direct controls view without changing Personal", () => {
+    render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
+
+    expect(screen.queryByRole("group", { name: /organization view/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /switch workspace.*personal/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ngo operations/i }));
+
+    const viewSwitch = screen.getByRole("group", { name: /organization view/i });
+    expect(viewSwitch).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chat" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Controls" }));
+
+    expect(screen.getByRole("heading", { name: /choose a task/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create aid release/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/companion message/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /switch workspace.*ngo operations/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^personal/i }));
+    expect(screen.queryByRole("group", { name: /organization view/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/companion message/i)).toBeInTheDocument();
+  });
+
+  it("lets either side prepare a neutral review without changing payment terms", () => {
+    render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /switch workspace.*personal/i }));
+    fireEvent.click(screen.getByRole("button", { name: /club treasury/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Controls" }));
+    fireEvent.click(screen.getByRole("button", { name: /resolve a dispute/i }));
+
+    expect(screen.getByRole("button", { name: "Chat" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: /challenge the decision, not the person/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Employer" }));
+    fireEvent.change(screen.getByLabelText(/what should be reconsidered/i), {
+      target: { value: "The delivered work matches the acceptance evidence." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /prepare neutral review/i }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(/review prepared/i);
+    expect(screen.getByText(/original payment terms still govern/i)).toBeInTheDocument();
+  });
+
   it("opens the smart contract demo without requiring a chat prompt", () => {
     render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
 

@@ -1,11 +1,17 @@
 import "server-only";
 
-import { ThetanutsClient, type MarketDataResponse, type OrderWithSignature } from "@thetanuts-finance/thetanuts-client";
+import {
+  buildPriceFeedSymbolMap,
+  ThetanutsClient,
+  type MarketDataResponse,
+  type OrderWithSignature,
+} from "@thetanuts-finance/thetanuts-client";
 import { ethers } from "ethers";
 
 const SDK_VERSION = "0.3.0";
 const BASE_CHAIN_ID = 8453;
 const DEFAULT_TIMEOUT_MS = 6_000;
+const PRICE_FEED_SYMBOLS = buildPriceFeedSymbolMap(BASE_CHAIN_ID);
 
 export interface ThetanutsReader {
   getMarketData(): Promise<MarketDataResponse>;
@@ -13,6 +19,7 @@ export interface ThetanutsReader {
 }
 
 export interface MarketOrderSample {
+  asset: "ETH" | "BTC" | "unknown";
   side: "maker_buys" | "maker_sells";
   optionType: "call" | "put" | "unknown";
   strikeUsd: number | null;
@@ -54,7 +61,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 
 function sampleOrder(entry: OrderWithSignature): MarketOrderSample {
   const strike = entry.order.strikes?.[0] ?? entry.order.strikePrice;
+  const priceFeed = entry.rawApiData?.priceFeed?.toLowerCase();
+  const resolvedAsset = priceFeed ? PRICE_FEED_SYMBOLS[priceFeed] : undefined;
   return {
+    asset: resolvedAsset === "ETH" || resolvedAsset === "BTC" ? resolvedAsset : "unknown",
     side: entry.order.isBuyer ? "maker_buys" : "maker_sells",
     optionType: entry.order.optionType === 0 ? "call" : entry.order.optionType === 1 ? "put" : "unknown",
     strikeUsd: strike === undefined ? null : Number(strike) / 1e8,
@@ -62,6 +72,23 @@ function sampleOrder(entry: OrderWithSignature): MarketOrderSample {
     expiry: new Date(Number(entry.order.expiry) * 1_000).toISOString(),
     availableAmount: entry.availableAmount.toString(),
   };
+}
+
+function representativeOrders(entries: OrderWithSignature[]): MarketOrderSample[] {
+  const samples: MarketOrderSample[] = [];
+  const groupCounts = new Map<string, number>();
+
+  for (const entry of entries) {
+    const sample = sampleOrder(entry);
+    if (sample.asset === "unknown") continue;
+    const group = `${sample.asset}:${sample.side}:${sample.optionType}`;
+    const count = groupCounts.get(group) ?? 0;
+    if (count >= 3) continue;
+    samples.push(sample);
+    groupCounts.set(group, count + 1);
+  }
+
+  return samples;
 }
 
 export async function fetchThetanutsSnapshotWith(
@@ -86,7 +113,7 @@ export async function fetchThetanutsSnapshotWith(
         BTC: Number.isFinite(market.prices.BTC) ? market.prices.BTC : null,
       },
       orderCount: orders.length,
-      samples: orders.slice(0, 3).map(sampleOrder),
+      samples: representativeOrders(orders),
     };
   } catch (error) {
     return {

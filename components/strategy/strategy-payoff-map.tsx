@@ -61,7 +61,7 @@ export function StrategyPayoffMap({ intent }: StrategyPayoffMapProps) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-          Conceptual payoff shape — not priced
+          Conceptual payoff shape: not priced
         </p>
         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">
           <span className="font-semibold text-neutral-600">{intent.strategy.name}</span>

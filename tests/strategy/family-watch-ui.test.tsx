@@ -53,6 +53,7 @@ function liveMarket(overrides: Partial<Extract<ThetanutsSnapshot, { status: "liv
     orderCount: 12,
     samples: [
       {
+        asset: "ETH",
         side: "maker_sells",
         optionType: "put",
         strikeUsd: 4000,
@@ -205,6 +206,7 @@ function liveMarketNoPuts(): ThetanutsSnapshot {
   return liveMarket({
     samples: [
       {
+        asset: "BTC",
         side: "maker_sells",
         optionType: "call",
         strikeUsd: 120000,

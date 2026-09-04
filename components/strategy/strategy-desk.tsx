@@ -56,7 +56,7 @@ export interface StrategyDeskProps {
 export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
   const [goal, setGoal] = useState<string>(STRATEGY_PRESETS[0]);
   const [notional, setNotional] = useState<number>(
-    remittanceContext?.amountMyr ?? STRATEGY_NOTIONAL_LIMITS.defaultValue,
+    STRATEGY_NOTIONAL_LIMITS.defaultValue,
   );
   const [premiumBudgetUsd, setPremiumBudgetUsd] = useState<number>(
     STRATEGY_PREMIUM_LIMITS.defaultValue,
@@ -147,6 +147,13 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
     result?.intent.kind === "clarification" ? result.intent : null;
   const payoffIntent = resolvedStrategy ?? (resolvedClarification ? null : draftStrategy);
   const recommendation = result?.recommendation ?? null;
+  const journeyStep = purchaseRecovery?.kind === "verified"
+    ? 3
+    : purchaseStarted || recommendation?.kind === "live"
+      ? 2
+      : pending || result
+        ? 1
+        : 0;
 
   const familyWatchBrief = deriveFamilyWatchBrief({
     remittance: remittanceContext ?? null,
@@ -182,17 +189,32 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
 
   return (
     <section className="cv-shell mx-auto w-full max-w-[1320px] px-5 pb-16 pt-8 md:px-8 md:pt-12">
-      <header className="mb-8 max-w-[40rem] md:mb-10">
-        <p className="text-[13px] font-medium tracking-[-0.01em] text-neutral-500">
-          {inRemittanceContext ? "Separate treasury goal" : "Treasury protection"}
-        </p>
-        <h1 className="mt-3 text-[48px] font-semibold leading-[0.92] tracking-[-0.05em] text-black md:text-[64px]">
-          {inRemittanceContext ? "Explore ETH treasury protection" : "Treasury"}
-        </h1>
-        <p className="mt-4 max-w-[36ch] text-[18px] leading-7 text-neutral-600">
-          Map an ETH or BTC goal. Protection here never covers a family transfer
-          rate or payout.
-        </p>
+      <header className="mb-6 grid gap-6 md:mb-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-end">
+        <div>
+          <p className="text-[13px] font-medium tracking-[-0.01em] text-neutral-500">
+            {inRemittanceContext ? "Separate treasury goal" : "Treasury protection"}
+          </p>
+          <h1 className="mt-3 text-[48px] font-semibold leading-[0.92] tracking-[-0.05em] text-black md:text-[64px]">
+            {inRemittanceContext ? "Explore ETH treasury protection" : "Treasury, with hard limits."}
+          </h1>
+          <p className="mt-4 max-w-[42ch] text-[18px] leading-7 text-neutral-600">
+            Describe the outcome, match live Base orders, approve the exact move
+            in your wallet, then keep an independently checked position receipt.
+          </p>
+        </div>
+
+        <ol aria-label="Treasury journey" className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/10 bg-white sm:grid-cols-4">
+          {["Set limits", "Match live order", "Approve in wallet", "Verify position"].map((label, index) => (
+            <li
+              key={label}
+              aria-current={journeyStep === index ? "step" : undefined}
+              className={`min-h-20 border-b border-r border-black/8 px-4 py-4 even:border-r-0 [&:nth-last-child(-n+2)]:border-b-0 sm:min-h-24 sm:border-b-0 sm:border-r sm:last:border-r-0 ${journeyStep === index ? "bg-black text-white" : "text-black"}`}
+            >
+              <span className={`text-[10px] font-semibold tabular-nums ${journeyStep === index ? "text-white/45" : "text-black/35"}`}>0{index + 1}</span>
+              <strong className="mt-5 block text-[13px] font-semibold leading-4">{label}</strong>
+            </li>
+          ))}
+        </ol>
       </header>
 
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] lg:gap-8">
@@ -237,6 +259,7 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
             <StrategyPayoffWorkspace
               error={error}
               intent={payoffIntent}
+              reserveScenarioUsdc={notional}
               pending={pending}
               refinementMessage={refinementMessage}
             />
@@ -249,6 +272,7 @@ export function StrategyDesk({ remittanceContext }: StrategyDeskProps = {}) {
           <StrategyMarketContext
             market={result?.market ?? null}
             strategy={resolvedStrategy}
+            reserveScenarioUsdc={notional}
           />
         </div>
       )}
