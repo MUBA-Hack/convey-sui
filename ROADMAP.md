@@ -526,7 +526,11 @@ bridge, M-of-N collection, recurring hard caps, and portable Created/terminal
 receipt lifecycle implemented. Public sponsored testnet-USDC release,
 threshold-release, recurring-collection, native-SUI release, and expiry-refund
 references are captured; a product-generated live Evidence Council artifact and
-customer screens for collection/mandate creation remain incomplete.** Executable quotes now default to **Protect outcome** with
+independently verified customer-created collection/mandate receipts remain
+incomplete. Organization Controls now creates exact M-of-N collection
+transactions, `/mandates` creates exact recurring-cap transactions, and
+Evidence Council exports a digest-checked portable advisory record.**
+Executable quotes now default to **Protect outcome** with
 **Send now** one tap away inside Pay. The protected path requests a strict plan, builds the
 pinned `create_escrow` transaction client-side, requires a connected Sui
 testnet wallet, and locks duplicate submission. It remains pending after wallet
@@ -785,7 +789,7 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Canonical four-module package; pinned testnet-USDC execution; public Enoki-sponsored 1 USDC creation/release; same-transaction Seal policy; verified Walrus ciphertext; 2-of-2 collection release; recurring per-payment/cumulative cap; portable receipts | Production audit, sponsor abuse controls, compliant FX/funding/KYC/payout, and customer collection/mandate screens | Package, sponsored gas owner, USDC terminal digests, ciphertext digest, threshold approvals, cap event, exact beneficiary delivery |
+| Sui Payments & Stablecoins | Canonical four-module package; pinned testnet-USDC execution; public Enoki-sponsored 1 USDC creation/release; same-transaction Seal policy; verified Walrus ciphertext; 2-of-2 collection release; recurring per-payment/cumulative cap; customer collection and mandate builders; portable receipts | Production audit, sponsor abuse controls, compliant FX/funding/KYC/payout, and independent verification of newly customer-created collection/mandate receipts | Package, sponsored gas owner, USDC terminal digests, ciphertext digest, threshold approvals, cap event, exact beneficiary delivery |
 | Sui AI x Sui | Gonka-interpreted intent behind deterministic policy; model/request provenance in the wallet-signed commitment; public human-reviewed Sui release; contract-family policies reuse the committed-intent model | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, policy digest, wallet signature, sponsor, Sui objects, and verified terminal action |
 | Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery with representative asset/side/type-specific live scans; strict 0.000001–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |

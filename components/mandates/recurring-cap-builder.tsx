@@ -175,21 +175,33 @@ export function RecurringCapBuilder() {
   const errorCount = Object.keys(fieldErrors).length;
 
   return (
-    <main className="cv-shell mx-auto w-full max-w-[920px] px-4 py-8 sm:py-12">
-      <header className="max-w-2xl">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Mandates</p>
-        <h1 className="mt-2 flex items-center gap-3 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
-          <Lock size={28} />
+    <main className="cv-shell mx-auto w-full max-w-[1180px] px-4 py-6 sm:py-10">
+      <div className="grid items-start gap-5 lg:grid-cols-[0.72fr_1.28fr] lg:gap-7">
+      <header className="overflow-hidden rounded-[30px] bg-black p-6 text-white shadow-[0_24px_70px_rgba(0,0,0,0.12)] sm:p-8 lg:sticky lg:top-6">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black">
+          <Lock size={24} />
+        </span>
+        <p className="mt-10 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">Mandates</p>
+        <h1 className="mt-2 text-4xl font-medium leading-[0.98] tracking-[-0.055em] sm:text-5xl">
           Recurring spending cap
         </h1>
-        <p className="mt-3 text-sm leading-6 text-neutral-600">
+        <p className="mt-5 max-w-md text-sm leading-6 text-white/64">
           Fund one mandate with strict limits. The beneficiary collects only within them, and
           you keep revoke and refund control at all times.
         </p>
+        <div className="mt-10 grid gap-px overflow-hidden rounded-2xl bg-white/12">
+          {["Set an exact limit", "Approve once in your wallet", "Revoke and recover what remains"].map((step, index) => (
+            <div key={step} className="flex items-center gap-3 bg-white/[0.06] px-4 py-3 text-xs text-white/76">
+              <span className="font-mono text-[10px] text-white/38">0{index + 1}</span>
+              <span>{step}</span>
+            </div>
+          ))}
+        </div>
       </header>
 
+      <div className="rounded-[30px] border border-black/10 bg-[#f7f7f4] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:p-7">
       {!validated ? (
-        <section className="mt-8" aria-labelledby="mandate-draft-heading">
+        <section aria-labelledby="mandate-draft-heading">
           <h2 id="mandate-draft-heading" className="text-xl font-semibold">
             Set the terms
           </h2>
@@ -342,7 +354,7 @@ export function RecurringCapBuilder() {
           </p>
         </section>
       ) : (
-        <section className="mt-8" aria-labelledby="mandate-review-heading">
+        <section aria-labelledby="mandate-review-heading">
           <h2 id="mandate-review-heading" className="text-xl font-semibold">
             Review the exact limits
           </h2>
@@ -515,6 +527,8 @@ export function RecurringCapBuilder() {
           </p>
         </section>
       )}
+      </div>
+      </div>
     </main>
   );
 }

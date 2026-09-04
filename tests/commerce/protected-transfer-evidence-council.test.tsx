@@ -281,6 +281,22 @@ describe("ProtectedTransferEvidenceCouncil", () => {
     expect(screen.getByText(/You still decide whether to release/i)).toBeInTheDocument();
   });
 
+  it("clears a completed decision when the evidence text changes", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(readyResponse()));
+    render(<ProtectedTransferEvidenceCouncil receipt={receipt()} />);
+    const evidence = screen.getByLabelText(/Evidence text/i);
+    fireEvent.change(evidence, {
+      target: { value: "Ana received PHP 6,104.00 for school supplies." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /check evidence/i }));
+    await waitFor(() => expect(screen.getByText(/Details line up/i)).toBeInTheDocument());
+
+    fireEvent.change(evidence, { target: { value: "Different evidence" } });
+
+    expect(screen.queryByText(/Details line up/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /copy record/i })).not.toBeInTheDocument();
+  });
+
   it("renders questions_needed with fixed reviewer questions", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(questionsResponse()));
     render(<ProtectedTransferEvidenceCouncil receipt={receipt()} />);

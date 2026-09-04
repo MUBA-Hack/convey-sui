@@ -493,8 +493,19 @@ decision; the current Move object does not autonomously recognize receipts or
 merchant categories. The same package also implements a
 dedicated `ApprovalCollection<T>` with unique M-of-N approvals and a
 `RecurringCap<T>` with per-payment, cumulative, interval, expiry, and revocation
-limits. Their public proofs appear above; companion creation screens are still
-future product work.
+limits. Their public proofs appear above. Organization Controls now includes a
+customer-facing collection builder that validates and previews the exact
+beneficiary, amount, M-of-N threshold, approvers, and expiry before wallet
+approval. `/mandates` provides the matching recurring-cap builder and reuses
+the published package coordinate rather than relying on a second deployment
+configuration.
+
+<p align="center">
+  <img src="docs/screenshots/mandates-desktop.png" alt="Convey recurring spending mandate builder on desktop" width="820" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/mandates-mobile.png" alt="Convey recurring spending mandate builder on mobile" width="300" />
+</p>
 
 #### Medicine pickup — privacy-minimal order commitment
 
@@ -546,7 +557,10 @@ strict result is one of `ready_for_human_review`, `questions_needed`,
 Every completed artifact records the fresh Created-check timestamp, two
 distinct model and request identifiers, exact corroborated or disputed spans,
 deterministic checks, questions, an evidence-text digest, and a canonical
-artifact digest. This artifact is advisory provenance, not an on-chain
+artifact digest. A schema-valid artifact can be copied or downloaded as a
+portable JSON record; editing the evidence immediately clears any prior result
+so a stale assessment cannot remain attached to new text. This artifact is
+advisory provenance, not an on-chain
 authorization or proof that the evidence is true. Only the assigned human
 reviewer can choose the existing wallet release action; the council cannot
 unlock, sign, submit, release, refund, or redirect funds. No successful live
@@ -1027,6 +1041,7 @@ approval, fill, or receipt artifact is claimed.
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Scan and Pay** | Scan, receive, request, split by personal QR or WhatsApp link, propose a purpose allowance or payment pass, carry a signed remittance quote, or transport an offline commerce request | QR task proposals are local; settlement and enforced conditions still require connection, policy support, and wallet approval |
 | `/settings` — **Settings** | Choose device-local money, QR, memory, alert, and low-data preferences | Local preferences only; no signing or payment authority |
+| `/mandates` — **Spending mandates** | Create a funded recurring allowance with exact per-collection, lifetime, interval, expiry, revoke, and refund limits | Builds the published Sui testnet `recurring_cap::create` call client-side; the connected wallet alone approves submission; a digest remains confirmation-pending until independently verified |
 | `/strategy` — **Treasury** | Review and, with explicit external-wallet approval, buy a 0.000001–3 USDC ETH/BTC protective put; non-purchase goals remain educational | Base mainnet; server prepares exact bounded requests but has no key; customer wallet alone can approve and submit |
 | `/proof` — **Activity / Receipts** | Review bounded device-local receipt links, or open/import commerce, remittance, Protected Transfer, terminal, or Base protection-purchase receipts | Local Activity is convenience history only; receipt views use strict local binding plus matching read-only chain checks; no signing authority or payout proof |
 | `/proof/reference` — **Verified example** | Read one real, completed 1 USDC protected agreement on Sui testnet: outcome, pre-approval checks, contract coordinates, private-evidence boundary, and public verification links | Static public presentation of existing on-chain records; blocked examples are contract-rule previews that were never submitted |
