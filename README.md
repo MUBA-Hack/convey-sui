@@ -6,7 +6,7 @@
   <img src="public/brand/convey-mark.svg" alt="Convey logo" width="120" height="120" />
 </p>
 
-<p align="center"><strong>Say it. Carry it across. Settle on Sui.</strong></p>
+<p align="center"><strong>Describe the outcome. Approve the agreement. Enforce it on Sui.</strong></p>
 
 <p align="center">
   <a href="https://convey-sui.fly.dev"><strong>Visit the product site</strong></a>
@@ -14,12 +14,14 @@
   <a href="https://convey-sui.fly.dev/app"><strong>Open Convey</strong></a>
 </p>
 
-Convey is a chat-first financial companion for Sui. One voice or text request
-can become a payment proposal, receipt split, protected family transfer, or
-treasury action without turning language into authority. Ask `Pay Dave 12 USDC
-for dinner`; GonkaRouter may select an allowlisted proposal tool, deterministic
-code rebinds the selected opaque contact to confirmed client memory, and the
-customer still reviews and approves the final wallet action.
+Convey is a protected-intent financial companion for Sui. Describe a financial
+outcome by voice or text; Convey interprets it, applies deterministic policy,
+shows the exact terms, and turns the approved result into an enforceable Sui
+agreement. Ask `Send Ana 25 USDC for medicine, release after pickup evidence`;
+the original request, inference provenance, policy result, recipient, amount,
+purpose, evidence checks, reviewer, and expiry are bound into one commitment
+before the wallet opens. AI can propose. Only the customer can approve. Sui
+controls release or refund.
 
 The product is designed for people who should not need to understand seed
 phrases, token decimals, transaction builders, or AI routing. The companion is
@@ -30,6 +32,36 @@ behind the assistant. Google/Enoki
 onboarding and extension wallets converge on the same customer-controlled
 approval. AI interprets a request; deterministic policy decides whether it is
 safe to prepare; only the wallet can authorize value.
+
+## The flagship journey: protected intent
+
+```mermaid
+flowchart LR
+  Intent["Voice or text outcome"] --> Gonka["Gonka interpretation"]
+  Gonka --> Policy["Deterministic policy"]
+  Policy --> Review["Exact customer review"]
+  Review --> Wallet["Wallet approval"]
+  Wallet --> Object["Sui ProtectedTransfer object"]
+  Object --> Evidence["Evidence and human review"]
+  Evidence --> Outcome{"Release or expiry refund"}
+  Outcome --> Proof["Independently verified receipt"]
+```
+
+This is the normal Pay journey, not a side demo. The protected path is selected
+by default for an executable quote; direct send remains one tap away. Before
+approval, the review shows the original request, live Gonka model or honest
+deterministic fallback, release checks, reviewer, deadline, amount, and the
+commitment that will be stored in the shared Sui object.
+
+The full canonical agreement artifact is never written to Sui. A bounded
+device-local copy is stored only after the submitted transaction independently
+matches the exact Sui `Created` event; the portable Created receipt also carries
+the strict plan, so sharing that receipt explicitly shares those terms. The
+object carries its 32-byte BLAKE2b-256 commitment. A
+changed request, Gonka request/model identity, policy result, recipient, amount,
+purpose, workflow, evidence requirement, reviewer, deadline, or review note
+produces a different commitment. Device-local storage is not encrypted or
+multi-device storage; production private evidence storage remains future work.
 
 <p align="center">
   <img src="docs/screenshots/convey-landing-desktop.png" alt="Convey product landing page on desktop" width="820" />
@@ -103,11 +135,11 @@ evidence. The overnight strategy remains a simulation and does not claim a live
 Thetanuts fill.
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey app preparing protected family support on desktop" width="820" />
+  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey companion workspace on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey app preparing protected family support on mobile" width="300" />
+  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey companion workspace on mobile" width="300" />
 </p>
 
 <p align="center">
@@ -196,9 +228,9 @@ payout.
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback plus two public Gonka receipts | Production pricing and independent recipient/payout-provider verification |
 | Client-built transfer of pinned six-decimal Sui testnet USDC already held by the wallet | Mainnet asset approval, gas sponsorship policy, and reproducible real-value settlement evidence |
-| Published single-milestone Protected Transfer Move package, verified-Created reviewer release/payer refund bridge, bounded verification endpoints, advisory Evidence Council, `/proof?t=` terminal receipt lifecycle, deterministic replay, public native-SUI release/refund references, and a public 1 testnet-USDC reviewer-release lifecycle | A captured successful live Evidence Council artifact and production review/payout policy |
-| Google/Enoki and extension-wallet onboarding paths with explicit wallet approval | Live session-restoration, recovery, sponsor-budget, salt, and prover evidence |
-| First-class Scan and Pay workspace with signed-quote carry, checksum-protected offline commerce, receive and request codes, per-person split QR and WhatsApp links, purpose allowances, and conditional payment passes | Production cross-device replay authority, on-chain enforcement for purpose allowances and payment passes, and a cryptographically authorized offline payer envelope |
+| Published Protected Transfer Move package; customer intent/Gonka-policy/payment/evidence/reviewer/expiry commitment; six workflow templates on one object spine; verified-Created reviewer release/payer refund bridge; bounded verification endpoints; advisory Evidence Council; `/proof?t=` terminal receipt lifecycle; public native-SUI release/refund references; and a public 1 testnet-USDC reviewer-release lifecycle | Multi-approver collection and recurring-cap object policies, a captured successful live Evidence Council artifact, encrypted private artifact storage, and production review/payout policy |
+| Google/Enoki and extension-wallet onboarding paths with explicit wallet approval; the sign-in dialog explains the seedless Sui account path when configured | Live session-restoration, recovery, sponsor-budget, salt, prover evidence, and public sponsored-transaction proof |
+| First-class Scan and Pay workspace with signed-quote carry, checksum-protected offline commerce, receive and request codes, per-person split QR and WhatsApp links, purpose allowances, and conditional payment passes; connected import leads to wallet approval and Sui verification | Production cross-device replay authority and a cryptographically authorized offline payer envelope; the QR transport itself is not payer authorization |
 | Device-local Settings for preferred asset, home currency, QR start mode, memory, alerts, and low-data mode | Encrypted multi-device preference sync and production notification delivery |
 | Result-oriented portable receipts with local binding, quote re-check, and an independent read-only Sui testnet settlement lookup | A captured reproducible real-digest artifact and separate fiat-payout evidence |
 | Purchase Power Shield: strict 0.000001–3 USDC cap; live signed-order refetch; exact approval/fill requests; external Base-wallet approval; durable duplicate-submit recovery; signed-order, option-expiry, calldata, and `OrderFilled` verification; portable `/proof?o=` receipt | Restore access to the currently unavailable official live order index, then capture a customer-approved minimal Base-mainnet purchase and independently verified receipt |
@@ -305,11 +337,12 @@ fields alone are not proof. Receipts can export or share the remittance receipt
 only after its independent Sui check confirms the exact settlement. It keeps
 **Awaiting family payout** separate and does not prove bank or cash payout.
 
-### Protected Transfer — creation, terminal actions, and receipt verification
+### Protected intent — creation, terminal actions, and receipt verification
 
-An executable quote in Pay now offers **Send directly** or **Hold for family
-review**. The direct-transfer path is unchanged. The standard hold path collects
-one of three bounded review deadlines plus a short review note. Selecting the
+An executable quote in Pay now defaults to **Protect outcome**, with **Send
+now** one tap away. The agreement path collects one of three bounded review
+deadlines plus a short review note and shows the exact bound terms before the
+wallet opens. Selecting the
 **Medicine pickup** purpose progressively reveals three fictional reference
 pharmacy names, a friendly pharmacy order number, and the next Manila pickup
 window (09:00–17:00 PHT); that purpose is restricted to the `three_days` hold
@@ -320,11 +353,11 @@ execution plan from the server, builds the pinned `create_escrow` transaction
 client-side, and asks that wallet to sign and submit it. A submission lock
 prevents duplicate plan or wallet requests for the same attempt.
 
-After submission, the family-review surface stays at **Hold submitted —
-confirmation pending** while a separate server-only check reads Sui testnet. A
+After submission, the surface stays at **Agreement submitted — confirmation
+pending** while a separate server-only check reads Sui testnet. A
 returned digest alone never upgrades the state. Only an exact `Created` event
-match changes the result to **Held for family review** and enables **Open
-receipt**. A missing, unavailable, malformed, or mismatched check remains
+match changes the result to **Agreement live on Sui** and enables **Open public
+proof**. A missing, unavailable, malformed, or mismatched check remains
 pending rather than claiming creation. The client-safe terminal core builds the
 pinned release/refund calls, and the fixed-testnet adapters strictly verify
 `Released`/`Refunded` events and exact open object state. Receipts now opens a
@@ -347,9 +380,14 @@ the shared object so it cannot be acted on twice.
 
 The accompanying client-safe TypeScript core validates a strict atomic
 execution plan, pins testnet USDC, the Move module/function, and the standard
-Sui Clock, derives a deterministic 32-byte evidence commitment, and constructs
-the exact `create_escrow` transaction. A server-only plan endpoint accepts only
-an attested quote, a template-allowed deadline preset, and a review note; the
+Sui Clock, derives a deterministic 32-byte agreement commitment, and constructs
+the exact `create_escrow` transaction. The commitment covers the original
+normalized customer request; live Gonka request and model identity or honest
+deterministic fallback provenance; deterministic policy result; recipient;
+amount; purpose; selected workflow; evidence requirements; reviewer; expiry;
+and review note. A server-only plan endpoint accepts only an attested quote, a
+supported workflow, a template-allowed deadline preset, and a review note. It
+derives the evidence checklist from the server-owned workflow registry; the
 general family-support template allows the three bounded presets while
 `medicine_pickup` allows only `three_days`. It reuses the shared quote verifier,
 resolves candidate package/reviewer coordinates from server-only configuration,
@@ -381,6 +419,15 @@ canonical binding, transport and input bounds, receipt tampering, transaction
 structure, and result-first receipt states. The Move package passes all 20 Move
 tests with Sui CLI v1.78.1.
 
+Six customer workflows now share this exact object and commitment spine:
+family support, medicine pickup, tuition, relief funding, a purpose-restricted
+allowance, and a refundable payment link. Their real-world conditions are
+enforced by the immutable beneficiary/reviewer/deadline roles and the assigned
+reviewer's release decision; the current Move object does not autonomously
+recognize receipts or merchant categories. Multi-approver group collections
+and recurring mandates with cumulative hard caps require new on-chain object
+policies and are not claimed as implemented.
+
 #### Medicine pickup — privacy-minimal order commitment
 
 The `medicine_pickup` Family Mission reuses Protected Transfer instead of
@@ -400,6 +447,13 @@ This is an initial order commitment only. It does not prove pharmacy
 partnership, medicine authenticity, prescription validity, pickup, settlement,
 or release approval. Production use still requires a real pharmacy provider,
 identity and prescription policy, verified custody events, and human review.
+
+Walrus and Seal are intentionally not decorative dependencies. The current
+artifact remains device-local. A future production evidence adapter may encrypt
+a receipt or medical-pickup artifact, store that ciphertext on Walrus, use Seal
+for reviewer-scoped disclosure, and bind the content digest plus access policy
+into this same agreement commitment. No Walrus storage or Seal access-control
+claim is made until that end-to-end path is deployed and independently tested.
 
 #### Evidence Council — advisory review after verified creation
 
@@ -909,9 +963,10 @@ flowchart TB
     Quote["Signed quote with Family Rule"]
     Steward["Optional two-model message review"]
     Review["Customer reviews quote"]
-    Choice{"Send directly or hold for family review"}
+    Choice{"Protect outcome by default or send now"}
     DirectWallet["Wallet approves direct testnet USDC"]
     HoldPlan["Strict protected execution plan"]
+    Commitment["Intent + AI provenance + policy + terms digest"]
     HoldWallet["Wallet approves create escrow"]
     Receipt["Receipt with Rule verified"]
     HoldPending["Submitted, confirmation pending"]
@@ -919,7 +974,7 @@ flowchart TB
     HoldReceipt["Verified Created receipt"]
     Request --> Interpret --> Rebind --> Quote --> Steward --> Review --> Choice
     Choice -->|Send directly| DirectWallet --> Receipt
-    Choice -->|Hold for family review| HoldPlan --> HoldWallet --> HoldPending --> CreatedCheck --> HoldReceipt
+    Choice -->|Protect outcome| HoldPlan --> Commitment --> HoldWallet --> HoldPending --> CreatedCheck --> HoldReceipt
   end
 
   subgraph Carry["Scan and Pay"]
@@ -1420,22 +1475,23 @@ Additional boundaries:
    solicitation such as `Pay today and keep this secret`. Family Steward should
    identify exact source text and verification questions. Show two provenance
    records only after a real live council; otherwise show the partial or local
-   fallback honestly. This repository does not claim a successful live
-   two-model artifact.
-4. Review the details and choose **Send directly** or **Hold for family
-   review**. Without a mapped recipient, attestation, and connected testnet
+   fallback honestly. The public evidence section links the captured successful
+   two-model Family Steward artifact; it is advisory and cannot authorize value.
+4. Review the details. **Protect outcome** is selected by default; **Send now**
+   remains one tap away. Without a mapped recipient, attestation, and connected testnet
    wallet, neither executable path can submit value.
 5. For **Send directly**, approve the exact USDC transfer in the wallet. Open
    the receipt and show **Checking transfer on Sui** resolving to one of the
    explicit verified, rejected, not-found, or unavailable states. Only an exact
    match shows **Confirmed on Sui** and unlocks share/export; **Awaiting family
    payout** remains separate.
-6. For **Hold for family review**, choose a review deadline and enter a short
-   note. With the package and reviewer configured, Pay requests the strict plan,
+6. For **Protect outcome**, choose the workflow and review deadline, then enter
+   a short note. Inspect the bound request, inference provenance, release checks,
+   reviewer, expiry, amount, and agreement hash. With the package and reviewer configured, Pay requests the strict plan,
    builds the pinned `create_escrow` transaction, and asks the connected testnet
-   wallet to submit it. The surface remains at **Hold submitted — confirmation
+   wallet to submit it. The surface remains at **Agreement submitted — confirmation
    pending** until the separate exact Created-event check succeeds. Only then
-   does it show **Held for family review** and enable **Open receipt**. Receipts
+   does it show **Agreement live on Sui** and enable **Open public proof**. Receipts
    repeats that check before share/export. It never claims Released, Refunded,
    or family payout. With the default empty configuration, the hold path fails
    closed and the direct path remains available.

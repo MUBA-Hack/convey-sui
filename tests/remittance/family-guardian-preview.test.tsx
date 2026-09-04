@@ -73,6 +73,15 @@ vi.mock("@/components/wallet/connect-button", () => ({
   ),
 }));
 
+vi.mock("@mysten/dapp-kit-react", () => ({
+  useCurrentAccount: () => ({ address: "0x" + "22".repeat(32) }),
+  useCurrentNetwork: () => "testnet",
+  useDAppKit: () => ({ signAndExecuteTransaction: vi.fn() }),
+  useCurrentClient: () => ({
+    core: { waitForTransaction: vi.fn() },
+  }),
+}));
+
 vi.mock("@/lib/remittance/transfer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/remittance/transfer")>();
   return { ...actual, hasValidAttestation: actual.hasValidAttestation };

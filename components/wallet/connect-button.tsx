@@ -203,6 +203,11 @@ export function WalletConnectButton() {
               <DialogTitle className="text-base">
                 {googleWallet ? "Sign in" : "Connect a wallet"}
               </DialogTitle>
+              {googleWallet ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Google creates your Sui account. No seed phrase. Every agreement still needs your approval.
+                </p>
+              ) : null}
             </DialogHeader>
 
             {signInStage === "connecting" ? (

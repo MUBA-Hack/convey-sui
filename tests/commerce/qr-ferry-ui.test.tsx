@@ -99,6 +99,9 @@ describe("QrFerry — structure and transport explanation", () => {
     expect(
       screen.getByRole("heading", { name: /Scan and pay/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/QR carries the exact request/i),
+    ).toHaveTextContent(/approve its Sui agreement.*public receipt/i);
   });
 
   it("shows a dominant Scan QR card as the first-frame primary action", () => {

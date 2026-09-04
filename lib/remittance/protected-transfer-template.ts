@@ -23,6 +23,7 @@
 import {
   PROTECTED_TRANSFER_DEADLINE_PRESETS,
   PROTECTED_TRANSFER_REVIEW_NOTE_MAX_CODE_POINTS,
+  type ProtectedAgreementTemplateId,
   type ProtectedTransferDeadlinePreset,
 } from "./protected-transfer";
 
@@ -59,11 +60,7 @@ export const PROTECTED_TRANSFER_TEMPLATE_CAPABILITY_ORDER: readonly ProtectedTra
 // Template model
 // ---------------------------------------------------------------------------
 
-export type ProtectedTransferTemplateId =
-  | "family_support"
-  | "medicine_pickup"
-  | "tuition"
-  | "relief";
+export type ProtectedTransferTemplateId = ProtectedAgreementTemplateId;
 
 /**
  * Immutable Mission template. Every field is readonly and the object is
@@ -269,12 +266,66 @@ const RELIEF_TEMPLATE = makeTemplate({
   ]) as readonly ProtectedTransferTemplateCapability[],
 });
 
+const PURPOSE_ALLOWANCE_TEMPLATE = makeTemplate({
+  id: "purpose_allowance",
+  customerLabel: "Purpose allowance",
+  promise: "Lock one allowance to an agreed purpose and evidence check.",
+  suggestedPurpose: "Purpose-restricted allowance",
+  reviewerRoleLabel: "Allowance reviewer",
+  evidenceChecklist: Object.freeze([
+    "Allowed purpose matched",
+    "Amount stayed within the allowance",
+    "Reviewer approval recorded",
+    "Settlement receipt captured",
+  ]),
+  allowedDeadlinePresets: Object.freeze([
+    "three_days",
+    "seven_days",
+  ]) as readonly ProtectedTransferDeadlinePreset[],
+  defaultDeadlinePreset: "seven_days",
+  requiredCapabilities: Object.freeze([
+    "mapped_recipient",
+    "verified_quote",
+    "protected_transfer",
+    "human_reviewer",
+    "evidence_council",
+  ]) as readonly ProtectedTransferTemplateCapability[],
+});
+
+const REFUNDABLE_LINK_TEMPLATE = makeTemplate({
+  id: "refundable_link",
+  customerLabel: "Refundable link",
+  promise: "Let a named recipient claim before expiry or return control to the payer.",
+  suggestedPurpose: "Refundable payment link",
+  reviewerRoleLabel: "Claim reviewer",
+  evidenceChecklist: Object.freeze([
+    "Named recipient matched",
+    "Claim arrived before expiry",
+    "Reviewer approval recorded",
+    "Settlement receipt captured",
+  ]),
+  allowedDeadlinePresets: Object.freeze([
+    "tomorrow",
+    "three_days",
+    "seven_days",
+  ]) as readonly ProtectedTransferDeadlinePreset[],
+  defaultDeadlinePreset: "three_days",
+  requiredCapabilities: Object.freeze([
+    "mapped_recipient",
+    "verified_quote",
+    "protected_transfer",
+    "human_reviewer",
+  ]) as readonly ProtectedTransferTemplateCapability[],
+});
+
 /** Stable ordered registry. Frozen at module load. */
 const PROTECTED_TRANSFER_TEMPLATES: readonly ProtectedTransferTemplate[] = Object.freeze([
   FAMILY_SUPPORT_TEMPLATE,
   MEDICINE_PICKUP_TEMPLATE,
   TUITION_TEMPLATE,
   RELIEF_TEMPLATE,
+  PURPOSE_ALLOWANCE_TEMPLATE,
+  REFUNDABLE_LINK_TEMPLATE,
 ]);
 
 const PROTECTED_TRANSFER_TEMPLATE_BY_ID: Readonly<
@@ -284,6 +335,8 @@ const PROTECTED_TRANSFER_TEMPLATE_BY_ID: Readonly<
   medicine_pickup: MEDICINE_PICKUP_TEMPLATE,
   tuition: TUITION_TEMPLATE,
   relief: RELIEF_TEMPLATE,
+  purpose_allowance: PURPOSE_ALLOWANCE_TEMPLATE,
+  refundable_link: REFUNDABLE_LINK_TEMPLATE,
 });
 
 // ---------------------------------------------------------------------------

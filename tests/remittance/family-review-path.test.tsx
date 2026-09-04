@@ -135,6 +135,22 @@ function quote(overrides: Partial<QuoteEnvelope> = {}): QuoteEnvelope {
       maximumFamilyLimitMinor: null,
       ruleStatus: "not_set",
     },
+    intentBinding: {
+      version: "convey.financial-intent.v1" as const,
+      originalIntent: "Send RM500 to Ana in Manila",
+      interpretation: {
+        kind: "deterministic" as const,
+        provider: "deterministic" as const,
+        fallbackReason: "not_configured" as const,
+      },
+      policy: {
+        engine: "convey.remittance-policy.v1" as const,
+        result: "quote_ready" as const,
+        ruleStatus: "not_set" as const,
+        purpose: null,
+        maximumFamilyLimitMinor: null,
+      },
+    },
     clarification: null,
     ...overrides,
   };
@@ -196,12 +212,20 @@ function planResponse() {
       destinationCity: "manila",
       purpose: null,
       maximumFamilyLimitMinor: null,
+      intentBinding: quote().intentBinding,
     },
     packageId: PACKAGE,
     reviewerAddress: REVIEWER,
     reviewerName: REVIEWER_NAME,
     deadlineMs: NOW + PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS.tomorrow,
     reviewNote: "Hold until Ana confirms",
+    agreementTemplateId: "family_support" as const,
+    evidenceRequirements: [
+      "Recipient identity confirmed",
+      "Agreed use of funds noted",
+      "Reviewer approval recorded",
+      "Settlement receipt captured",
+    ],
   };
 }
 
@@ -240,11 +264,12 @@ afterEach(() => {
 });
 
 describe("family review path on executable quote review", () => {
-  it("keeps Send directly as the default and calls onConfirm unchanged", () => {
+  it("makes the protected agreement the default while keeping direct send one tap away", () => {
     const onConfirm = vi.fn();
     renderActions("none", onConfirm);
-    expect(screen.getByTestId("send-path-direct")).toBeChecked();
-    expect(screen.queryByTestId("family-review-deadline")).not.toBeInTheDocument();
+    expect(screen.getByTestId("send-path-hold")).toBeChecked();
+    expect(screen.getByTestId("family-review-deadline")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("send-path-direct"));
     fireEvent.click(screen.getByTestId("review-transfer"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -259,8 +284,8 @@ describe("family review path on executable quote review", () => {
   it("keeps hold compact until Add a note or a missing-note Hold CTA", () => {
     renderActions();
     fireEvent.click(screen.getByTestId("send-path-hold"));
-    expect(screen.getByText(/waits for someone in your family/i)).toBeInTheDocument();
-    expect(screen.queryByText(/USDC|Sui|reviewer/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/turns this request into a Sui agreement/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("family-review-summary")).not.toBeInTheDocument();
     expect(screen.getByTestId("family-review-deadline")).toBeInTheDocument();
     expect(screen.getByTestId("family-review-deadline-tomorrow")).toBeInTheDocument();
     expect(screen.getByTestId("family-review-deadline-three_days")).toBeInTheDocument();
@@ -317,6 +342,7 @@ describe("family review path on executable quote review", () => {
       quote: quote(),
       deadlinePreset: "three_days",
       reviewNote: "Hold until Ana confirms",
+      agreementTemplateId: "family_support",
     });
   });
 
@@ -334,7 +360,7 @@ describe("family review path on executable quote review", () => {
     fireEvent.click(screen.getByTestId("hold-prepare"));
     await waitFor(() => {
       expect(screen.getByTestId("family-review-error")).toHaveTextContent(
-        "Family review isn't available right now. Send directly to continue.",
+        "Protected agreements aren't available right now. Send now to continue.",
       );
     });
     expect(screen.getByTestId("family-review-error").textContent).not.toMatch(/not_configured|package|endpoint/i);
@@ -379,6 +405,12 @@ describe("family review path on executable quote review", () => {
     await waitFor(() => {
       expect(screen.getByTestId("family-review-summary")).toBeInTheDocument();
     });
+    expect(screen.getByText("Bound to your request")).toBeInTheDocument();
+    expect(screen.getByText("Send RM500 to Ana in Manila")).toBeInTheDocument();
+    expect(screen.getByText("Deterministic policy")).toBeInTheDocument();
+    expect(screen.getByText("Release checks")).toBeInTheDocument();
+    expect(screen.getByText("Recipient identity confirmed")).toBeInTheDocument();
+    expect(screen.getByText("Settlement receipt captured")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("hold-approve"));
     fireEvent.click(screen.getByTestId("hold-approve"));
     await waitFor(() => {
@@ -444,7 +476,7 @@ describe("family review path on executable quote review", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("family-review-status")).toHaveTextContent(
-        "Hold submitted — confirmation pending",
+        "Agreement submitted — confirmation pending",
       );
     });
     expect(screen.queryByText(/Created|Released|Refunded/i)).not.toBeInTheDocument();
@@ -494,7 +526,7 @@ describe("family review path on executable quote review", () => {
     renderActions();
     fireEvent.click(screen.getByTestId("send-path-hold"));
     // Idle: exactly one primary hold CTA, no wallet/approve action yet.
-    expect(screen.getByTestId("hold-prepare")).toHaveTextContent("Hold for family review");
+    expect(screen.getByTestId("hold-prepare")).toHaveTextContent("Create Sui agreement");
     expect(screen.queryByTestId("hold-approve")).not.toBeInTheDocument();
     expect(screen.queryByTestId("review-transfer")).not.toBeInTheDocument();
 
@@ -538,6 +570,12 @@ describe("family review path on executable quote review", () => {
     await waitFor(() => {
       expect(screen.getByTestId("family-review-open-receipt")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("family-review-status")).toHaveTextContent(
+      "Agreement live on Sui · awaiting Convey Review",
+    );
+    expect(screen.getByTestId("family-review-open-receipt")).toHaveTextContent(
+      "Open public proof",
+    );
     const href = screen.getByTestId("family-review-open-receipt").getAttribute("href");
     expect(href).toMatch(new RegExp(`^/proof\\?${PROTECTED_TRANSFER_CREATED_RECEIPT_QUERY_PARAM}=[A-Za-z0-9_-]+$`));
     const items = loadActivity();
@@ -576,7 +614,7 @@ describe("family review path on executable quote review", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("family-review-status")).toHaveTextContent(
-        "Hold submitted — confirmation pending",
+        "Agreement submitted — confirmation pending",
       );
     });
     await waitFor(() => {

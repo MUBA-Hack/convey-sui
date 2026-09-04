@@ -268,10 +268,8 @@ describe("useFamilyReviewSubmit — custody manifest digest forwarding", () => {
 // ---------------------------------------------------------------------------
 
 describe("FamilyReviewSelection — restrained reveal motion", () => {
-  it("reveals the hold details through an opacity+y motion wrapper", () => {
+  it("renders the default protected path through an opacity+y motion wrapper", () => {
     renderActions();
-    expect(screen.queryByTestId("hold-reveal-motion")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("send-path-hold"));
     const wrapper = screen.getByTestId("hold-reveal-motion");
     expect(wrapper).toBeInTheDocument();
     // Only opacity + transform are animated; no layout/width/height inline

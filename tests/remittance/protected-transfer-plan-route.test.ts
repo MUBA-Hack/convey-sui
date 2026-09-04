@@ -120,6 +120,7 @@ describe("POST /api/remittance/protected-transfer/plan", () => {
         destinationCity: "manila",
         purpose: null,
         maximumFamilyLimitMinor: null,
+        intentBinding: quote.intentBinding,
       },
       packageId: normalizeSuiAddress("0x44"),
       reviewerAddress: normalizeSuiAddress("0x33"),
@@ -204,6 +205,48 @@ describe("POST /api/remittance/protected-transfer/plan", () => {
     const body = await res.json();
     expect(body.kind).toBe("protected_transfer_execution_plan");
     expect(body.custodyManifestDigest).toBe(digest);
+  });
+
+  it("round-trips a supported agreement template and rejects unknown workflows", async () => {
+    const quote = await getQuote(GOLDEN_EN);
+    const accepted = await postPlan({
+      quote,
+      deadlinePreset: "three_days",
+      reviewNote: "Release after the relief milestone is reviewed",
+      agreementTemplateId: "relief",
+    });
+    expect(await accepted.json()).toMatchObject({
+      kind: "protected_transfer_execution_plan",
+      agreementTemplateId: "relief",
+      evidenceRequirements: [
+        "Recipient identity confirmed",
+        "Relief need noted",
+        "Reviewer approval recorded",
+        "Settlement receipt captured",
+      ],
+    });
+
+    const disallowedDeadline = await postPlan({
+      quote,
+      deadlinePreset: "tomorrow",
+      reviewNote: "Release after medicine pickup is reviewed",
+      agreementTemplateId: "medicine_pickup",
+    });
+    expect(await disallowedDeadline.json()).toEqual({
+      kind: "rejected",
+      reason: "invalid_envelope",
+    });
+
+    const rejected = await postPlan({
+      quote,
+      deadlinePreset: "three_days",
+      reviewNote: "Unknown workflow",
+      agreementTemplateId: "unbounded_agent",
+    });
+    expect(await rejected.json()).toEqual({
+      kind: "rejected",
+      reason: "invalid_envelope",
+    });
   });
 
   it("omits custodyManifestDigest from the plan when the request omits it", async () => {

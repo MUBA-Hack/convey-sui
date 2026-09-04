@@ -19,15 +19,17 @@ const ALL_CAPS: ProtectedTransferTemplateCapability[] = [
 ];
 
 describe("protected-transfer-template registry", () => {
-  it("exposes exactly four templates in stable order", () => {
+  it("exposes the supported Sui agreement workflows in stable order", () => {
     const list = listProtectedTransferTemplates();
     expect(list.map((t) => t.id)).toEqual([
       "family_support",
       "medicine_pickup",
       "tuition",
       "relief",
+      "purpose_allowance",
+      "refundable_link",
     ]);
-    expect(list).toHaveLength(4);
+    expect(list).toHaveLength(6);
   });
 
   it("every template is deeply frozen", () => {
@@ -108,6 +110,17 @@ describe("protected-transfer-template registry", () => {
       if (template.id === "medicine_pickup") continue;
       expect(template.requiredCapabilities).not.toContain("pharmacy_network");
     }
+  });
+
+  it("offers purpose-restricted allowances and refundable payment links on the same contract spine", () => {
+    expect(getProtectedTransferTemplate("purpose_allowance")).toMatchObject({
+      customerLabel: "Purpose allowance",
+      reviewerRoleLabel: "Allowance reviewer",
+    });
+    expect(getProtectedTransferTemplate("refundable_link")).toMatchObject({
+      customerLabel: "Refundable link",
+      reviewerRoleLabel: "Claim reviewer",
+    });
   });
 
   it("every template declares the four core capabilities", () => {

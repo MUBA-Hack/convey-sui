@@ -50,6 +50,45 @@ afterEach(() => {
 });
 
 describe("verifyRemittanceQuote — freshness interval [issuedAt, expiresAt)", () => {
+  it("binds the original request and interpreter provenance into the executable authorization", async () => {
+    const quote = await getQuote(GOLDEN_EN);
+    expect(quote.intentBinding).toMatchObject({
+      version: "convey.financial-intent.v1",
+      originalIntent: GOLDEN_EN,
+      interpretation: {
+        kind: "deterministic",
+        provider: "deterministic",
+      },
+      policy: {
+        engine: "convey.remittance-policy.v1",
+        result: "quote_ready",
+      },
+    });
+
+    const result = verifyRemittanceQuote({
+      body: quote,
+      evidenceMode: false,
+      nowMs: quote.issuedAt as number,
+      env: process.env,
+    });
+    expect(result.kind).toBe("authorization");
+    if (result.kind === "authorization") {
+      expect(result.intentBinding).toEqual(quote.intentBinding);
+    }
+
+    const tampered = structuredClone(quote);
+    (tampered.intentBinding as { originalIntent: string }).originalIntent =
+      "Send RM900 to Ana in Manila";
+    expect(
+      verifyRemittanceQuote({
+        body: tampered,
+        evidenceMode: false,
+        nowMs: quote.issuedAt as number,
+        env: process.env,
+      }),
+    ).toEqual({ kind: "rejected", reason: "unverified" });
+  });
+
   it("accepts nowMs === issuedAt (exact lower bound)", async () => {
     const quote = await getQuote(GOLDEN_EN);
     const result = verifyRemittanceQuote({

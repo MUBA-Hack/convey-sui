@@ -8,9 +8,9 @@ import { BrandMark } from "@/components/site-header";
 import productDesktop from "@/docs/screenshots/convey-app-desktop.png";
 
 const MOMENTS = [
-  ["01", "Say it naturally", "Speak or type what should happen. Convey remembers people, understands receipts, and keeps the request in context."],
-  ["02", "Let agents prepare", "AI agents map the request, compare risk, and stop for clarification whenever important details conflict."],
-  ["03", "Review and move", "Approve the exact action in your wallet, use QR when it helps, and keep a receipt you can check independently."],
+  ["01", "Describe the outcome", "Speak or type what should happen. Convey remembers people, understands receipts, and keeps the original request intact."],
+  ["02", "Let agents interpret", "Gonka agents map the request. Deterministic policy checks the recipient, amount, purpose, expiry, and evidence rules."],
+  ["03", "Approve the agreement", "Your wallet signs the exact terms. Sui enforces release or refund, then Convey produces a receipt anyone can verify."],
 ] as const;
 
 const REQUESTS = [
@@ -50,10 +50,10 @@ export function ConveyLanding() {
             transition={{ duration: reduceMotion ? 0 : 0.72, ease: [0.22, 1, 0.36, 1] }}
             className="landing-hero-copy"
           >
-            <p className="companion-eyebrow text-white/52">Your money, in plain language</p>
-            <h1>What should happen?</h1>
+            <p className="companion-eyebrow text-white/52">Protected intent, powered by Sui</p>
+            <h1>Describe the outcome.</h1>
             <p className="landing-hero-lede">
-              Speak or type. Convey remembers people, coordinates AI checks, and prepares payments, strategies, or QR handoffs for your approval.
+              Convey turns natural language into an enforceable Sui agreement. AI interprets. Policy checks. You approve. The chain decides release or refund.
             </p>
             <div className="landing-hero-actions">
               <Link href="/app" className="landing-primary-cta">
@@ -81,8 +81,8 @@ export function ConveyLanding() {
 
       <section id="how-it-works" className="landing-story">
         <motion.div {...reveal} className="landing-story-intro">
-          <h2>One conversation. Every money move.</h2>
-          <p>Convey turns natural language into a checked action, then waits for you to approve it.</p>
+          <h2>One request. Exact terms. Public proof.</h2>
+          <p>The request, agent run, policy result, payment terms, evidence rules, reviewer, and expiry resolve into one agreement hash.</p>
         </motion.div>
         <div className="landing-moment-grid">
           {MOMENTS.map(([number, title, body], index) => (
@@ -149,19 +149,19 @@ export function ConveyLanding() {
 
       <section className="landing-proof">
         <motion.div {...reveal}>
-          <h2>Clear before clever.</h2>
+          <h2>AI proposes. Sui enforces.</h2>
         </motion.div>
         <div className="landing-proof-grid">
-          <div><ShieldTick size={20} /><strong>Guarded intent</strong><p>AI prepares a bounded action. It never becomes wallet authority.</p></div>
-          <div><Flash size={20} /><strong>Offline-ready QR</strong><p>Install on mobile or desktop and carry exact payment details through weak connectivity.</p></div>
-          <div><DocumentText size={20} /><strong>Receipts that explain</strong><p>See what was requested, checked, approved, and settled.</p></div>
+          <div><ShieldTick size={20} /><strong>Intent bound to contract</strong><p>The original request and Gonka run become part of the private agreement artifact. Its digest is anchored in the Sui object.</p></div>
+          <div><Flash size={20} /><strong>QR crosses the gap</strong><p>QR carries the exact request across weak connectivity. A connected wallet still approves; Sui performs final settlement.</p></div>
+          <div><DocumentText size={20} /><strong>Public lifecycle proof</strong><p>Follow creation, evidence review, release or refund, and an independently verified receipt from the normal product flow.</p></div>
         </div>
       </section>
 
       <section className="landing-final-cta">
         <BrandMark size={34} />
-        <h2>Tell Convey what should happen.</h2>
-        <p>Speak, type, scan, or share a receipt.</p>
+        <h2>Make the outcome enforceable.</h2>
+        <p>Speak, type, scan, or share a receipt. Convey prepares the agreement; you approve it.</p>
         <Link href="/app" className="landing-primary-cta">Ask Convey <ArrowRight size={17} /></Link>
       </section>
     </div>

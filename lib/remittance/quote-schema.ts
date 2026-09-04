@@ -94,6 +94,76 @@ export type IntentReview = z.infer<typeof IntentReviewSchema>;
 export type IntentReviewLive = z.infer<typeof IntentReviewLiveSchema>;
 export type IntentReviewLocal = z.infer<typeof IntentReviewLocalSchema>;
 
+const IntentBindingLiveInterpretationSchema = z.strictObject({
+  kind: z.literal("gonka"),
+  provider: z.literal("gonkarouter"),
+  requestId: z.string().min(1).max(120),
+  modelId: z.string().min(1).max(120),
+  detectedLanguage: z.string().min(1).max(32),
+});
+
+const IntentBindingLocalInterpretationSchema = z.strictObject({
+  kind: z.literal("deterministic"),
+  provider: z.literal("deterministic"),
+  fallbackReason: z.enum([
+    "not_configured",
+    "provider_error",
+    "candidate_rejected",
+    "structured_input",
+  ]),
+});
+
+export const FinancialIntentBindingSchema = z.strictObject({
+  version: z.literal("convey.financial-intent.v1"),
+  originalIntent: z.string().min(1).max(500),
+  interpretation: z.discriminatedUnion("kind", [
+    IntentBindingLiveInterpretationSchema,
+    IntentBindingLocalInterpretationSchema,
+  ]),
+  policy: z.strictObject({
+    engine: z.literal("convey.remittance-policy.v1"),
+    result: z.literal("quote_ready"),
+    ruleStatus: z.enum(["within_limit", "not_set"]),
+    purpose: z.string().min(1).max(120).nullable(),
+    maximumFamilyLimitMinor: MinorAmountString.nullable(),
+  }),
+});
+
+export type FinancialIntentBinding = z.infer<typeof FinancialIntentBindingSchema>;
+
+export function buildFinancialIntentBinding(
+  originalIntent: string,
+  review: IntentReview,
+): FinancialIntentBinding {
+  const normalizedIntent = originalIntent.replace(/\s+/gu, " ").trim();
+  const interpretation =
+    review.reviewer === "gonka"
+      ? {
+          kind: "gonka" as const,
+          provider: "gonkarouter" as const,
+          requestId: review.requestId,
+          modelId: review.responseModel,
+          detectedLanguage: review.detectedLanguage,
+        }
+      : {
+          kind: "deterministic" as const,
+          provider: "deterministic" as const,
+          fallbackReason: review.fallbackReason,
+        };
+  return FinancialIntentBindingSchema.parse({
+    version: "convey.financial-intent.v1",
+    originalIntent: normalizedIntent,
+    interpretation,
+    policy: {
+      engine: "convey.remittance-policy.v1",
+      result: "quote_ready",
+      ruleStatus: review.ruleStatus,
+      purpose: review.purpose,
+      maximumFamilyLimitMinor: review.maximumFamilyLimitMinor,
+    },
+  });
+}
+
 export const CorridorSchema = z.strictObject({
   source: z.literal("MYR"),
   destination: z.literal("PHP"),
@@ -127,6 +197,7 @@ export const QuoteEnvelopeSchema = z.strictObject({
   beneficiaryRef: z.string().regex(/^R-[A-Z0-9]{8}$/),
   attestation: AttestationSchema.nullable(),
   intentReview: IntentReviewSchema,
+  intentBinding: FinancialIntentBindingSchema.optional(),
   clarification: z.null(),
 });
 
@@ -160,6 +231,7 @@ export const CanonicalAuthorizationSchema = z.strictObject({
   destinationCity: z.string().min(1).max(40),
   purpose: z.string().min(1).max(120).nullable(),
   maximumFamilyLimitMinor: MinorAmountString.nullable(),
+  intentBinding: FinancialIntentBindingSchema.optional(),
 });
 
 export type CanonicalAuthorization = z.infer<typeof CanonicalAuthorizationSchema>;

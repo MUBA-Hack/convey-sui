@@ -226,6 +226,10 @@ function jsonResponse(body: unknown, status = 200): Promise<Response> {
   } as unknown as Response);
 }
 
+async function selectDirectTransfer() {
+  fireEvent.click(await screen.findByTestId("send-path-direct"));
+}
+
 /** A fetch mock that returns the quote for /quote and the authorization for /verify. */
 function quoteAndVerifyFetch(quote: QuoteEnvelope, auth: CanonicalAuthorization) {
   return vi.fn((url: string | Request | URL) => {
@@ -547,6 +551,7 @@ describe("RemittanceChat — confirmation gate", () => {
 
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
@@ -607,6 +612,7 @@ describe("RemittanceChat — confirmation gate", () => {
 
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -647,6 +653,7 @@ describe("RemittanceChat — confirmation gate", () => {
 
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -789,6 +796,7 @@ describe("RemittanceChat — voice, keyboard, hit targets, copy", () => {
     );
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -1039,6 +1047,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     vi.mocked(globalThis.fetch).mockReturnValueOnce(jsonResponse(q1));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -1058,6 +1067,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     await waitFor(() =>
       expect(screen.getByTestId("quote-you-pay")).toHaveTextContent(/RM750\.00/i),
     );
+    await selectDirectTransfer();
     // Still exactly one quote card / Review gate / Edit transfer — the first
     // card's actions disappeared, they did not linger.
     expect(screen.getAllByTestId("remittance-quote-preview")).toHaveLength(1);
@@ -1070,6 +1080,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     vi.mocked(globalThis.fetch).mockReturnValueOnce(jsonResponse(q1));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -1117,6 +1128,7 @@ describe("RemittanceChat — one mutable quote session", () => {
     vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -1333,6 +1345,7 @@ describe("RemittanceChat — family-rule panel and verified rule copy", () => {
     vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -1363,6 +1376,7 @@ describe("RemittanceChat — family-rule panel and verified rule copy", () => {
     vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );
@@ -1610,6 +1624,7 @@ describe("RemittanceChat — desktop workspace, two groups, and mobile order", (
     vi.mocked(globalThis.fetch).mockImplementation(quoteAndVerifyFetch(q, matchingAuth(q)));
     render(<RemittanceChat />);
     fireEvent.click(screen.getByTestId("see-quote"));
+    await selectDirectTransfer();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Review transfer/i })).toBeInTheDocument(),
     );

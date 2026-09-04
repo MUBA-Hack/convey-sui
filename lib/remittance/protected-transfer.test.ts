@@ -205,6 +205,97 @@ describe("buildProtectedTransfer — determinism", () => {
     }
   });
 
+  it("binds the private request, Gonka run identity, and deterministic policy result", () => {
+    const intentBinding = {
+      version: "convey.financial-intent.v1" as const,
+      originalIntent: "Send Ana RM500 for medicine after pickup evidence",
+      interpretation: {
+        kind: "gonka" as const,
+        provider: "gonkarouter" as const,
+        requestId: "gonka-request-1",
+        modelId: "model-a",
+        detectedLanguage: "en",
+      },
+      policy: {
+        engine: "convey.remittance-policy.v1" as const,
+        result: "quote_ready" as const,
+        ruleStatus: "within_limit" as const,
+        purpose: "medicine",
+        maximumFamilyLimitMinor: "50000",
+      },
+    };
+    const base = buildProtectedTransfer(
+      baseInput({ plan: { authorization: auth({ intentBinding }) } }),
+    );
+    const changedRequest = buildProtectedTransfer(
+      baseInput({
+        plan: {
+          authorization: auth({
+            intentBinding: {
+              ...intentBinding,
+              originalIntent: "Send Ana RM400 for medicine after pickup evidence",
+            },
+          }),
+        },
+      }),
+    );
+    const changedRun = buildProtectedTransfer(
+      baseInput({
+        plan: {
+          authorization: auth({
+            intentBinding: {
+              ...intentBinding,
+              interpretation: { ...intentBinding.interpretation, requestId: "gonka-request-2" },
+            },
+          }),
+        },
+      }),
+    );
+
+    expect(JSON.parse(base.metadata.canonicalEncoding).authorization.intentBinding)
+      .toEqual(intentBinding);
+    expect(changedRequest.metadata.commitmentHex).not.toBe(base.metadata.commitmentHex);
+    expect(changedRun.metadata.commitmentHex).not.toBe(base.metadata.commitmentHex);
+  });
+
+  it("binds the selected customer workflow into the Sui agreement commitment", () => {
+    const base = buildProtectedTransfer(baseInput());
+    const charity = buildProtectedTransfer(
+      baseInput({ plan: { agreementTemplateId: "relief" } }),
+    );
+    const medicine = buildProtectedTransfer(
+      baseInput({ plan: { agreementTemplateId: "medicine_pickup" } }),
+    );
+
+    expect(JSON.parse(charity.metadata.canonicalEncoding).agreementTemplateId)
+      .toBe("relief");
+    expect(charity.metadata.commitmentHex).not.toBe(base.metadata.commitmentHex);
+    expect(medicine.metadata.commitmentHex).not.toBe(charity.metadata.commitmentHex);
+  });
+
+  it("binds the workflow evidence requirements into the Sui agreement commitment", () => {
+    const requirements = [
+      "Recipient identity confirmed",
+      "Relief need noted",
+      "Reviewer approval recorded",
+    ];
+    const base = buildProtectedTransfer(
+      baseInput({ plan: { agreementTemplateId: "relief", evidenceRequirements: requirements } }),
+    );
+    const changed = buildProtectedTransfer(
+      baseInput({
+        plan: {
+          agreementTemplateId: "relief",
+          evidenceRequirements: [...requirements, "Settlement receipt captured"],
+        },
+      }),
+    );
+
+    expect(JSON.parse(base.metadata.canonicalEncoding).evidenceRequirements)
+      .toEqual(requirements);
+    expect(changed.metadata.commitmentHex).not.toBe(base.metadata.commitmentHex);
+  });
+
   it("does not change the commitment when only nowMs changes (nowMs is not bound)", () => {
     // Widen the deadline so both nowMs values keep a valid window, and keep
     // both nowMs values inside the authorization freshness window

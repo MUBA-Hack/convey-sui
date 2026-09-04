@@ -1,12 +1,12 @@
 # Convey product roadmap
 
-Convey is a chat-first financial companion: a person describes what should
-happen, Convey prepares a bounded action, and the person reviews the exact
-outcome before value can move. The same front door can prepare a local or
-cross-border payment, turn a receipt into obligations, carry a request between
-devices, protect a conditional family payment, or define a tightly capped
-treasury policy. Remittance remains the deepest settlement journey, not the
-limit of the product.
+Convey is a protected-intent financial companion: a person describes a
+financial outcome, Convey interprets it and applies deterministic policy, and
+the person approves an enforceable Sui agreement. The same front door can
+prepare a local or cross-border payment, turn a receipt into obligations, carry
+a request between devices, protect conditional funding, or define a tightly
+capped treasury policy. Remittance is one deep settlement journey, not the
+product definition.
 
 This roadmap is ordered around one coherent customer journey, not around sponsor
 logos. Each phase has a customer outcome and a proof threshold. A feature is not
@@ -14,6 +14,34 @@ complete because a screen exists; it is complete when the stated evidence can be
 reproduced.
 
 ## Implementation snapshot
+
+- **Protected intent is now Pay's flagship path.** An executable quote defaults
+  to **Protect outcome**. The pre-wallet review shows the original request,
+  Gonka model or deterministic fallback, release checks, reviewer, deadline,
+  amount, and Sui commitment. Direct send remains one tap away.
+- **The AI and policy decision is bound to the agreement.** The quote HMAC and
+  outer BLAKE2b-256 commitment preserve the normalized request, live Gonka
+  request/model identity or deterministic provenance, deterministic policy
+  result, recipient, amount, purpose, workflow, evidence requirements,
+  reviewer, expiry, and review note. After exact `Created` verification, the
+  full canonical artifact is kept in bounded device-local storage and the
+  shared Sui object exposes its 32-byte commitment.
+- **Six workflows share one contract spine.** Family support, medicine pickup,
+  tuition, relief funding, purpose allowance, and refundable link all use the
+  same Protected Transfer object, release/refund lifecycle, and receipt
+  verifier. Group collections with approval thresholds and recurring mandates
+  with cumulative hard caps still require new Move object policies.
+- **QR has a connected settlement boundary.** QR carries a request across weak
+  signal; the connected device reviews it, the wallet approves, Sui settles,
+  and Receipts verifies. The transport envelope is not described as payer
+  authorization.
+- **Seedless sign-in is visible without a sponsorship claim.** When Enoki is
+  configured, the sign-in surface explains that Google creates a Sui account
+  without a seed phrase and that each agreement still needs approval. Sponsored
+  transactions remain blocked on a deployed sponsor budget and public proof.
+- **Walrus and Seal remain scoped future infrastructure.** Their intended job is
+  encrypted evidence storage and reviewer-scoped disclosure for medical or
+  relief artifacts. Neither is claimed as shipped.
 
 - **The public landing and companion workspace are separate.** `/` tells the
   product story and `/app` provides a full-height text, voice, and receipt
@@ -187,7 +215,7 @@ Move package, pinned TypeScript transaction core, bounded plan and Created-event
 verification endpoints, an integrated Pay creation path, terminal action/event
 verification, and a `/proof?t=` terminal receipt lifecycle. After wallet
 submission, only an exact independent Created-event match can produce the
-portable receipt and the **Held for family review** state; Receipts repeats that
+portable receipt and the **Agreement live on Sui** state; Receipts repeats that
 check before share/export. Terminal builders, fixed-testnet `Released`/
 `Refunded` verification, open-state checking, terminal receipt binding, and the
 customer-first receipt states are implemented. A fresh-verified Created receipt
@@ -214,8 +242,9 @@ replay authority is future work.
 
 ## Product principles
 
-- Use one primary customer job, **Scan and Pay**, with QR creation and
-  **Receipts** as contextual branches. Keep **Treasury** visibly separate.
+- Use one primary customer promise: **describe an outcome and approve an
+  enforceable Sui agreement**. Chat, voice, QR, workflow templates, and Receipts
+  are entry points or proof surfaces around that promise. Keep Treasury visibly separate.
 - Abstract wallet complexity without hiding user authority or transaction risk.
 - Separate the states **draft**, **reviewed**, **authorized**, **submitted**,
   **settled**, and **failed**.
@@ -367,7 +396,8 @@ Customer flow:
 4. The connected device discriminates kind, decodes the handoff, verifies
    attestation/recipient/corridor/amount/expiry, and shows a **Quote carried —
    Not paid yet** review card.
-5. Approve the exact USDC transfer in the wallet.
+5. Choose **Protect outcome** or **Send now**, approve the exact Sui transaction
+   in the wallet, and keep the independently checked receipt.
 
 Exit evidence:
 
@@ -399,7 +429,8 @@ Every commerce intent binds:
 
 The current connected-device flow validates the checksum and expiry, shows an
 exact human review, and consumes the nonce in device-local storage before the
-guarded checkout can continue. A payer-signed redemption envelope, shared
+guarded checkout can continue to wallet approval and Sui receipt verification.
+The QR carries the request; it does not authorize the payer. A payer-signed redemption envelope, shared
 authoritative nonce registry, and cross-device reconciliation remain future
 exit gates, not properties of the current transport.
 
@@ -422,9 +453,13 @@ backend policy.
 registration and Google sign-in are wired through dApp Kit, with the registered
 redirect URI pinned to the origin so a deep-route sign-in does not send an
 unregistered `redirect_uri`. The wallet is identified by Enoki's metadata
-feature, never by display name. Live session restoration across sessions,
+feature, never by display name. When Google is available, the sign-in dialog
+explains the seedless Sui account and per-agreement approval boundary. Live
+session restoration across sessions,
 salt/prover lifecycle handling, and captured restoration evidence remain
-outstanding, so this is not yet a proven onboarding path.
+outstanding, so this is not yet a proven onboarding path. No sponsored-gas
+claim is made; sponsor-budget policy and a public sponsored transaction remain
+exit evidence.
 
 This feature does not provide credit-card funding, off-ramping, or autonomous
 control of the customer's funds.
@@ -445,14 +480,13 @@ Exit evidence:
 Complete the narrow, human-reviewed escrow lifecycle already initiated inside
 the existing Pay journey.
 
-**Status: contract published; transaction core, bounded verification endpoints,
-creation path, advisory Evidence Council, role/deadline-gated terminal wallet
-bridge, and portable Created/terminal receipt lifecycle implemented; public
-native-SUI release and refund references captured; USDC, council, and
-product-wallet evidence incomplete.**
-Executable quotes now offer
-**Send directly** or **Hold for family review** inside the existing Pay surface.
-The direct path is unchanged. The hold path requests a strict plan, builds the
+**Status: contract published; intent-bound transaction core, bounded verification
+endpoints, creation path, advisory Evidence Council, role/deadline-gated terminal
+wallet bridge, and portable Created/terminal receipt lifecycle implemented;
+public native-SUI release/refund and 1 testnet-USDC reviewer-release references
+captured; a product-generated intent-bound receipt and live council artifact
+remain incomplete.** Executable quotes now default to **Protect outcome** with
+**Send now** one tap away inside Pay. The protected path requests a strict plan, builds the
 pinned `create_escrow` transaction client-side, requires a connected Sui
 testnet wallet, and locks duplicate submission. It remains pending after wallet
 submission until the fixed-testnet verifier matches the exact Created event;
@@ -460,8 +494,9 @@ only then does Pay show the held state and open the bound portable receipt. The
 current Move package supports one full-balance release or
 post-deadline refund. It does not implement multiple milestones, automated
 delivery verification, disputes, early cancellation, matched grants, or model
-authority. The server endpoint authors the plan from a verified quote, deadline
-preset, review note, and configured candidate coordinates, but its unsigned
+authority. The server endpoint authors the plan from a verified quote,
+workflow-allowed deadline preset, server-derived evidence requirements, review
+note, and configured candidate coordinates, but its unsigned
 response cannot prove publication, deployment, immutability, or on-chain state.
 The Created verifier performs one fixed-testnet read and exact BCS event binding.
 Pay binds a verified response to the plan and transaction metadata; Receipts
@@ -485,6 +520,15 @@ artifact `D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1` and
 deadline-refund artifact `7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv`;
 no product-generated USDC terminal receipt or bank/cash payout is claimed. The
 Move package passes 20/20 tests with Sui CLI v1.78.1.
+
+The canonical agreement commitment now covers the original request, live Gonka
+request/model identity or deterministic fallback, policy result, exact payment
+terms, workflow, evidence checklist, reviewer, expiry, and review note. The full
+artifact is retained in bounded device-local storage only after exact Created
+verification. Family support, medicine pickup, tuition, relief, purpose
+allowance, and refundable link use the same object spine. Multi-approver group
+collections and recurring mandates with cumulative caps are still separate Move
+object work, not implemented screens relabeled as enforcement.
 
 The implemented Sui Move escrow object records:
 

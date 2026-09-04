@@ -192,6 +192,9 @@ describe("WalletConnectButton — sign-in surface when Google wallet is register
     openSignIn();
 
     expect(screen.getByRole("button", { name: /Sign in with Google/i })).toBeInTheDocument();
+    expect(screen.getByText(/Google creates your Sui account/i)).toHaveTextContent(
+      /No seed phrase.*Every agreement still needs your approval/i,
+    );
     expect(
       screen.getByRole("button", { name: /Use a wallet extension/i }),
     ).toBeInTheDocument();

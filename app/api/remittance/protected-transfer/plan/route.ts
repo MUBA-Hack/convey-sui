@@ -11,6 +11,7 @@ import {
   type ProtectedTransferPlanResponse,
 } from "@/lib/remittance/protected-transfer";
 import type { VerifyRejected } from "@/lib/remittance/quote-schema";
+import { getProtectedTransferTemplate } from "@/lib/remittance/protected-transfer-template";
 
 /**
  * POST /api/remittance/protected-transfer/plan
@@ -102,6 +103,16 @@ export async function POST(req: Request) {
   }
   const { packageId, reviewerAddress, reviewerName } = configResult.config;
 
+  const agreementTemplate = request.agreementTemplateId === undefined
+    ? null
+    : (getProtectedTransferTemplate(request.agreementTemplateId) ?? null);
+  if (
+    agreementTemplate &&
+    !agreementTemplate.allowedDeadlinePresets.includes(request.deadlinePreset)
+  ) {
+    return response(reject("invalid_envelope"));
+  }
+
   // Preset deadline. Deadline safety and window are owned by the shared parser.
   const duration = PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS[request.deadlinePreset];
   const deadlineMs = nowMs + duration;
@@ -119,6 +130,12 @@ export async function POST(req: Request) {
     reviewerName,
     deadlineMs,
     reviewNote: request.reviewNote,
+    ...(request.agreementTemplateId === undefined
+      ? {}
+      : { agreementTemplateId: request.agreementTemplateId }),
+    ...(agreementTemplate === null
+      ? {}
+      : { evidenceRequirements: [...agreementTemplate.evidenceChecklist] }),
     ...(request.custodyManifestDigest === undefined
       ? {}
       : { custodyManifestDigest: request.custodyManifestDigest }),

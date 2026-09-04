@@ -15,6 +15,7 @@ import {
   type ProtectedTransferDeadlinePreset,
   type ProtectedTransferExecutionPlan,
   type ProtectedTransferMetadata,
+  type ProtectedAgreementTemplateId,
 } from "@/lib/remittance/protected-transfer";
 import {
   requestProtectedTransferPlan,
@@ -35,10 +36,11 @@ import {
 } from "@/lib/remittance/transfer";
 import { recordActivity } from "@/lib/activity/storage";
 import { formatUsdcGrouped } from "@/lib/remittance/money";
+import { storeProtectedAgreementArtifact } from "@/lib/remittance/protected-agreement-store";
 
 export const NOT_CONFIGURED_COPY =
-  "Family review isn't available right now. Send directly to continue.";
-const GENERIC_HOLD_ERROR = "Family review couldn't be started. Send directly to continue.";
+  "Protected agreements aren't available right now. Send now to continue.";
+const GENERIC_HOLD_ERROR = "The protected agreement couldn't be started. Send now to continue.";
 
 type Plan = ProtectedTransferExecutionPlan & { reviewerName?: string };
 
@@ -74,6 +76,7 @@ export interface FamilyReviewActionProps {
   deadlinePreset: ProtectedTransferDeadlinePreset;
   note: string;
   onNoteInvalid: (message: string | null) => void;
+  agreementTemplateId: ProtectedAgreementTemplateId;
   /**
    * Optional custody manifest digest (lowercase 0x + 64 hex). When present it
    * is forwarded into the Protected Transfer plan request as
@@ -104,6 +107,7 @@ export function useFamilyReviewSubmit({
   deadlinePreset,
   note,
   onNoteInvalid,
+  agreementTemplateId,
   custodyManifestDigest,
 }: FamilyReviewActionProps) {
   const account = useCurrentAccount();
@@ -147,6 +151,7 @@ export function useFamilyReviewSubmit({
           quote,
           deadlinePreset,
           reviewNote: note.trim(),
+          agreementTemplateId,
           ...(custodyManifestDigest === undefined
             ? {}
             : { custodyManifestDigest }),
@@ -232,6 +237,12 @@ export function useFamilyReviewSubmit({
         metadata,
       });
       const receiptPayload = encodeProtectedTransferCreatedReceiptPayload(receipt);
+      storeProtectedAgreementArtifact({
+        commitmentHex: metadata.commitmentHex,
+        canonicalEncoding: metadata.canonicalEncoding,
+        createdDigest: digest,
+        storedAt: Date.parse(receipt.exportedAt),
+      });
       setPhase({ kind: "verified", plan, metadata, digest, receipt, receiptPayload });
       const recipient = plan.authorization.recipient;
       const reviewer = plan.reviewerName ?? "family";
@@ -253,16 +264,16 @@ export function useFamilyReviewSubmit({
 
   const primaryLabel =
     phase.kind === "planning"
-      ? "Preparing hold…"
+      ? "Preparing agreement…"
       : phase.kind === "confirming"
         ? "Confirm in your wallet"
-        : phase.kind === "submitted"
-          ? "Hold submitted — confirmation pending"
+          : phase.kind === "submitted"
+          ? "Agreement submitted — confirmation pending"
           : phase.kind === "verified"
-            ? "Held for family review"
+            ? "Agreement live on Sui"
             : phase.kind === "unknown"
               ? "Outcome unknown — check wallet and explorer"
-              : "Hold for family review";
+              : "Create Sui agreement";
 
   return {
     phase,
@@ -294,7 +305,7 @@ export function FamilyReviewStatus({ phase }: { phase: HoldPhase }) {
     return (
       <div className="mb-2 space-y-1" data-testid="family-review-status">
         <p className="text-[11px] leading-relaxed text-neutral-700" aria-live="polite">
-          Hold submitted — confirmation pending
+          Agreement submitted — confirmation pending
         </p>
         <a
           href={buildExplorerUrl(phase.digest)}
@@ -313,14 +324,14 @@ export function FamilyReviewStatus({ phase }: { phase: HoldPhase }) {
     return (
       <div className="mb-2 space-y-1" data-testid="family-review-status">
         <p className="text-[11px] leading-relaxed text-neutral-700" aria-live="polite">
-          Held for {phase.plan.reviewerName ?? "family"}’s review
+          Agreement live on Sui · awaiting {phase.plan.reviewerName ?? "reviewer"}
         </p>
         <Link
           href={href}
           data-testid="family-review-open-receipt"
           className="inline-flex min-h-11 items-center text-[11px] font-medium text-black underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
         >
-          Open receipt
+          Open public proof
         </Link>
       </div>
     );

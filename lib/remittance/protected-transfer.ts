@@ -61,6 +61,20 @@ export const PROTECTED_TRANSFER_DEADLINE_MIN_MS = 60 * 60 * 1000;
 /** Maximum escrow lifetime: 30 days after `nowMs`. Exact boundary is valid. */
 export const PROTECTED_TRANSFER_DEADLINE_MAX_MS = 30 * 24 * 60 * 60 * 1000;
 
+export const PROTECTED_AGREEMENT_TEMPLATE_IDS = [
+  "family_support",
+  "medicine_pickup",
+  "tuition",
+  "relief",
+  "purpose_allowance",
+  "refundable_link",
+] as const;
+export type ProtectedAgreementTemplateId =
+  (typeof PROTECTED_AGREEMENT_TEMPLATE_IDS)[number];
+export const ProtectedAgreementTemplateIdSchema = z.enum(
+  PROTECTED_AGREEMENT_TEMPLATE_IDS,
+);
+
 /** Sui address/object ID: 0x + up to 64 hex, used for plan address fields. */
 const PlanSuiAddressString = z
   .string()
@@ -86,6 +100,8 @@ export interface ProtectedTransferExecutionPlan {
   deadlineMs: number;
   /** Free-form review note. Trimmed; control characters rejected. */
   reviewNote: string;
+  agreementTemplateId?: ProtectedAgreementTemplateId;
+  evidenceRequirements?: string[];
   /**
    * Optional custody manifest digest (lowercase `0x` + 64 hex blake2b256).
    * When present it is bound into the canonical commitment encoding so a
@@ -123,6 +139,8 @@ export const ProtectedTransferExecutionPlanSchema = z.strictObject({
   // in `validateReviewNote` so the fail-closed empty boundary is preserved.
   // A missing property is still rejected by `strictObject`.
   reviewNote: z.string().max(500),
+  agreementTemplateId: ProtectedAgreementTemplateIdSchema.optional(),
+  evidenceRequirements: z.array(z.string().min(1).max(120)).min(1).max(8).optional(),
   // Optional custody manifest digest. Reuses the single canonical digest
   // schema from the custody-evidence module — no duplicated regex. A missing
   // property is accepted (ordinary transfers); a present-but-malformed value
@@ -180,6 +198,7 @@ export const ProtectedTransferPlanRequestSchema = z
     }),
     deadlinePreset: ProtectedTransferDeadlinePresetSchema,
     reviewNote: z.string().max(500),
+    agreementTemplateId: ProtectedAgreementTemplateIdSchema.optional(),
     // Optional custody manifest digest. Ordinary transfers omit it; a
     // medicine-pickup flow may supply one. The route preserves it after quote
     // verification; no client package/reviewer/network/coin override is added.
@@ -428,6 +447,36 @@ function canonicalAuthorizationEncoding(
     destinationCity: auth.destinationCity,
     purpose: auth.purpose,
     maximumFamilyLimitMinor: auth.maximumFamilyLimitMinor,
+    ...(auth.intentBinding === undefined
+      ? {}
+      : {
+          intentBinding: {
+            version: auth.intentBinding.version,
+            originalIntent: auth.intentBinding.originalIntent,
+            interpretation:
+              auth.intentBinding.interpretation.kind === "gonka"
+                ? {
+                    kind: auth.intentBinding.interpretation.kind,
+                    provider: auth.intentBinding.interpretation.provider,
+                    requestId: auth.intentBinding.interpretation.requestId,
+                    modelId: auth.intentBinding.interpretation.modelId,
+                    detectedLanguage: auth.intentBinding.interpretation.detectedLanguage,
+                  }
+                : {
+                    kind: auth.intentBinding.interpretation.kind,
+                    provider: auth.intentBinding.interpretation.provider,
+                    fallbackReason: auth.intentBinding.interpretation.fallbackReason,
+                  },
+            policy: {
+              engine: auth.intentBinding.policy.engine,
+              result: auth.intentBinding.policy.result,
+              ruleStatus: auth.intentBinding.policy.ruleStatus,
+              purpose: auth.intentBinding.policy.purpose,
+              maximumFamilyLimitMinor:
+                auth.intentBinding.policy.maximumFamilyLimitMinor,
+            },
+          },
+        }),
   };
 }
 
@@ -501,6 +550,12 @@ export function parseProtectedTransferExecutionPlan(
     ...(plan.reviewerName === undefined ? {} : { reviewerName: plan.reviewerName }),
     deadlineMs: plan.deadlineMs,
     reviewNote: normalizedNote,
+    ...(plan.agreementTemplateId === undefined
+      ? {}
+      : { agreementTemplateId: plan.agreementTemplateId }),
+    ...(plan.evidenceRequirements === undefined
+      ? {}
+      : { evidenceRequirements: plan.evidenceRequirements }),
     // Preserve the optional custody manifest digest verbatim. The strict
     // schema already validated its shape; the parser does not transform it.
     ...(plan.custodyManifestDigest === undefined
@@ -575,6 +630,12 @@ export function buildProtectedTransfer(
     reviewer: canonicalReviewer,
     deadlineMs: plan.deadlineMs,
     reviewNote: normalizedNote,
+    ...(plan.agreementTemplateId === undefined
+      ? {}
+      : { agreementTemplateId: plan.agreementTemplateId }),
+    ...(plan.evidenceRequirements === undefined
+      ? {}
+      : { evidenceRequirements: plan.evidenceRequirements }),
     authorization: canonicalAuthorizationEncoding(auth, canonicalBeneficiary),
     ...(plan.custodyManifestDigest === undefined
       ? {}

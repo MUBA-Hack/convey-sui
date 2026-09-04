@@ -17,6 +17,7 @@ import {
 import { USDC_COIN_TYPE_TESTNET } from "@/lib/remittance/constants";
 import {
   QuoteEnvelopeSchema,
+  buildFinancialIntentBinding,
   type QuoteEnvelope,
   type IntentReviewLive,
   type IntentReviewLocal,
@@ -310,7 +311,7 @@ export async function POST(req: Request) {
           result.candidate.confidence,
           result.candidate.explanation,
         );
-        return finalizeQuote(quote, recipientAddress, config, intentReview);
+        return finalizeQuote(quote, recipientAddress, config, intentReview, text);
       }
       // Candidate rejected — fail closed to deterministic.
       return deterministicQuote(text, config, "candidate_rejected");
@@ -348,7 +349,7 @@ async function deterministicQuote(
   }
 
   const intentReview = buildLocalIntentReview(text, fallbackReason);
-  return finalizeQuote(quote, recipientAddress, config, intentReview);
+  return finalizeQuote(quote, recipientAddress, config, intentReview, text);
 }
 
 /**
@@ -361,8 +362,10 @@ async function finalizeQuote(
   recipientAddress: string | null,
   config: ReturnType<typeof resolveRemittanceConfig>,
   intentReview: QuoteEnvelope["intentReview"],
+  originalIntent: string,
 ) {
-  let envelope = { ...quote, intentReview };
+  const intentBinding = buildFinancialIntentBinding(originalIntent, intentReview);
+  let envelope = { ...quote, intentReview, intentBinding };
   if (config.quoteSigningKeyHex && recipientAddress) {
     const fields: CanonicalFields = {
       recipientAddress,
@@ -383,6 +386,7 @@ async function finalizeQuote(
       destinationCity: quote.destinationCity,
       purpose: intentReview.purpose,
       maximumFamilyLimitMinor: intentReview.maximumFamilyLimitMinor,
+      intentBinding,
     };
     const hmac = computeAttestation(config.quoteSigningKeyHex, fields);
     envelope = { ...envelope, attestation: { v: 1, hmac } };

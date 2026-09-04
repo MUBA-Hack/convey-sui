@@ -2,7 +2,7 @@
   "name": "convey",
   "version": "0.1.0",
   "private": true,
-  "description": "Convey — voice-first Sui payments, protected family transfers, offline handoff, and verifiable receipts.",
+  "description": "Convey — describe a financial outcome, approve an enforceable Sui agreement, and verify the receipt.",
   "license": "MIT",
   "type": "module",
   "engines": {

@@ -246,7 +246,7 @@ describe("Pay Offline — remittance quote import", () => {
     expect(screen.getByTestId("scan-another")).toBeInTheDocument();
   });
 
-  it("requires explicit Review and approve before any signing (no auto-sign on import)", () => {
+  it("defaults to explicit protected agreement creation with no signing on import", () => {
     const quote = baseQuote();
     const json = encodeHandoff(wrapQuote(quote));
     const fetchMock = vi.fn(() => jsonResponse(matchingAuth(quote)));
@@ -263,11 +263,11 @@ describe("Pay Offline — remittance quote import", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(wallet.signAndExecuteTransaction).not.toHaveBeenCalled();
 
-    // The explicit Review and approve CTA is present (not yet clicked).
-    expect(screen.getByTestId("review-transfer")).toHaveTextContent(/Review and approve/i);
+    expect(screen.getByTestId("send-path-hold")).toBeChecked();
+    expect(screen.getByTestId("hold-prepare")).toHaveTextContent(/Create Sui agreement/i);
   });
 
-  it("clicking Review and approve opens the checkout dialog and calls verify before signing", async () => {
+  it("choosing Send now opens checkout and verifies before signing", async () => {
     const quote = baseQuote();
     const json = encodeHandoff(wrapQuote(quote));
     const fetchMock = vi.fn((url: string | Request | URL) => {
@@ -283,6 +283,7 @@ describe("Pay Offline — remittance quote import", () => {
       target: { value: json },
     });
     fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
+    fireEvent.click(screen.getByTestId("send-path-direct"));
     fireEvent.click(screen.getByTestId("review-transfer"));
 
     // The checkout dialog opens with the consumer summary.
@@ -323,6 +324,7 @@ describe("Pay Offline — remittance quote import", () => {
       target: { value: json },
     });
     fireEvent.click(screen.getByRole("button", { name: /Open payment/i }));
+    fireEvent.click(screen.getByTestId("send-path-direct"));
     fireEvent.click(screen.getByTestId("review-transfer"));
     await waitFor(() => expect(screen.getByTestId("dialog-content")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Confirm/i }));

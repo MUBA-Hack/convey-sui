@@ -82,6 +82,7 @@ function HoldPrimary({
   deadlinePreset,
   note,
   onNoteInvalid,
+  purpose,
   custodyManifestDigest,
   onEdit,
   onDismiss,
@@ -94,6 +95,7 @@ function HoldPrimary({
   deadlinePreset: ProtectedTransferDeadlinePreset;
   note: string;
   onNoteInvalid: (message: string | null) => void;
+  purpose: HoldPurpose;
   custodyManifestDigest?: string | null;
   onEdit: () => void;
   onDismiss: () => void;
@@ -107,6 +109,7 @@ function HoldPrimary({
     deadlinePreset,
     note,
     onNoteInvalid,
+    agreementTemplateId: purpose,
     // Only forward a real digest to the submit hook; null/undefined both
     // mean "no digest" at the request boundary so the canonical encoding
     // stays unchanged. The button-disable guard below handles the
@@ -156,7 +159,7 @@ function HoldPrimary({
           disabled={prepareDisabled}
           aria-busy={hold.busy}
         >
-          {phase.kind === "planning" ? "Preparing hold…" : "Hold for family review"}
+          {phase.kind === "planning" ? "Preparing agreement…" : "Create Sui agreement"}
         </button>
       ) : (
         <button
@@ -203,7 +206,7 @@ export function ExecutableQuoteActions({
   onCarry: () => void;
   editable: boolean;
 }) {
-  const [path, setPath] = useState<SendPath>("direct");
+  const [path, setPath] = useState<SendPath>("hold");
   const [purpose, setPurpose] = useState<HoldPurpose>("family_support");
   // null = no commitment yet; string = valid digest; undefined = purpose does
   // not require one (family_support default). The hold CTA is disabled while
@@ -212,7 +215,7 @@ export function ExecutableQuoteActions({
     undefined,
   );
   const [deadlinePreset, setDeadlinePreset] =
-    useState<ProtectedTransferDeadlinePreset>("tomorrow");
+    useState<ProtectedTransferDeadlinePreset>("seven_days");
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
   const [holdLocked, setHoldLocked] = useState(false);
@@ -269,6 +272,7 @@ export function ExecutableQuoteActions({
                 : message,
             );
           }}
+          purpose={purpose}
           custodyManifestDigest={forwardedCustodyDigest}
           onEdit={onEdit}
           onDismiss={onDismiss}

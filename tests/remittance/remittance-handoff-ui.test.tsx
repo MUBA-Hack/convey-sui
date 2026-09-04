@@ -19,6 +19,15 @@ vi.mock("@/components/wallet/connect-button", () => ({
   ),
 }));
 
+vi.mock("@mysten/dapp-kit-react", () => ({
+  useCurrentAccount: () => ({ address: "0x" + "22".repeat(32) }),
+  useCurrentNetwork: () => "testnet",
+  useDAppKit: () => ({ signAndExecuteTransaction: vi.fn() }),
+  useCurrentClient: () => ({
+    core: { waitForTransaction: vi.fn() },
+  }),
+}));
+
 // Mock next/link so it renders a plain anchor without router context.
 vi.mock("next/link", () => ({
   default: ({
@@ -180,7 +189,7 @@ describe("RemittanceQuotePreview — carry and no treasury cross-sell", () => {
   it("opening Carry replaces the quote review surface — no underlying controls visible or accessible", () => {
     renderPreview(baseQuote(), "none");
     // Underlying controls are present before Carry opens.
-    expect(screen.getByTestId("review-transfer")).toBeInTheDocument();
+    expect(screen.getByTestId("hold-prepare")).toBeInTheDocument();
     expect(screen.getByTestId("edit-transfer")).toBeInTheDocument();
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
 
@@ -188,7 +197,7 @@ describe("RemittanceQuotePreview — carry and no treasury cross-sell", () => {
     // The quote review surface is replaced by the dedicated handoff step.
     expect(screen.queryByTestId("remittance-quote-preview")).not.toBeInTheDocument();
     // No underlying review/action controls remain in the accessible tree.
-    expect(screen.queryByTestId("review-transfer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("hold-prepare")).not.toBeInTheDocument();
     expect(screen.queryByTestId("edit-transfer")).not.toBeInTheDocument();
     // No second Carry link, no Dismiss.
     expect(screen.queryAllByTestId("carry-to-device")).toHaveLength(0);
@@ -212,7 +221,7 @@ describe("RemittanceQuotePreview — carry and no treasury cross-sell", () => {
     // The quote review surface returns with all its controls.
     expect(screen.queryByTestId("carry-to-device-surface")).not.toBeInTheDocument();
     expect(screen.getByTestId("remittance-quote-preview")).toBeInTheDocument();
-    expect(screen.getByTestId("review-transfer")).toBeInTheDocument();
+    expect(screen.getByTestId("hold-prepare")).toBeInTheDocument();
     expect(screen.getByTestId("edit-transfer")).toBeInTheDocument();
     expect(screen.getByTestId("carry-to-device")).toBeInTheDocument();
   });

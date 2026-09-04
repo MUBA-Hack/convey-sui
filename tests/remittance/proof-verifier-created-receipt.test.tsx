@@ -157,7 +157,7 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
     );
     const stage = screen.getByTestId("protected-transfer-created-stage");
     // Neutral eyebrow + subline only — no Held/Awaiting/locked claim.
-    expect(stage).toHaveTextContent(/Family review receipt/i);
+    expect(stage).toHaveTextContent(/Protected agreement/i);
     expect(stage).toHaveTextContent(/Reviewer: Convey Review/i);
     expect(stage.textContent ?? "").not.toMatch(/Held for/i);
     expect(stage.textContent ?? "").not.toMatch(/Awaiting/i);
@@ -166,8 +166,8 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
     // Page heading/intro stay neutral — no "held" or "this hold" claim.
     const title = screen.getByTestId("receipt-page-title");
     const intro = screen.getByTestId("receipt-page-intro");
-    expect(title).toHaveTextContent(/Checking this family review receipt/i);
-    expect(intro).toHaveTextContent(/proposed hold was created on Sui/i);
+    expect(title).toHaveTextContent(/Checking this protected agreement/i);
+    expect(intro).toHaveTextContent(/proposed agreement was created on Sui/i);
     expect(title.textContent ?? "").not.toMatch(/held/i);
     expect(title.textContent ?? "").not.toMatch(/this hold/i);
     expect(intro.textContent ?? "").not.toMatch(/held amount/i);
@@ -195,7 +195,7 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
       ),
     );
     const stage = screen.getByTestId("protected-transfer-created-stage");
-    expect(stage).toHaveTextContent(/Family review receipt/i);
+    expect(stage).toHaveTextContent(/Protected agreement/i);
     expect(stage.textContent ?? "").not.toMatch(/Held for/i);
     expect(stage.textContent ?? "").not.toMatch(/Awaiting/i);
     const result = screen.getByTestId("protected-transfer-created-result");
@@ -203,7 +203,7 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
     // Page heading/intro stay neutral — no "held" or "this hold" claim.
     const title = screen.getByTestId("receipt-page-title");
     const intro = screen.getByTestId("receipt-page-intro");
-    expect(title).toHaveTextContent(/This family review receipt needs review/i);
+    expect(title).toHaveTextContent(/This agreement receipt needs review/i);
     expect(intro).toHaveTextContent(/proposed amount below/i);
     expect(title.textContent ?? "").not.toMatch(/held/i);
     expect(title.textContent ?? "").not.toMatch(/this hold/i);
@@ -237,7 +237,7 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
     // not_found page heading/intro stay neutral.
     const title = screen.getByTestId("receipt-page-title");
     const intro = screen.getByTestId("receipt-page-intro");
-    expect(title).toHaveTextContent(/This family review receipt needs review/i);
+    expect(title).toHaveTextContent(/This agreement receipt needs review/i);
     expect(intro).toHaveTextContent(/proposed amount below/i);
     expect(title.textContent ?? "").not.toMatch(/held/i);
     expect(title.textContent ?? "").not.toMatch(/this hold/i);
@@ -263,7 +263,7 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
     expect(stage.textContent ?? "").not.toMatch(/Awaiting/i);
     const title = screen.getByTestId("receipt-page-title");
     const intro = screen.getByTestId("receipt-page-intro");
-    expect(title).toHaveTextContent(/Family review status unavailable/i);
+    expect(title).toHaveTextContent(/Agreement status unavailable/i);
     expect(intro).toHaveTextContent(/proposed amount below/i);
     expect(title.textContent ?? "").not.toMatch(/held/i);
     expect(title.textContent ?? "").not.toMatch(/this hold/i);
@@ -279,20 +279,19 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
 
     await waitFor(() =>
       expect(screen.getByTestId("protected-transfer-created-status")).toHaveTextContent(
-        /Hold confirmed on Sui/i,
+        /Agreement confirmed on Sui/i,
       ),
     );
     const stage = screen.getByTestId("protected-transfer-created-stage");
-    expect(stage).toHaveTextContent(/Held for family review/i);
+    expect(stage).toHaveTextContent(/Agreement live on Sui/i);
     expect(stage).toHaveTextContent(/Awaiting Convey Review/);
     expect(stage).toHaveTextContent(/review/i);
     expect(screen.getByTestId("protected-transfer-evidence-council")).toBeInTheDocument();
     expect(screen.getByText(/Check the evidence\. Keep the decision human\./i)).toBeInTheDocument();
     const result = screen.getByTestId("protected-transfer-created-result");
-    expect(result).toHaveTextContent(/locked in escrow/i);
-    // Verified page heading retains the Hold confirmed claim.
+    expect(result).toHaveTextContent(/locked in a shared Sui object/i);
     const title = screen.getByTestId("receipt-page-title");
-    expect(title).toHaveTextContent(/Hold confirmed on Sui/i);
+    expect(title).toHaveTextContent(/Agreement confirmed on Sui/i);
     // Verified explorer CTA upgrades to "View transaction".
     expect(screen.getByRole("link", { name: /view transaction/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /inspect transaction/i })).toBeNull();
@@ -315,7 +314,7 @@ describe("ProofVerifier — Protected Transfer Created receipt truth copy", () =
       expect(screen.getByTestId("protected-transfer-created-result")).toBeInTheDocument(),
     );
     const stage = screen.getByTestId("protected-transfer-created-stage");
-    expect(stage).toHaveTextContent(/Family review receipt/i);
+    expect(stage).toHaveTextContent(/Protected agreement/i);
     expect(stage.textContent ?? "").not.toMatch(/Held for/i);
     expect(stage.textContent ?? "").not.toMatch(/Awaiting/i);
     expect(screen.getByRole("link", { name: /inspect transaction/i })).toBeInTheDocument();

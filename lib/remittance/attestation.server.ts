@@ -10,7 +10,12 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { ATTESTATION_VERSION, type CanonicalAuthorization, type QuoteEnvelope } from "./quote-schema";
+import {
+  ATTESTATION_VERSION,
+  type CanonicalAuthorization,
+  type FinancialIntentBinding,
+  type QuoteEnvelope,
+} from "./quote-schema";
 
 export interface CanonicalFields {
   recipientAddress: string;
@@ -33,6 +38,7 @@ export interface CanonicalFields {
   purpose: string | null;
   /** Verified family-rule max cap in minor MYR, or null when no cap was stated. */
   maximumFamilyLimitMinor: string | null;
+  intentBinding?: FinancialIntentBinding;
 }
 
 const CONTROL_OR_NEWLINE = /[\x00-\x1F\x7F]/;
@@ -84,6 +90,36 @@ export function canonicalMessage(fields: CanonicalFields): string {
     destinationCity: fields.destinationCity,
     purpose: fields.purpose,
     maximumFamilyLimitMinor: fields.maximumFamilyLimitMinor,
+    ...(fields.intentBinding === undefined
+      ? {}
+      : {
+          intentBinding: {
+            version: fields.intentBinding.version,
+            originalIntent: fields.intentBinding.originalIntent,
+            interpretation:
+              fields.intentBinding.interpretation.kind === "gonka"
+                ? {
+                    kind: fields.intentBinding.interpretation.kind,
+                    provider: fields.intentBinding.interpretation.provider,
+                    requestId: fields.intentBinding.interpretation.requestId,
+                    modelId: fields.intentBinding.interpretation.modelId,
+                    detectedLanguage: fields.intentBinding.interpretation.detectedLanguage,
+                  }
+                : {
+                    kind: fields.intentBinding.interpretation.kind,
+                    provider: fields.intentBinding.interpretation.provider,
+                    fallbackReason: fields.intentBinding.interpretation.fallbackReason,
+                  },
+            policy: {
+              engine: fields.intentBinding.policy.engine,
+              result: fields.intentBinding.policy.result,
+              ruleStatus: fields.intentBinding.policy.ruleStatus,
+              purpose: fields.intentBinding.policy.purpose,
+              maximumFamilyLimitMinor:
+                fields.intentBinding.policy.maximumFamilyLimitMinor,
+            },
+          },
+        }),
   });
 }
 
@@ -140,6 +176,9 @@ export function verifyAttestation(
       destinationCity: envelope.destinationCity,
       purpose: envelope.intentReview.purpose,
       maximumFamilyLimitMinor: envelope.intentReview.maximumFamilyLimitMinor,
+      ...(envelope.intentBinding === undefined
+        ? {}
+        : { intentBinding: envelope.intentBinding }),
     });
     return constantTimeHexEqual(expected, envelope.attestation.hmac);
   } catch {
@@ -168,5 +207,8 @@ export function toAuthorization(envelope: QuoteEnvelope, coinType: string): Cano
     destinationCity: envelope.destinationCity,
     purpose: envelope.intentReview.purpose,
     maximumFamilyLimitMinor: envelope.intentReview.maximumFamilyLimitMinor,
+    ...(envelope.intentBinding === undefined
+      ? {}
+      : { intentBinding: envelope.intentBinding }),
   };
 }

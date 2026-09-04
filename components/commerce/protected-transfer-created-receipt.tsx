@@ -37,9 +37,9 @@ function compact(value: string): string {
 }
 
 function createdStatusLabel(state: CreatedCheckState): string {
-  if (state.status === "verified") return "Hold confirmed on Sui";
+  if (state.status === "verified") return "Agreement confirmed on Sui";
   if (state.status === "not_found") return "Transaction not found on Sui testnet";
-  if (state.status === "unavailable") return "Hold status unavailable";
+  if (state.status === "unavailable") return "Agreement status unavailable";
   if (state.status === "rejected") return "Created event did not match this receipt";
   if (state.status === "error") return "Independent check failed";
   return "Re-checking Created event on Sui…";
@@ -52,46 +52,46 @@ export function protectedTransferCreatedPageCopy(
   if (!result.ok) {
     return {
       eyebrow: "Receipt · Needs review",
-      title: "This hold receipt couldn't be verified.",
+      title: "This agreement receipt couldn't be verified.",
       intro:
         "The carried receipt could not be structurally verified. Review the details under Advanced details before relying on it.",
     };
   }
   if (state.status === "checking") {
     return {
-      eyebrow: "Family review receipt · Checking",
-      title: "Checking this family review receipt.",
+      eyebrow: "Protected agreement · Checking",
+      title: "Checking this protected agreement.",
       intro:
-        "We’re checking whether the proposed hold was created on Sui. The amount below remains a receipt detail while the check runs.",
+        "We’re checking whether the proposed agreement was created on Sui. The amount below remains a receipt detail while the check runs.",
     };
   }
   if (state.status === "verified") {
     return {
-      eyebrow: "Hold receipt · Confirmed on Sui",
-      title: "Hold confirmed on Sui.",
+      eyebrow: "Protected agreement · Confirmed on Sui",
+      title: "Agreement confirmed on Sui.",
       intro:
         "The Created event matches this receipt. The funds are held for your family reviewer; release or refund is a separate step.",
     };
   }
   if (state.status === "unavailable") {
     return {
-      eyebrow: "Family review receipt · Status unavailable",
-      title: "Family review status unavailable.",
+      eyebrow: "Protected agreement · Status unavailable",
+      title: "Agreement status unavailable.",
       intro:
         "The independent Sui check is unavailable. The proposed amount below comes from the receipt and is not an on-chain confirmation.",
     };
   }
   if (state.status === "not_found") {
     return {
-      eyebrow: "Family review receipt · Needs review",
-      title: "This family review receipt needs review.",
+      eyebrow: "Protected agreement · Needs review",
+      title: "This agreement receipt needs review.",
       intro:
         "We could not find this transaction on Sui testnet. Review the receipt details before relying on the proposed amount below.",
     };
   }
   return {
-    eyebrow: "Family review receipt · Needs review",
-    title: "This family review receipt needs review.",
+    eyebrow: "Protected agreement · Needs review",
+    title: "This agreement receipt needs review.",
     intro:
       "The Created event does not match this receipt. Review the details before relying on the proposed amount below.",
   };
@@ -225,7 +225,7 @@ export function ProtectedTransferCreatedReceipt({
   if (!result.ok) {
     return (
       <ProofRejectionCard
-        title="This hold receipt couldn't be verified."
+        title="This agreement receipt couldn't be verified."
         errors={result.errors}
       />
     );
@@ -241,7 +241,7 @@ export function ProtectedTransferCreatedReceipt({
         className="rounded-2xl bg-black p-5 text-white"
       >
         <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
-          {createdVerified ? "Held for family review" : "Family review receipt"}
+          {createdVerified ? "Agreement live on Sui" : "Protected agreement"}
         </p>
         <p className="mt-3 text-[44px] font-medium leading-[0.92] tracking-[-0.04em] sm:text-[56px]">
           {formatUsdcGrouped(transfer.amountMicro)}
@@ -275,12 +275,12 @@ export function ProtectedTransferCreatedReceipt({
 
       <div className="mt-5">
         <h2 className="text-xl tracking-[-0.025em] text-black">
-          {createdVerified ? "Hold details" : "Proposed hold terms"}
+          {createdVerified ? "Agreement details" : "Proposed agreement terms"}
         </h2>
         <p className="mt-3 text-sm leading-6 text-neutral-600">
           {createdVerified
-            ? `The funds are locked in escrow until ${transfer.reviewerName} reviews them or the deadline passes.`
-            : "This receipt records the proposed hold terms while Convey checks the transaction on Sui."}
+            ? `The funds are locked in a shared Sui object until ${transfer.reviewerName} reviews them or the deadline passes.`
+            : "This receipt records the proposed agreement terms while Convey checks the transaction on Sui."}
         </p>
         {urlLoaded ? (
           <p className="mt-3 text-xs text-neutral-500">

@@ -478,6 +478,11 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
       : importedTask
         ? { eyebrow: "QR request opened", title: "Review the details" }
         : { eyebrow: "Offline-ready QR", title: "Scan, pay, or collect" };
+  const pageDescription = importedRemittance
+    ? "Your quote arrived intact. Review it, approve its Sui agreement, and keep the public receipt."
+    : imported || importedTask
+      ? "The request arrived intact. Review every term before any wallet approval."
+      : "QR carries the exact request across unreliable signal. When connected, approve its Sui agreement and keep a public receipt.";
 
   return (
     <section className="cv-shell mx-auto w-full max-w-[1040px] px-4 pt-5 md:pt-8">
@@ -488,6 +493,9 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
         <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.04em] text-black sm:text-[40px]">
           {pageIdentity.title}
         </h1>
+        <p className="mt-2 max-w-2xl text-[13px] leading-5 text-neutral-600">
+          {pageDescription}
+        </p>
       </header>
 
       {importedTask ? (
@@ -536,7 +544,7 @@ export function QrFerry({ onValidatedEnvelope }: QrFerryProps = {}) {
           className="cv-money-sheet cv-preview-in overflow-hidden rounded-2xl bg-white p-4"
         >
           <p className="cv-micro cv-micro-sm text-neutral-500">
-            Payment approved
+            Payment request checked
           </p>
           <dl className="mt-3 flex flex-col gap-2 text-sm">
             <div className="flex justify-between">

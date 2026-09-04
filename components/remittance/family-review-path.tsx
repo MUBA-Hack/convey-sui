@@ -136,7 +136,7 @@ export function FamilyReviewSelection({
                 onPathChange("direct");
               }}
             />
-            <span className="whitespace-nowrap">Send directly</span>
+            <span className="whitespace-nowrap">Send now</span>
           </label>
           <label
             className={`relative flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center border-l border-black/12 px-2 text-center text-xs font-medium transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-black ${
@@ -152,7 +152,7 @@ export function FamilyReviewSelection({
               disabled={disabled}
               onChange={() => onPathChange("hold")}
             />
-            <span className="whitespace-nowrap">Hold for family review</span>
+            <span className="whitespace-nowrap">Protect outcome</span>
           </label>
         </div>
       </fieldset>
@@ -169,8 +169,9 @@ export function FamilyReviewSelection({
             className="space-y-2"
           >
           <p className="text-[11px] leading-snug text-neutral-600">
-            The transfer waits for someone in your family to check it. If they
-            don’t, you can take it back after the deadline.
+            Convey turns this request into a Sui agreement. Your reviewer
+            releases it after the requested evidence is checked; expiry returns
+            control to you.
           </p>
           {/* Compact hold-purpose choice. family_support is the default and
               preserves the canonical hold (no custody digest). medicine_pickup
@@ -184,14 +185,14 @@ export function FamilyReviewSelection({
             <legend className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
               Purpose
             </legend>
-            <div className="flex h-11 w-full overflow-hidden rounded-lg border border-black/12">
+            <div className="grid w-full grid-cols-2 overflow-hidden rounded-lg border border-black/12">
               {HOLD_PURPOSE_CHOICES.map((choice) => {
                 const selected = purpose === choice.id;
                 return (
                   <label
                     key={choice.id}
                     data-testid={`purpose-${choice.id}`}
-                    className={`relative flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-center border-r border-black/12 text-xs font-medium last:border-r-0 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-[-2px] has-[:focus-visible]:outline-black ${
+                    className={`relative flex min-h-11 min-w-0 cursor-pointer items-center justify-center border-b border-r border-black/12 px-2 text-center text-xs font-medium transition-colors even:border-r-0 [&:nth-last-child(-n+2)]:border-b-0 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-[-2px] has-[:focus-visible]:outline-black ${
                       selected ? "bg-black text-white" : "bg-white text-neutral-700"
                     } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >
