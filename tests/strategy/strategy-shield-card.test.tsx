@@ -10,7 +10,7 @@ import type { ShieldRecommendation } from "@/lib/strategy/shield-recommendation"
 
 const LIVE: ShieldRecommendation = {
   kind: "live",
-  fetchedAt: "2026-08-31T00:00:00.000Z",
+  fetchedAt: "2026-09-04T00:00:00.000Z",
   expiresAt: "2026-10-01T00:00:00.000Z",
   asset: "ETH",
   optionType: "put",
@@ -19,7 +19,7 @@ const LIVE: ShieldRecommendation = {
   premiumBudgetUsd: 3,
   premiumAmountUsdc: "3000000",
   maximumLossUsdc: "3000000",
-  numContracts: "40",
+  numContracts: "2400000",
   collateralToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
   chainId: 8453,
   execution: "none",
@@ -69,11 +69,21 @@ describe("StrategyShieldCard copy", () => {
       />,
     );
     expect(html).toContain("Protect your ETH for 30 days");
-    expect(html).toContain("Budget limit");
+    expect(html).toContain("You pay");
+    expect(html).toContain("USDC premium · $1.25 per contract");
+    expect(html).toContain("Floor");
+    expect(html).toContain("$4,000");
+    expect(html).toContain("Covers");
+    expect(html).toContain("2.4");
+    expect(html).toContain("ETH at the floor");
     expect(html).toContain("Ends");
+    expect(html).toContain("30-day window");
+    expect(html).toContain("What this pays you");
+    expect(html).toContain("Maximum loss: $3.00 USDC.");
     expect(html).toContain("Review and continue");
     expect(html).toContain("$3.00");
-    expect(html).toContain("$4,000");
+    expect(html).toContain("Terms matched Sep 4, 2026 · 00:00 UTC · Base");
+    expect(html).not.toContain("Budget limit");
     expect(html).not.toContain("OFFICIAL SDK");
     expect(html).not.toContain("SERVER-ONLY");
     expect(html).not.toContain("NO SIGNER");
@@ -146,7 +156,7 @@ describe("StrategyDesk — shield live path", () => {
       expect(screen.getByTestId("shield-recommendation")).toBeInTheDocument(),
     );
     expect(screen.getByText("Protect your ETH for 30 days")).toBeInTheDocument();
-    expect(screen.getByText("Budget limit")).toBeInTheDocument();
+    expect(screen.getByText("You pay")).toBeInTheDocument();
     expect(screen.getByText("Ends")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review and continue" })).toBeInTheDocument();
     expect(screen.queryByText("Market context")).toBeNull();

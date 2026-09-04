@@ -2,11 +2,14 @@
 
 import { Refresh, ShieldSearch, type IconComponent } from "@/components/icons";
 import {
+  formatContractsMicro,
   formatProtectionExpiry,
   formatStrike,
+  formatUsd,
   formatUsdcMicro,
 } from "@/lib/strategy/format";
 import type { ShieldRecommendation } from "@/lib/strategy/shield-recommendation";
+import { StrategyProtectionPayoff } from "@/components/strategy/strategy-protection-payoff";
 
 interface StrategyShieldCardProps {
   recommendation: ShieldRecommendation;
@@ -185,30 +188,51 @@ export function StrategyShieldCard({
           </p>
         </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-px bg-black/6 sm:grid-cols-3">
+        <div className="mt-auto grid grid-cols-2 gap-px bg-black/6 sm:grid-cols-4">
+          <div className="bg-white px-6 py-5 md:px-8">
+            <p className="text-[13px] font-medium text-neutral-500">You pay</p>
+            <p className="mt-2 text-[30px] font-semibold tabular-nums tracking-[-0.04em] text-black">
+              {formatUsdcMicro(recommendation.premiumAmountUsdc)}
+            </p>
+            <p className="mt-1 text-[12px] leading-5 text-neutral-500">
+              USDC premium · {formatUsd(recommendation.pricePerContractUsd)}{" "}
+              per contract
+            </p>
+          </div>
           <div className="bg-white px-6 py-5 md:px-8">
             <p className="text-[13px] font-medium text-neutral-500">Floor</p>
             <p className="mt-2 text-[30px] font-semibold tabular-nums tracking-[-0.04em] text-black">
               {formatStrike(recommendation.strikeUsd)}
             </p>
-          </div>
-          <div className="bg-white px-6 py-5 md:px-8">
-            <p className="text-[13px] font-medium text-neutral-500">Budget limit</p>
-            <p className="mt-2 text-[30px] font-semibold tabular-nums tracking-[-0.04em] text-black">
-              {formatUsdcMicro(recommendation.premiumAmountUsdc)}
+            <p className="mt-1 text-[12px] leading-5 text-neutral-500">
+              protected price
             </p>
           </div>
-          <div className="col-span-2 bg-white px-6 py-5 sm:col-span-1 md:px-8">
+          <div className="bg-white px-6 py-5 md:px-8">
+            <p className="text-[13px] font-medium text-neutral-500">Covers</p>
+            <p className="mt-2 text-[30px] font-semibold tabular-nums tracking-[-0.04em] text-black">
+              {formatContractsMicro(recommendation.numContracts) ?? "—"}
+            </p>
+            <p className="mt-1 text-[12px] leading-5 text-neutral-500">
+              {recommendation.asset} at the floor
+            </p>
+          </div>
+          <div className="bg-white px-6 py-5 md:px-8">
             <p className="text-[13px] font-medium text-neutral-500">Ends</p>
             <p className="mt-2 text-[23px] font-semibold tracking-[-0.03em] text-black">
               {formatProtectionExpiry(recommendation.expiresAt)}
             </p>
+            <p className="mt-1 text-[12px] leading-5 text-neutral-500">
+              {horizonDays == null ? "protection window" : `${horizonDays}-day window`}
+            </p>
           </div>
         </div>
 
+        <StrategyProtectionPayoff recommendation={recommendation} />
+
         <div className="flex flex-col gap-4 bg-white px-6 py-5 md:flex-row md:items-end md:justify-between md:px-8">
           <p className="text-[14px] leading-6 text-neutral-600">
-            Your final cost may be lower. It will never exceed this limit.
+            Nothing is submitted until you approve it in your wallet.
           </p>
           <button
             type="button"
