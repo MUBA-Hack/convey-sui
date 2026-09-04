@@ -171,6 +171,31 @@ export function computeEvidenceCouncilArtifactDigest(
   );
 }
 
+export interface EvidenceCouncilArtifactExport {
+  filename: string;
+  json: string;
+}
+
+/**
+ * Serializes a portable advisory artifact only when it is still strictly
+ * schema-valid and its canonical digest recomputes. Any malformed or tampered
+ * artifact yields null so the UI can offer no copy/download at all.
+ */
+export function buildEvidenceCouncilArtifactExport(
+  artifact: EvidenceCouncilArtifact,
+): EvidenceCouncilArtifactExport | null {
+  const parsed = EvidenceCouncilArtifactSchema.safeParse(artifact);
+  if (!parsed.success) return null;
+  const { artifactDigest, ...payload } = parsed.data;
+  if (artifactDigest !== computeEvidenceCouncilArtifactDigest(payload)) {
+    return null;
+  }
+  return {
+    filename: `convey-evidence-council-${artifactDigest.slice(2, 14)}.json`,
+    json: `${JSON.stringify(parsed.data, null, 2)}\n`,
+  };
+}
+
 export const EvidenceCouncilResponseSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("ready_for_human_review"),

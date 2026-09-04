@@ -6,7 +6,12 @@ import {
   type EvidenceCouncilContext,
   type EvidenceCouncilModelReview,
 } from "@/lib/remittance/evidence-council";
-import { EvidenceCouncilArtifactSchema } from "@/lib/remittance/evidence-council-client";
+import {
+  buildEvidenceCouncilArtifactExport,
+  computeEvidenceCouncilArtifactDigest,
+  EvidenceCouncilArtifactSchema,
+  type EvidenceCouncilArtifact,
+} from "@/lib/remittance/evidence-council-client";
 
 const NOW = 1_700_000_000_000;
 const TEXT =
@@ -199,5 +204,37 @@ describe("Evidence Council", () => {
       advisoryOnly: true,
       reason: "deadline_passed",
     });
+  });
+});
+
+describe("buildEvidenceCouncilArtifactExport", () => {
+  function readyArtifact(): EvidenceCouncilArtifact {
+    const result = aggregateEvidenceCouncil({
+      context: context(),
+      first: review("a"),
+      second: review("b"),
+    });
+    if (result.kind !== "ready_for_human_review") {
+      throw new Error(`Expected ready artifact, received ${result.kind}.`);
+    }
+    return result.artifact;
+  }
+
+  it("exports a schema-valid artifact whose digest is recomputable from the JSON", () => {
+    const artifact = readyArtifact();
+    const exported = buildEvidenceCouncilArtifactExport(artifact);
+    if (exported === null) throw new Error("Expected a portable export.");
+    expect(exported.filename).toMatch(/^convey-evidence-council-[0-9a-f]{12}\.json$/);
+
+    const reparsed = EvidenceCouncilArtifactSchema.parse(JSON.parse(exported.json));
+    const { artifactDigest, ...payload } = reparsed;
+    expect(computeEvidenceCouncilArtifactDigest(payload)).toBe(artifactDigest);
+    expect(artifactDigest).toBe(artifact.artifactDigest);
+  });
+
+  it("refuses to export an artifact whose digest no longer matches its content", () => {
+    const artifact = readyArtifact();
+    const tampered: EvidenceCouncilArtifact = { ...artifact, recipient: "Someone else" };
+    expect(buildEvidenceCouncilArtifactExport(tampered)).toBeNull();
   });
 });
