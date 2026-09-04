@@ -64,10 +64,23 @@ describe("manifest — identity, display, theme, icons", () => {
     expect(m.short_name).toMatch(/convey/i);
     expect(m.description).toMatch(/convey/i);
     expect(m.display).toBe("standalone");
-    expect(m.start_url).toBe("/");
+    expect(m.id).toBe("/app");
+    expect(m.start_url).toBe("/app");
     // Monochrome: white background, black theme.
     expect(m.background_color).toBe("#ffffff");
     expect(m.theme_color).toBe("#000000");
+  });
+
+  it("opens core product jobs directly from the installed app", async () => {
+    const { default: manifest } = await import("@/app/manifest");
+    const shortcuts = manifest().shortcuts ?? [];
+
+    expect(shortcuts.map((shortcut) => shortcut.url)).toEqual([
+      "/app",
+      "/verify",
+      "/qr-ferry",
+    ]);
+    expect(shortcuts.every((shortcut) => shortcut.name && shortcut.description)).toBe(true);
   });
 
   it("declares exactly the 192 and 512 monochrome PNG icons", async () => {

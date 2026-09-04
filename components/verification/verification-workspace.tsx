@@ -1,0 +1,282 @@
+"use client";
+
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  ArrowRight,
+  DocumentText,
+  Global,
+  SearchNormal1,
+  ShieldSearch,
+  TickCircle,
+  Warning2,
+} from "@/components/icons";
+import {
+  requestClaimVerification,
+  type ClaimVerificationReport,
+  type ClaimVerificationResponse,
+} from "@/lib/verification/claim-report";
+
+type InputMode = "text" | "url";
+
+const RELIEF_EXAMPLE =
+  "Independent auditors confirmed the flood relief fund paid for 42 water filters delivered to three evacuation centres.";
+
+const FAILURE_COPY: Record<
+  Exclude<ClaimVerificationResponse, ClaimVerificationReport>["reason"],
+  string
+> = {
+  invalid_input: "Add a complete claim or public link.",
+  unsafe_url: "That address is private, local, or otherwise unsafe to read.",
+  source_unavailable: "The public source could not be read. Paste the relevant text instead.",
+  source_too_large: "That page is too large to inspect safely. Paste the relevant passage instead.",
+  not_configured: "Live verification is not configured on this deployment.",
+  provider_error: "The Gonka reviewers did not return a complete report. Try again.",
+  insufficient_consensus: "The reviewers could not produce an independent consensus.",
+};
+
+function verdictCopy(report: ClaimVerificationReport): string {
+  if (report.verdict === "supported") return "Supported";
+  if (report.verdict === "mixed") return "Mixed evidence";
+  if (report.verdict === "unsupported") return "Unsupported";
+  return "Not enough evidence";
+}
+
+function stepCopy(step: ClaimVerificationReport["steps"][number]["step"]): string {
+  if (step === "claim_extraction") return "Claim extracted";
+  if (step === "review_a") return "Independent review A";
+  return "Independent review B";
+}
+
+export function VerificationWorkspace() {
+  const reduceMotion = useReducedMotion();
+  const [mode, setMode] = useState<InputMode>("text");
+  const [input, setInput] = useState(RELIEF_EXAMPLE);
+  const [report, setReport] = useState<ClaimVerificationReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const requestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
+
+  const changeMode = (next: InputMode) => {
+    requestRef.current?.abort();
+    setMode(next);
+    setInput(next === "text" ? RELIEF_EXAMPLE : "");
+    setReport(null);
+    setError(null);
+    setRunning(false);
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = input.trim();
+    if (value.length < 8) {
+      setError(mode === "url" ? "Add a complete public link." : "Add a complete claim.");
+      return;
+    }
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setRunning(true);
+    setError(null);
+    setReport(null);
+    try {
+      const result = await requestClaimVerification(
+        { inputType: mode, input: value },
+        (url, init) => fetch(url, { ...init, signal: controller.signal }),
+      );
+      if (controller.signal.aborted) return;
+      if (result.kind === "verified_report") setReport(result);
+      else setError(FAILURE_COPY[result.reason]);
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : "Verification could not finish.");
+      }
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setRunning(false);
+      }
+    }
+  };
+
+  return (
+    <section className="verify-shell" aria-labelledby="verify-title">
+      <header className="verify-intro">
+        <p className="companion-eyebrow text-black/45">Gonka verification council</p>
+        <h1 id="verify-title">Check a claim. See every decision.</h1>
+        <p>
+          Convey freezes one checkable claim, sends it to two independent Gonka models,
+          and shows the score, evidence, disagreement, and request trail.
+        </p>
+      </header>
+
+      <div className="verify-workspace">
+        <form className="verify-input-panel" onSubmit={submit}>
+          <div className="verify-mode" role="group" aria-label="Verification input type">
+            <button type="button" aria-pressed={mode === "text"} onClick={() => changeMode("text")}>
+              <DocumentText size={17} /> Text
+            </button>
+            <button type="button" aria-pressed={mode === "url"} onClick={() => changeMode("url")}>
+              <Global size={17} /> Public link
+            </button>
+          </div>
+
+          <label htmlFor="verification-input">
+            {mode === "text" ? "Claim or passage" : "Public page URL"}
+          </label>
+          {mode === "text" ? (
+            <textarea
+              id="verification-input"
+              value={input}
+              maxLength={12_000}
+              rows={9}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="Paste a claim, message, or article passage"
+              disabled={running}
+            />
+          ) : (
+            <input
+              id="verification-input"
+              value={input}
+              maxLength={2_048}
+              type="url"
+              inputMode="url"
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="https://example.com/report"
+              disabled={running}
+            />
+          )}
+
+          <p className="verify-input-note">
+            {mode === "url"
+              ? "Convey reads the public page now, then sends only bounded source text to Gonka."
+              : "Convey checks the supplied text against the source itself and model knowledge."}
+          </p>
+
+          <button className="verify-submit" type="submit" disabled={running || input.trim().length < 8}>
+            {running ? <span className="verify-spinner" aria-hidden /> : <ShieldSearch size={19} />}
+            {running ? "Council reviewing" : "Run independent checks"}
+            {!running && <ArrowRight size={17} />}
+          </button>
+        </form>
+
+        <div className="verify-result" aria-live="polite" aria-busy={running}>
+          <AnimatePresence mode="wait" initial={false}>
+            {running ? (
+              <motion.div
+                key="running"
+                className="verify-running"
+                initial={reduceMotion ? false : { opacity: 0, transform: "translateY(8px)" }}
+                animate={{ opacity: 1, transform: "translateY(0)" }}
+                exit={reduceMotion ? undefined : { opacity: 0, transform: "translateY(-4px)" }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+              >
+                <span className="verify-orbit"><ShieldSearch size={26} /></span>
+                <h2>Three traceable steps are running.</h2>
+                <p>Claim extraction first. Two distinct model reviews next.</p>
+                <ol>
+                  <li data-active="true">Freeze the exact claim</li>
+                  <li>Review with model A</li>
+                  <li>Cross-check with model B</li>
+                </ol>
+              </motion.div>
+            ) : error ? (
+              <motion.div
+                key="error"
+                className="verify-empty verify-empty--error"
+                initial={reduceMotion ? false : { opacity: 0, transform: "translateY(8px)" }}
+                animate={{ opacity: 1, transform: "translateY(0)" }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+              >
+                <Warning2 size={24} />
+                <h2>Report not completed.</h2>
+                <p>{error}</p>
+              </motion.div>
+            ) : report ? (
+              <motion.article
+                key={report.assessedAt}
+                className="verify-report"
+                initial={reduceMotion ? false : { opacity: 0, transform: "translateY(12px)" }}
+                animate={{ opacity: 1, transform: "translateY(0)" }}
+                transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="verify-report-head">
+                  <div>
+                    <span>{report.truthScore}</span>
+                    <small>Truth score</small>
+                  </div>
+                  <div>
+                    <p>{verdictCopy(report)}</p>
+                    <strong>{report.consensus.status === "aligned" ? "Models align" : "Models disagree"}</strong>
+                    <small>{report.consensus.scoreSpread} point spread</small>
+                  </div>
+                </div>
+
+                <div className="verify-claim">
+                  <span>Claim checked</span>
+                  <blockquote>{report.primaryClaim}</blockquote>
+                  <small>{report.claimType}</small>
+                </div>
+
+                <section className="verify-reasons" aria-labelledby="reasoning-title">
+                  <h2 id="reasoning-title">Reasoning trace</h2>
+                  <div>
+                    {(["review_a", "review_b"] as const).map((reviewer) => (
+                      <article key={reviewer}>
+                        <h3>{reviewer === "review_a" ? "Review A" : "Review B"}</h3>
+                        {report.reasoningTrace
+                          .filter((reason) => reason.reviewer === reviewer)
+                          .map((reason, index) => <p key={`${reviewer}-${index}`}>{reason.text}</p>)}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                {report.evidence.length > 0 && (
+                  <section className="verify-evidence" aria-labelledby="evidence-title">
+                    <h2 id="evidence-title">Source evidence</h2>
+                    {report.evidence.map((evidence, index) => (
+                      <q key={`${evidence.reviewer}-${index}`}>{evidence.text}</q>
+                    ))}
+                  </section>
+                )}
+
+                <section className="verify-trace" aria-labelledby="trace-title">
+                  <h2 id="trace-title">Gonka request trail</h2>
+                  {report.steps.map((step) => (
+                    <div key={step.requestId}>
+                      <TickCircle size={16} />
+                      <span><strong>{stepCopy(step.step)}</strong><small>{step.modelId}</small></span>
+                      <code>{step.requestId}</code>
+                    </div>
+                  ))}
+                </section>
+
+                {report.source.kind === "url" && (
+                  <a className="verify-source-link" href={report.source.url} target="_blank" rel="noreferrer">
+                    <Global size={16} /> {report.source.title ?? report.source.host}
+                    <ArrowRight size={15} />
+                  </a>
+                )}
+              </motion.article>
+            ) : (
+              <motion.div key="empty" className="verify-empty" initial={false} animate={{ opacity: 1 }}>
+                <SearchNormal1 size={26} />
+                <h2>One claim becomes a public audit trail.</h2>
+                <p>
+                  The report separates extraction, independent review, consensus, and provenance.
+                  No model can move money or approve an agreement.
+                </p>
+                <div className="verify-empty-route" aria-hidden>
+                  <span>Claim</span><i /><span>2 models</span><i /><span>Report</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </section>
+  );
+}

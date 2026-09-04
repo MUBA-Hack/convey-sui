@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const COMMERCE_ITEMS = [
   { href: "/app", label: "Assistant", description: "Ask Convey" },
+  { href: "/verify", label: "Verify", description: "Check a claim with two Gonka models" },
   { href: "/pay", label: "Pay", description: "Send money nearby or abroad" },
   {
     href: "/qr-ferry",

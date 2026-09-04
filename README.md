@@ -23,7 +23,8 @@ purpose, evidence checks, reviewer, and expiry are bound into one commitment
 before the wallet opens. AI can propose. Only the customer can approve. Sui
 controls release or refund.
 
-The product is designed for people who should not need to understand seed
+The product is designed for people, teams, merchants, and relief organizations
+that should not need to understand seed
 phrases, token decimals, transaction builders, or AI routing. The companion is
 available from a dedicated full-height app at `/app`; the public `/` route is
 now a product landing page rather than an embedded workspace. Pay,
@@ -85,7 +86,7 @@ sync.
   <img src="docs/screenshots/qr-pay-mobile.png" alt="Convey Scan and Pay workspace on mobile" width="300" />
 </p>
 
-## One companion, focused money journeys
+## One companion, many governed outcomes
 
 The `/app` companion combines text, voice, bounded contact context, strict tool
 contracts, and approval-first outcomes in a dedicated responsive workspace.
@@ -100,6 +101,12 @@ receipt-to-obligation allocator can create reconciled shares. Protection
 requests open a bounded policy review backed by the tested overnight-policy
 core. No companion tool signs, submits, releases escrow, or executes an options
 trade.
+
+The same interaction model scales beyond one person: a freelancer can make
+delivery the payment-release condition, a club can require several approvals,
+a relief organization can verify purchase evidence, and a merchant can issue a
+QR request. These workflows reuse one agreement spine instead of presenting
+unrelated financial mini-apps.
 
 The companion has two inference paths:
 
@@ -230,6 +237,7 @@ payout.
 | Chat-first companion with voice, strict Gonka tool selection, deterministic fallback/rebind, inspectable device-local contact memory with forget/clear controls, visibly labelled sample contact, full manual receipt split, bounded two-review payment risk route, a publicly verified live two-model Family Steward artifact, and explicit overnight limits | Encrypted multi-device memory sync, production contact onboarding and receipt OCR, a live Evidence Council artifact joined to a Created receipt, and execution authority for an approved overnight policy |
 | Strict receipt-to-obligation allocator with reconciled subtotal/tax/service, shared items, deterministic rounding, explicit confirmation, and independently verified settlement transitions | Connected receipt extraction and production request delivery |
 | Strict overnight protection policy with policy hash, time/spend/loss/trade/slippage limits, authority binding, kill switch, fail-closed evaluation, and a deterministic approval-to-verification replay backed by the tested journal | Customer-approved scoped execution authority and independently verified Thetanuts fills |
+| First-class public claim verification for pasted text or a bounded public page, with one Gonka extraction call, two distinct-model reviews, a 0–100 truth score, separate reasoning, exact source evidence, disagreement state, and all request IDs | Capture a reproducible successful hosted report while the current Gonka provider path is available; model output remains analysis rather than ground truth |
 | Public Gonka request-receipt proxy with strict metadata schema, bounded device-local Activity records, exact request/model re-verification, and explicit verified/mismatch/not-found/unavailable states | Gateway-signed request and response hashes when Gonka ships signed receipts |
 | Typed and spoken remittance requests with strict schema, deterministic rebind, ambiguity handling, and GonkaRouter when configured | Live MYR funding, regulated FX, PHP bank or cash payout, KYC, refunds, and corridor approval |
 | Integer-only reference quote, expiring server attestation, Family Rule binding, Family Guardian pre-approval checks, and bounded Family Steward message review with honest fallback plus two public Gonka receipts | Production pricing and independent recipient/payout-provider verification |
@@ -529,6 +537,36 @@ check. The public lifecycle proves testnet-USDC settlement and sponsor-paid gas,
 but not upgrade immutability, production review policy, or fiat payout. The evidence commitment is
 immutable metadata on the escrow; it does not prove that the underlying claim
 is true.
+
+### Public claim verification
+
+`/verify` accepts either pasted text or one public HTTP(S) page and produces a
+transparent Gonka council report. For a public link, Convey performs a bounded
+server-side read, rejects local and private destinations, revalidates each
+redirect, accepts text-like content only, and sends the normalized source text
+to Gonka. The URL itself, browser credentials, wallet details, and transaction
+authority never enter a model prompt.
+
+The first Gonka call freezes one exact claim copied from the source. Two
+distinct configured models then review that same claim concurrently against the
+same bounded source. Strict schemas require a 0–100 score, verdict, separate
+reasoning, exact source excerpts, limitations, model identity, latency, and a
+different Gonka request ID for all three calls. Deterministic aggregation shows
+whether reviewers align or disagree; malformed output, duplicate models,
+duplicate request IDs, unsafe sources, and provider failure all fail closed.
+
+The rendered report is an inspectable analysis, not a signature, payment
+approval, or guarantee that a claim is true. The route and all report states are
+implemented and tested. A successful hosted three-call artifact has not yet
+been captured because current live attempts returned a Gonka gateway error.
+
+<p align="center">
+  <img src="docs/screenshots/gonka-verification-desktop.png" alt="Convey public claim verification workspace on desktop" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/gonka-verification-mobile.png" alt="Convey public claim verification workspace on mobile" width="300" />
+</p>
 
 ### GonkaRouter remittance interpretation
 
@@ -926,6 +964,8 @@ approval, fill, or receipt artifact is claimed.
 ### PWA and offline behavior
 
 - Installable standalone manifest with 192px, 512px, and maskable icons.
+- Installed launches open the companion at `/app`; app shortcuts open the
+  companion, public claim verification, or Scan and Pay directly.
 - Versioned service worker and explicit `/offline` shell.
 - Navigation uses network-first behavior with an offline-shell fallback.
 - Static same-origin GET assets use stale-while-revalidate.
@@ -941,6 +981,7 @@ approval, fill, or receipt artifact is claimed.
 | --- | --- | --- |
 | `/` — **Product site** | Explain Convey's value, trust model, and primary customer journeys before opening the product | Public, read-only presentation; no transaction authority |
 | `/app` — **Companion** | Chat or speak to Convey; prepare a bounded payment, receipt split, protected support mission, or treasury policy | Gonka sees a redacted contact manifest; deterministic code rebinds opaque IDs; no signer or transaction submission |
+| `/verify` — **Verify** | Paste text or a public page and inspect claim extraction, two independent reviews, truth score, reasoning, evidence, disagreement, and request IDs | All inference runs through Gonka; bounded source text only; strict fail-closed report; no wallet or transaction authority |
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Scan and Pay** | Scan, receive, request, split by personal QR or WhatsApp link, propose a purpose allowance or payment pass, carry a signed remittance quote, or transport an offline commerce request | QR task proposals are local; settlement and enforced conditions still require connection, policy support, and wallet approval |
 | `/settings` — **Settings** | Choose device-local money, QR, memory, alert, and low-data preferences | Local preferences only; no signing or payment authority |
@@ -951,6 +992,7 @@ approval, fill, or receipt artifact is claimed.
 | `POST /api/companion/turn` | Strict companion tool selection, deterministic contact rebind, and approval-gated payment proposal | 16 KiB body cap; redacted contact manifest; live Gonka result used only after schema and memory checks; deterministic fallback; `no-store`; no signer |
 | `POST /api/companion/risk` | Deterministic payment risk checks plus two distinct advisory Gonka reviews | Message-only inference; addresses and transaction authority never reach models; disagreement can hold but only deterministic QR/policy mismatch can reject; `no-store`; no signer |
 | `POST /api/companion/receipt/verify` | Re-check one saved companion routing record against Gonka's public receipt | 1 KiB body cap; exact request/model match; fixed provider origin; six-second read; `no-store`; no prompt, key, signer, or transaction data |
+| `POST /api/verify` | Extract one exact claim, run two distinct Gonka reviews, and aggregate a bounded verification report | 18 KiB request cap; guarded public-source read; exact source spans; three distinct request IDs; no URL or transaction authority reaches a model; `no-store`; provider errors fail closed |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional bounded Gonka interpretation | Structured product actions may explicitly bypass inference; interactive Gonka calls use at most a six-second adapter timeout and no retries; server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
@@ -969,7 +1011,7 @@ approval, fill, or receipt artifact is claimed.
 
 ## Architecture
 
-The product exposes four focused customer surfaces, but they share one trust
+The product exposes seven focused customer surfaces, but they share one trust
 model: interpretation may propose an action; deterministic code validates it;
 the customer remains the only payment authority. The diagrams below describe
 the current implementation.
@@ -1372,11 +1414,14 @@ safety route**. Neither fallback proves settlement.
 | `NEXT_PUBLIC_MERCHANT_ADDRESS` | Browser | Empty; valid canonical Sui address enables one prerequisite for real testnet settlement |
 | `NEXT_PUBLIC_ENOKI_API_KEY` | Browser | Optional Enoki onboarding; hidden when empty |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Browser | Optional Google OAuth client ID paired with Enoki |
+| `ENOKI_PRIVATE_API_KEY` | Server only | Optional exact-command testnet sponsorship; never exposed to browser code |
 | `GONKA_ROUTER_API_KEY` | Server only | Empty; required for an attempted live Gonka route, including Family Steward |
 | `GONKA_ROUTER_BASE_URL` | Server only | `https://api.gonkarouter.io/v1` |
 | `GONKA_MODEL_ID` | Server only | `deepseek-ai/DeepSeek-V4-Flash-0731` |
 | `GONKA_FAMILY_STEWARD_MODEL_A` | Server only | Empty; first Family Steward reviewer model; must be nonblank and differ from model B |
 | `GONKA_FAMILY_STEWARD_MODEL_B` | Server only | Empty; second Family Steward reviewer model; must be nonblank and differ from model A |
+| `GONKA_VERIFY_MODEL_A` | Server only | Empty; optional claim extractor/reviewer A override; otherwise reuses Family Steward A or `GONKA_MODEL_ID` |
+| `GONKA_VERIFY_MODEL_B` | Server only | Empty; optional reviewer B override; otherwise reuses Family Steward B and must remain distinct from A |
 | `GONKA_REQUEST_TIMEOUT_MS` | Server only | `90000` milliseconds in the hosted app so both council models can finish; the interactive quote route still caps each Gonka attempt at six seconds |
 | `GONKA_MAX_RETRIES` | Server only | `1`; accepted range is 0 or 1 |
 | `REMITTANCE_MYR_PER_USDC` | Server only | Reference MYR sen per USDC; default `450` |
@@ -1591,13 +1636,15 @@ complete track submission.
 | Sui AI x Sui | GonkaRouter interpretation behind deterministic rebind/policy; AI provenance included in the commitment the customer signs; public sponsored Sui agreement and human-reviewed release; M-of-N and recurring objects reuse the same committed-intent model | A successful live Evidence Council artifact joined to a product-generated Created receipt remains required |
 | Thetanuts Best Product Built on SDK | Bounded Base-mainnet offer discovery plus strict 0.000001–3 USDC plan, exact allowance/approval/fill requests, external-wallet authority, durable recovery, direct fill verification, and `/proof?o=` receipt | Official live order index is currently unavailable; no customer-approved real transaction or verified live receipt was captured in this work |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, live signed-order selection, customer review, wallet execution boundary, and independently checked outcome | Mapping is deterministic rather than model-routed; a live order and real transaction artifact remain uncaptured |
-| Gonka AI for Society | Mixed-language remittance interpretation plus a publicly verified live two-model Family Steward council, distinct-model provenance, exact-evidence spans, deterministic checks, and an AI-decision digest carried into an enforceable Sui agreement | A captured multilingual remittance artifact and a live Created-receipt Evidence Council artifact remain required |
+| Gonka AI for Society | First-class text/link verification with claim extraction, two distinct model reviews, 0–100 score, reasoning traces, exact evidence, consensus status, and every Gonka request ID; mixed-language remittance, Family Steward, and AI-decision provenance remain connected to enforceable Sui agreements | Capture one successful hosted verification report, a multilingual remittance artifact, and a live Created-receipt Evidence Council artifact |
 
 ## Project map
 
 ```text
 app/
-  page.tsx                     chat-first companion Home
+  page.tsx                     public product landing
+  app/page.tsx                 chat-first companion workspace
+  verify/page.tsx              public claim verification workspace
   pay/page.tsx                 Send abroad / Buy nearby workspace
   qr-ferry/page.tsx            Scan and Pay: QR tasks, signed-quote carry, commerce handoff
   proof/page.tsx               Activity ledger plus portable Sui/Base receipt verification
@@ -1605,6 +1652,7 @@ app/
   offline/page.tsx             PWA navigation fallback
   api/commerce/intent/route.ts Gonka commerce route + deterministic fallback
   api/companion/turn/route.ts  redacted Gonka tool choice + deterministic memory rebind
+  api/verify/route.ts          three-step Gonka claim extraction and consensus report
   api/remittance/quote/route.ts reference quote + optional Gonka interpretation + attestation
   api/remittance/quote/verify/route.ts quote verification + authorization
   api/remittance/family-steward/route.ts bounded two-model advisory message review
@@ -1622,6 +1670,7 @@ app/
   manifest.ts                  installable PWA manifest
 components/
   companion/                   responsive chat, voice, proposal and clarification UI
+  verification/                text/link verification input, states, report and request trail
   commerce/                    chat, voice, checkout, ferry, scanner, receipt and proof UI, including Base purchase proof
     activity-*.tsx             device-local receipt-link ledger and empty state
     remittance-settlement-status.tsx strict result-first Sui and payout states
@@ -1635,6 +1684,7 @@ lib/
   activity/                    strict bounded local Activity schema, ordering and safe storage
   commerce/                    catalog, intent, Gonka resolver, payment, QR, proof
   gonka/                       shared structured-router core, commerce, remittance and Family Steward specs
+  verification/                source guard, claim schemas, Gonka reviewers and deterministic consensus
   http/                        shared server-only bounded UTF-8 request reader
   remittance/                  integer money, parser, schemas, USDC transfer, Gonka resolver, Family Steward policy, offline handoff, settlement verification
     evidence-council.ts        exact-span resolution, deterministic checks, aggregation and artifact provenance
@@ -1670,6 +1720,7 @@ tests/
   activity/                    local Activity schema, ordering, bounds and storage-failure tests
   commerce/                    product, safety, scanner, handoff, proof, PWA and responsive tests
   gonka/                       adapter, schema, retry, and remittance-router tests
+  verification/                public-source, report-route, consensus and responsive workspace tests
   http/                        shared bounded UTF-8 request reader transport tests
     read-bounded-utf8-body.server.test.ts byte cap, declared/actual equality, read/cancel, and UTF-8 tests
   remittance/                  quote API, resolver, handoff, settlement route/evaluator, and UI lifecycle tests
@@ -1687,6 +1738,9 @@ tests/
 
 ## Known limitations and next proof points
 
+- Capture one successful hosted `/verify` report with three distinct public
+  Gonka request IDs. Current live attempts failed closed on gateway errors; unit
+  and UI tests prove behavior but do not replace provider evidence.
 - Capture a reproducible live multilingual remittance run. The independent
   two-model Family Steward artifact was captured and publicly verified on
   **2026-09-02**; its exact request/model receipts are linked above.

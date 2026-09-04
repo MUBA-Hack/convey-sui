@@ -97,6 +97,14 @@ reproduced.
   records and re-verifies the exact request and model into explicit verified,
   mismatch, not-found, or unavailable states. This is metadata provenance, not
   a gateway signature.
+- **Public claim verification is first-class.** `/verify` accepts pasted text or
+  a bounded public page, freezes one exact source claim through Gonka, runs two
+  distinct-model Gonka reviews, and shows a 0–100 score, verdict, disagreement,
+  separate reasoning, exact source evidence, limitations, model identities, and
+  all three request IDs. Unsafe sources, malformed model output, repeated model
+  or request identity, and provider failure fail closed. Current live attempts
+  returned gateway errors, so a successful hosted report artifact remains a
+  delivery gate rather than a claimed outcome.
 
 The current source implements the Ana remittance **quote-to-wallet software
 path** on Sui testnet — from natural-language request through a signed
@@ -760,7 +768,7 @@ this source) and which are **future** (still required for a complete submission)
 | Sui AI x Sui | Gonka-interpreted intent behind deterministic policy; model/request provenance in the wallet-signed commitment; public human-reviewed Sui release; contract-family policies reuse the committed-intent model | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, policy digest, wallet signature, sponsor, Sui objects, and verified terminal action |
 | Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 0.000001–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
-| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, publicly verified two-model Family Steward, and AI-decision provenance carried into an enforceable Sui agreement | Captured multilingual remittance evidence and a live Created-receipt Evidence Council artifact | Real router requests, uncertainty handling, exact evidence, committed decision, and social-impact payment path |
+| GonkaRouter AI For Society | First-class text/link claim verification with extraction, two distinct model reviews, score, reasoning, exact evidence, consensus state, and request IDs; mixed-language remittance, Family Steward, and AI-decision provenance remain tied to enforceable Sui agreements | One successful hosted verification report, captured multilingual remittance evidence, and a live Created-receipt Evidence Council artifact | Three public request IDs, visible model disagreement, exact evidence, uncertainty handling, committed decision, and social-impact payment path |
 
 ## Delivery gates
 

@@ -1,11 +1,12 @@
 # Convey — agent guide
 
-Minimal black-and-white protected-intent companion built around enforceable Sui
-agreements. **Pay** is primary: a spoken or typed request becomes a transparent
-quote, deterministic checks, one wallet approval, and a portable receipt.
-**Continue elsewhere** and **Activity** are contextual branches of that
-journey. **Treasury** is separate conceptual planning and never implies that it
-protects the remittance rate or payout.
+Minimal black-and-white protected-intent companion for people, teams, merchants,
+and relief organizations. One agreement spine turns spoken, typed, scanned, or
+uploaded intent into transparent checks, exact approval, enforceable Sui state,
+and portable proof. **Pay**, **Verify**, **Scan**, **Activity**, **Treasury**, and
+**Settings** are focused product surfaces rather than unrelated feature demos.
+**Treasury** never implies that an ETH/BTC strategy protects a remittance rate
+or payout.
 
 ## Commands
 
@@ -63,9 +64,13 @@ pnpm dev           # app on :3000
 ## Layout
 
 - `app/` — Next.js routes: `/` (public product landing), `/app` (full-height
-  companion workspace), `/pay` (Send money), `/qr-ferry` (Continue elsewhere),
-  `/proof` (Activity and receipt verification), `/strategy` (Treasury), and typed
-  APIs.
+  companion workspace), `/pay` (Send money), `/verify` (Gonka claim report),
+  `/qr-ferry` (Scan and Pay), `/proof` (Activity and receipt verification),
+  `/strategy` (Treasury), `/settings` (device-local preferences), and typed APIs.
+- `app/api/verify/` plus `lib/verification/` — bounded text/public-source claim
+  extraction, two distinct Gonka reviews, deterministic consensus, exact source
+  evidence, and request-trail reporting. Models receive source text, never URLs,
+  secrets, wallet details, or transaction authority.
 - `app/api/remittance/settlement/verify/` — fixed-testnet, read-only receipt
   verification; 16 KiB streamed body cap, one lookup, six-second abort,
   `no-store`, strict safe response, and no signer or payout authority.

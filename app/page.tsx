@@ -4,7 +4,7 @@ import { ConveyLanding } from "@/components/landing/convey-landing";
 export const metadata: Metadata = {
   title: "Convey: money that understands the assignment",
   description:
-    "A chat-first AI companion for payments, splits, receipts, and guarded treasury actions on Sui.",
+    "A chat-first AI companion for enforceable payments, independent verification, group approvals, QR exchange, and guarded treasury actions.",
 };
 
 export default function HomePage() {

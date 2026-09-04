@@ -11,6 +11,7 @@ import {
   DocumentText,
   Flash,
   MoneyRecive,
+  SearchNormal1,
   Send2,
   ShieldTick,
   Wallet,
@@ -47,6 +48,7 @@ const STARTER_PROMPTS = [
 
 const DESTINATIONS = [
   { href: "/pay", label: "Send money", detail: "Local or abroad", icon: Wallet },
+  { href: "/verify", label: "Verify a claim", detail: "Two independent Gonka reviews", icon: SearchNormal1 },
   { href: "/qr-ferry", label: "Scan and pay", detail: "Pay, collect, or split by QR", icon: Code1 },
   { href: "/proof", label: "Recent activity", detail: "Receipts and status", icon: Activity },
   { href: "/settings", label: "Settings", detail: "Preferences and privacy", icon: ShieldTick },
@@ -421,7 +423,12 @@ export function CompanionChat({
             </AnimatePresence>
             {messages.length === 1 && !loading && !contractDemoOpen && (
               <div className="companion-empty-actions">
-                <Link href="/qr-ferry" className="companion-empty-action companion-empty-action--primary">
+                <Link href="/verify" className="companion-empty-action companion-empty-action--primary">
+                  <SearchNormal1 size={22} />
+                  <span><strong>Verify a claim</strong><small>Compare two independent Gonka reviews</small></span>
+                  <ArrowRight size={17} />
+                </Link>
+                <Link href="/qr-ferry" className="companion-empty-action">
                   <Code1 size={22} />
                   <span><strong>Scan or show QR</strong><small>Pay, collect, split, or issue a pass</small></span>
                   <ArrowRight size={17} />

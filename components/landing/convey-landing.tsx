@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, DocumentText, Flash, People, ShieldTick } from "@/components/icons";
+import { ArrowRight, DocumentText, Flash, Judge, People, ShieldTick, Wallet } from "@/components/icons";
 import { BrandMark } from "@/components/site-header";
 import productDesktop from "@/docs/screenshots/convey-app-desktop.png";
 
@@ -15,8 +15,16 @@ const MOMENTS = [
 
 const REQUESTS = [
   { icon: People, text: "Send Dave 12 USDC for dinner", meta: "Known person, exact intent" },
-  { icon: DocumentText, text: "Split this receipt with Maya and Sam", meta: "Personal requests and QR links" },
-  { icon: ShieldTick, text: "Protect 500 USDC overnight", meta: "Bounded strategy, approval required" },
+  { icon: DocumentText, text: "Hold this project payment until delivery", meta: "Freelance work, evidence required" },
+  { icon: Judge, text: "Verify this relief purchase", meta: "Two models, one visible request trail" },
+  { icon: ShieldTick, text: "Protect our reserve overnight", meta: "Bounded treasury policy" },
+] as const;
+
+const WORLDS = [
+  { icon: People, role: "For people", title: "Pay, split, rent, and send home.", body: "Remember trusted recipients, read receipts, carry requests by QR, and hold deposits until agreed conditions are met." },
+  { icon: DocumentText, role: "For independent work", title: "Delivery becomes the release condition.", body: "The client funds an agreement. Evidence is reviewed before access and payment release follow the same public lifecycle." },
+  { icon: Judge, role: "For teams and relief groups", title: "Every approval leaves evidence.", body: "Turn receipts and spreadsheets into bounded requests, require multiple approvers, and trace each funded outcome." },
+  { icon: Wallet, role: "For shops and treasuries", title: "Collect by QR. Protect idle reserves.", body: "Issue payment links, accept in-person codes, enforce recurring caps, and shape a separate Thetanuts protection policy." },
 ] as const;
 
 export function ConveyLanding() {
@@ -45,28 +53,28 @@ export function ConveyLanding() {
         </div>
         <div className="landing-hero-grid">
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, transform: "translateY(20px)" }}
+            initial={reduceMotion ? false : { opacity: 0.35, transform: "translateY(12px)" }}
             animate={{ opacity: 1, transform: "translateY(0)" }}
-            transition={{ duration: reduceMotion ? 0 : 0.72, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: reduceMotion ? 0 : 0.46, ease: [0.22, 1, 0.36, 1] }}
             className="landing-hero-copy"
           >
             <p className="companion-eyebrow text-white/52">Protected intent, powered by Sui</p>
             <h1>Describe the outcome.</h1>
             <p className="landing-hero-lede">
-              Convey turns natural language into an enforceable Sui agreement. AI interprets. Policy checks. You approve. The chain decides release or refund.
+              Tell Convey what should happen. AI agents interpret the request, policy fixes the terms, and Sui enforces the agreement for you or your organization.
             </p>
             <div className="landing-hero-actions">
               <Link href="/app" className="landing-primary-cta">
                 Ask Convey <ArrowRight size={17} />
               </Link>
-              <Link href="/qr-ferry" className="landing-secondary-cta">Scan or show QR</Link>
+              <Link href="/verify" className="landing-secondary-cta">Verify a claim</Link>
             </div>
           </motion.div>
 
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, transform: "translateX(30px) rotate(1.5deg)" }}
+            initial={reduceMotion ? false : { opacity: 0.16, transform: "translateX(20px) rotate(1deg)" }}
             animate={{ opacity: 1, transform: "translateX(0) rotate(0deg)" }}
-            transition={{ duration: reduceMotion ? 0 : 0.85, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: reduceMotion ? 0 : 0.56, delay: reduceMotion ? 0 : 0.04, ease: [0.22, 1, 0.36, 1] }}
             className="landing-product-frame"
           >
             <Image
@@ -127,8 +135,8 @@ export function ConveyLanding() {
 
       <section className="landing-stage">
         <motion.div {...reveal} className="landing-stage-copy">
-          <h2>Your companion, backed by careful agents.</h2>
-          <p>Ask naturally. Convey remembers who people are, understands receipt splits, checks risk, and prepares bounded actions without taking wallet control.</p>
+          <h2>One companion for you and your organization.</h2>
+          <p>Ask naturally. Convey remembers people, understands evidence, checks risk, and prepares bounded actions without taking wallet control.</p>
           <Link href="/app" className="landing-stage-link">Start a conversation <ArrowRight size={17} /></Link>
         </motion.div>
         <motion.div {...reveal} className="landing-request-stack">
@@ -147,6 +155,23 @@ export function ConveyLanding() {
         </motion.div>
       </section>
 
+      <section className="landing-worlds" aria-labelledby="landing-worlds-title">
+        <header>
+          <h2 id="landing-worlds-title">One agreement spine. Many real jobs.</h2>
+          <p>Personal payments and organizational finance use the same path: intent, independent checks, approval, enforcement, and proof.</p>
+        </header>
+        <div>
+          {WORLDS.map(({ icon: Icon, role, title, body }) => (
+            <motion.article key={role} {...reveal}>
+              <Icon size={21} />
+              <span>{role}</span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </motion.article>
+          ))}
+        </div>
+      </section>
+
       <section className="landing-proof">
         <motion.div {...reveal}>
           <h2>AI proposes. Sui enforces.</h2>
@@ -154,6 +179,7 @@ export function ConveyLanding() {
         <div className="landing-proof-grid">
           <div><ShieldTick size={20} /><strong>Intent bound to contract</strong><p>The original request and Gonka run become part of the private agreement artifact. Its digest is anchored in the Sui object.</p></div>
           <div><Flash size={20} /><strong>QR crosses the gap</strong><p>QR carries the exact request across weak connectivity. A connected wallet still approves; Sui performs final settlement.</p></div>
+          <div><Judge size={20} /><strong>Gonka leaves a request trail</strong><p>Claim extraction and two independent reviews expose their model identities, reasoning, disagreement, and request IDs.</p></div>
           <div><DocumentText size={20} /><strong>Public lifecycle proof</strong><p>Follow creation, evidence review, release or refund, and an independently verified receipt from the normal product flow.</p></div>
         </div>
       </section>

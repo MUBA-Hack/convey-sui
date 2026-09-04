@@ -29,11 +29,12 @@ identical.
 
 ## Product contract
 
-Convey is a minimal black-and-white money app built around one coherent family
-journey: express an intent, inspect the complete terms, approve in a wallet, and
-keep a portable receipt. **Pay** is primary; **Continue elsewhere** and
-**Activity** is a contextual branch. **Treasury** is visibly separate and must
-never imply that an ETH/BTC strategy protects the transfer rate or payout.
+Convey is a minimal black-and-white financial operating system for people,
+teams, merchants, and relief organizations. One coherent agreement spine turns
+an intent into complete terms, deterministic checks, exact approval,
+enforceable state, and portable proof. **Pay**, **Verify**, **Scan**,
+**Activity**, **Treasury**, and **Settings** are focused surfaces. **Treasury**
+must never imply that an ETH/BTC strategy protects a transfer rate or payout.
 
 Customer-facing screens must read like a finished financial product. Keep SDK
 versions, server topology, mock flags, implementation notes, and competitor
@@ -115,9 +116,14 @@ Keep this map aligned with `CLAUDE.md`; the extra entries identify current trust
 boundaries that workers commonly miss.
 
 - `app/` — product routes and typed APIs. `/` is public product landing,
-  `/app` is full-height companion workspace, `/pay` is Send money,
-  `/qr-ferry` is Continue elsewhere, `/proof` is Activity plus receipt
-  verification, and `/strategy` is Treasury.
+  `/app` is full-height companion workspace, `/pay` is Send money, `/verify` is
+  the Gonka claim report, `/qr-ferry` is Scan and Pay, `/proof` is Activity plus
+  receipt verification, `/strategy` is Treasury, and `/settings` holds
+  device-local preferences.
+- `app/api/verify/` plus `lib/verification/` — bounded text/public-source claim
+  extraction, two distinct Gonka reviews, deterministic consensus, exact source
+  evidence, and request-trail reporting. No URL, secret, wallet detail, or
+  transaction authority enters a model prompt.
 - `app/api/remittance/settlement/verify/` — server-only, read-only Sui testnet
   settlement verification. It enforces the 16 KiB streamed body cap, at most one lookup,
   six-second abort, `no-store`, and a safe strict response union; it never signs

@@ -20,8 +20,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Convey",
     short_name: "Convey",
     description:
-      "Convey helps families send money home with a transparent quote, wallet approval on Sui testnet, cross-device continuation, and a portable receipt.",
-    start_url: "/",
+      "Convey turns natural language into enforceable Sui agreements, independent verification, QR payments, and guarded treasury actions.",
+    id: "/app",
+    start_url: "/app",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#000000",
@@ -43,6 +44,26 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "Ask Convey",
+        short_name: "Assistant",
+        description: "Describe a payment, agreement, split, or treasury outcome",
+        url: "/app",
+      },
+      {
+        name: "Verify a claim",
+        short_name: "Verify",
+        description: "Run two independent Gonka reviews and inspect the request trail",
+        url: "/verify",
+      },
+      {
+        name: "Scan or show QR",
+        short_name: "Scan",
+        description: "Pay, collect, split, or carry a request between devices",
+        url: "/qr-ferry",
       },
     ],
   };
