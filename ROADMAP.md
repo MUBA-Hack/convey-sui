@@ -28,10 +28,13 @@ reproduced.
   stored on Walrus, and the locator, digests, Seal identity, and reader set join
   the same commitment. After exact `Created` verification, a bounded local copy
   is retained and the shared Sui object exposes its 32-byte commitment.
-- **Six workflows share one contract spine.** Family support, medicine pickup,
-  tuition, relief funding, purpose allowance, and refundable link all use the
-  same Protected Transfer object, release/refund lifecycle, and receipt
-  verifier. The canonical package now also contains `ApprovalCollection<T>` for
+- **Nine workflows share one contract spine.** Family support, medicine pickup,
+  tuition, relief funding, freelance delivery, rental deposits, grant
+  milestones, purpose allowances, and refundable links all use the same
+  Protected Transfer object, release/refund lifecycle, and receipt verifier.
+  Emergency support remains a chat or voice request in Personal rather than a
+  permanent responder dashboard. The canonical package now also contains
+  `ApprovalCollection<T>` for
   unique M-of-N authorization and `RecurringCap<T>` for per-payment, cumulative,
   interval, expiry, and revocation enforcement. Both have public testnet proofs;
   customer-facing creation flows remain future work.
@@ -555,8 +558,9 @@ request/model identity or deterministic fallback, policy result, exact payment
 terms, workflow, evidence checklist, reviewer, expiry, and review note. The full
 artifact is Seal-encrypted and its ciphertext stored on Walrus before plan
 issuance; a bounded device-local copy is retained only after exact Created
-verification. Family support, medicine pickup, tuition, relief, purpose
-allowance, and refundable link use the same object spine. Multi-approver
+verification. Family support, medicine pickup, tuition, relief, freelance
+delivery, rental deposits, grant milestones, purpose allowances, and
+refundable links use the same object spine. Multi-approver
 collections and recurring mandates are distinct on-chain objects in the same
 package, with public proofs rather than relabeled screens.
 

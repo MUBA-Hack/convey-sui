@@ -77,4 +77,15 @@ describe("parseCompanionTurn", () => {
     expect(protection.toolId).toBe("strategies.propose");
     expect(protection.candidate?.amountMajor).toBe("500");
   });
+
+  it.each([
+    ["Pay Dave 250 USDC after the freelance design is accepted", "freelance delivery"],
+    ["Hold 500 USDC as a rental deposit and refund after checkout", "rental deposit"],
+    ["Release a 1000 USDC grant after milestone evidence", "grant milestone"],
+    ["Send Dave 50 USDC for relief supplies after delivery evidence", "relief support"],
+  ])("routes %s to the protected agreement spine", (message, purpose) => {
+    const result = parseCompanionTurn({ message, localeHint: "en", memory: MEMORY });
+    expect(result.toolId).toBe("missions.propose");
+    expect(result.candidate?.purpose).toBe(purpose);
+  });
 });

@@ -18,6 +18,58 @@ const BENEFICIARY = `0x${"2".repeat(64)}`;
 const REVIEWER = `0x${"3".repeat(64)}`;
 const COMMITMENT = `0x${"ab".repeat(32)}`;
 
+export type ProtectedAgreementScenario = "medicine" | "relief" | "freelance" | "rental" | "grant";
+
+const SCENARIOS: Record<ProtectedAgreementScenario, {
+  eyebrow: string;
+  title: string;
+  body: string;
+  held: string;
+  reviewed: string;
+  released: string;
+}> = {
+  medicine: {
+    eyebrow: "Medicine support",
+    title: "Protected until pickup.",
+    body: "Ana receives the money after the agreed evidence is checked. If time runs out, you can reclaim it.",
+    held: "Support protected",
+    reviewed: "Pickup checked",
+    released: "Ready for Ana",
+  },
+  relief: {
+    eyebrow: "Emergency support",
+    title: "Release follows evidence.",
+    body: "The recipient receives the funds after delivery evidence is reviewed. Expiry returns control to the sender.",
+    held: "Aid protected",
+    reviewed: "Delivery checked",
+    released: "Aid released",
+  },
+  freelance: {
+    eyebrow: "Independent work",
+    title: "Delivery unlocks payment.",
+    body: "The client funds the agreement first. A reviewer checks the agreed milestone before payment can be released.",
+    held: "Payment protected",
+    reviewed: "Delivery checked",
+    released: "Freelancer paid",
+  },
+  rental: {
+    eyebrow: "Rental agreement",
+    title: "Deposit held fairly.",
+    body: "Check-in and checkout evidence determine whether the deposit returns or an approved damage amount is released.",
+    held: "Deposit protected",
+    reviewed: "Condition checked",
+    released: "Outcome settled",
+  },
+  grant: {
+    eyebrow: "Grant funding",
+    title: "Milestones unlock tranches.",
+    body: "Funds stay protected until the agreed deliverable and budget evidence are reviewed, then release leaves a public receipt.",
+    held: "Grant protected",
+    reviewed: "Milestone checked",
+    released: "Tranche released",
+  },
+};
+
 export function buildProtectedSupportDemoTrace(amountMajor = "25"): readonly ProtectedTransferDemoState[] {
   const parsedAmount = parseUsdcDecimalToMicro(amountMajor);
   const amountMicro = parsedAmount.ok ? parsedAmount.micro : "25000000";
@@ -53,10 +105,12 @@ export function buildProtectedSupportDemoTrace(amountMajor = "25"): readonly Pro
 
 export function ProtectedSupportDemoCard({
   amountMajor = "25",
+  scenario = "medicine",
   referenceMode = false,
   onClose,
 }: {
   amountMajor?: string;
+  scenario?: ProtectedAgreementScenario;
   referenceMode?: boolean;
   onClose?: () => void;
 }) {
@@ -65,10 +119,11 @@ export function ProtectedSupportDemoCard({
   const [running, setRunning] = useState(false);
   const reduceMotion = useReducedMotion();
   const state = trace[frame] ?? trace[0]!;
+  const copy = SCENARIOS[scenario];
   const steps = [
-    { status: "created", label: referenceMode ? "Locked by contract" : "Support protected", detail: referenceMode ? "1 USDC entered protected custody" : `${amountMajor} USDC held for Ana`, icon: Lock },
-    { status: "evidence_approved", label: referenceMode ? "Reviewed independently" : "Pickup checked", detail: referenceMode ? "Reviewer approved the agreed evidence" : "Evidence matches the commitment", icon: ShieldTick },
-    { status: "released", label: referenceMode ? "Released to Ana" : "Ready for Ana", detail: referenceMode ? "Contract paid the fixed beneficiary" : "Replay reached approved release", icon: TickCircle },
+    { status: "created", label: referenceMode ? "Locked by contract" : copy.held, detail: referenceMode ? "1 USDC entered protected custody" : `${amountMajor} USDC held by the agreement`, icon: Lock },
+    { status: "evidence_approved", label: referenceMode ? "Reviewed independently" : copy.reviewed, detail: referenceMode ? "Reviewer approved the agreed evidence" : "Evidence matches the commitment", icon: ShieldTick },
+    { status: "released", label: referenceMode ? "Released to Ana" : copy.released, detail: referenceMode ? "Contract paid the fixed beneficiary" : "Replay reached the approved outcome", icon: TickCircle },
   ] as const;
 
   useEffect(() => {
@@ -92,9 +147,9 @@ export function ProtectedSupportDemoCard({
       )}
       <div className="protected-support-head">
         <div>
-          <p className="companion-eyebrow text-black/45">{referenceMode ? "Completed on Sui testnet" : "Medicine support"}</p>
-          <h3>{referenceMode ? "1 USDC moved by contract." : "Protected until pickup."}</h3>
-          <p>{referenceMode ? "Watch a real protected payment move from lock to independent review to Ana, then inspect the public transactions." : "Ana receives the money after the agreed evidence is checked. If time runs out, you can reclaim it."}</p>
+          <p className="companion-eyebrow text-black/45">{referenceMode ? "Completed on Sui testnet" : copy.eyebrow}</p>
+          <h3>{referenceMode ? "1 USDC moved by contract." : copy.title}</h3>
+          <p>{referenceMode ? "Watch a real protected payment move from lock to independent review to Ana, then inspect the public transactions." : copy.body}</p>
         </div>
         {!referenceMode && <span className="protected-support-amount">{amountMajor} <small>USDC</small></span>}
       </div>
@@ -126,7 +181,7 @@ export function ProtectedSupportDemoCard({
           setRunning(true);
         }}
       >
-        {running ? <><Clock size={16} /> {referenceMode ? "Following transactions…" : "Checking pickup…"}</> : frame === trace.length - 1 ? (referenceMode ? "Replay contract lifecycle" : "Replay protected journey") : (referenceMode ? "Play contract lifecycle" : "Play protected journey")}
+        {running ? <><Clock size={16} /> {referenceMode ? "Following transactions…" : "Checking evidence…"}</> : frame === trace.length - 1 ? (referenceMode ? "Replay contract lifecycle" : "Replay protected journey") : (referenceMode ? "Play contract lifecycle" : "Play protected journey")}
       </button>
 
       <div className="protected-support-reference">

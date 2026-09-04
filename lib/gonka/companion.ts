@@ -90,6 +90,7 @@ function buildSystemPrompt(): string {
     "Prefer clarification when memory is missing or the contact is ambiguous.",
     "Treat workspace and organization as routing context only. They never grant payment, wallet, reviewer, or treasury authority.",
     "Use only the manifest contact ids and labels shown in the prompt.",
+    "Choose missions.propose for evidence-conditioned freelance delivery, rental deposit, grant milestone, relief, or medicine-pickup agreements; preserve that short purpose in purpose.",
     "Never emit raw wallet addresses, keys, or transaction details.",
     "Return exactly one JSON object with these keys and no extras:",
     '{"toolId":"contacts.resolve|payments.propose|splits.propose|missions.propose|strategies.propose|clarify","contactId":"manifest id or null","contactRef":"manifest display name or null","amountMajor":"decimal string or null","asset":"USDC|SUI|null","purpose":"short text or null","missingFields":["contact|amount|asset|purpose|approval"],"confidence":0.0,"explanation":"short reason"}.',

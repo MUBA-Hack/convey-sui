@@ -185,14 +185,14 @@ export function FamilyReviewSelection({
             <legend className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
               Purpose
             </legend>
-            <div className="grid w-full grid-cols-2 overflow-hidden rounded-lg border border-black/12">
+            <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-3">
               {HOLD_PURPOSE_CHOICES.map((choice) => {
                 const selected = purpose === choice.id;
                 return (
                   <label
                     key={choice.id}
                     data-testid={`purpose-${choice.id}`}
-                    className={`relative flex min-h-11 min-w-0 cursor-pointer items-center justify-center border-b border-r border-black/12 px-2 text-center text-xs font-medium transition-colors even:border-r-0 [&:nth-last-child(-n+2)]:border-b-0 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-[-2px] has-[:focus-visible]:outline-black ${
+                    className={`relative flex min-h-11 min-w-0 cursor-pointer items-center justify-center rounded-lg border border-black/12 px-2 text-center text-xs font-medium transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-[-2px] has-[:focus-visible]:outline-black ${
                       selected ? "bg-black text-white" : "bg-white text-neutral-700"
                     } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >

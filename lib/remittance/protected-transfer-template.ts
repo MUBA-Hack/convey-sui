@@ -266,6 +266,84 @@ const RELIEF_TEMPLATE = makeTemplate({
   ]) as readonly ProtectedTransferTemplateCapability[],
 });
 
+const FREELANCE_DELIVERY_TEMPLATE = makeTemplate({
+  id: "freelance_delivery",
+  customerLabel: "Freelance delivery",
+  promise: "Lock payment to accepted delivery evidence and an independent review.",
+  suggestedPurpose: "Freelance milestone",
+  reviewerRoleLabel: "Delivery reviewer",
+  evidenceChecklist: Object.freeze([
+    "Agreed milestone identified",
+    "Delivered artifact digest recorded",
+    "Acceptance criteria checked",
+    "Release or refund receipt captured",
+  ]),
+  allowedDeadlinePresets: Object.freeze([
+    "three_days",
+    "seven_days",
+  ]) as readonly ProtectedTransferDeadlinePreset[],
+  defaultDeadlinePreset: "seven_days",
+  requiredCapabilities: Object.freeze([
+    "mapped_recipient",
+    "verified_quote",
+    "protected_transfer",
+    "human_reviewer",
+    "evidence_council",
+  ]) as readonly ProtectedTransferTemplateCapability[],
+});
+
+const RENTAL_DEPOSIT_TEMPLATE = makeTemplate({
+  id: "rental_deposit",
+  customerLabel: "Rental deposit",
+  promise: "Hold a deposit until checkout evidence determines release or refund.",
+  suggestedPurpose: "Rental deposit",
+  reviewerRoleLabel: "Property reviewer",
+  evidenceChecklist: Object.freeze([
+    "Check-in condition recorded",
+    "Checkout condition compared",
+    "Damage claim evidence reviewed",
+    "Release or refund receipt captured",
+  ]),
+  allowedDeadlinePresets: Object.freeze([
+    "three_days",
+    "seven_days",
+  ]) as readonly ProtectedTransferDeadlinePreset[],
+  defaultDeadlinePreset: "seven_days",
+  requiredCapabilities: Object.freeze([
+    "mapped_recipient",
+    "verified_quote",
+    "protected_transfer",
+    "human_reviewer",
+    "evidence_council",
+  ]) as readonly ProtectedTransferTemplateCapability[],
+});
+
+const GRANT_MILESTONE_TEMPLATE = makeTemplate({
+  id: "grant_milestone",
+  customerLabel: "Grant milestone",
+  promise: "Release a grant tranche only after milestone evidence is reviewed.",
+  suggestedPurpose: "Grant milestone",
+  reviewerRoleLabel: "Grant reviewer",
+  evidenceChecklist: Object.freeze([
+    "Milestone deliverable identified",
+    "Budget line matched",
+    "Evidence review recorded",
+    "Release or refund receipt captured",
+  ]),
+  allowedDeadlinePresets: Object.freeze([
+    "three_days",
+    "seven_days",
+  ]) as readonly ProtectedTransferDeadlinePreset[],
+  defaultDeadlinePreset: "seven_days",
+  requiredCapabilities: Object.freeze([
+    "mapped_recipient",
+    "verified_quote",
+    "protected_transfer",
+    "human_reviewer",
+    "evidence_council",
+  ]) as readonly ProtectedTransferTemplateCapability[],
+});
+
 const PURPOSE_ALLOWANCE_TEMPLATE = makeTemplate({
   id: "purpose_allowance",
   customerLabel: "Purpose allowance",
@@ -324,6 +402,9 @@ const PROTECTED_TRANSFER_TEMPLATES: readonly ProtectedTransferTemplate[] = Objec
   MEDICINE_PICKUP_TEMPLATE,
   TUITION_TEMPLATE,
   RELIEF_TEMPLATE,
+  FREELANCE_DELIVERY_TEMPLATE,
+  RENTAL_DEPOSIT_TEMPLATE,
+  GRANT_MILESTONE_TEMPLATE,
   PURPOSE_ALLOWANCE_TEMPLATE,
   REFUNDABLE_LINK_TEMPLATE,
 ]);
@@ -335,6 +416,9 @@ const PROTECTED_TRANSFER_TEMPLATE_BY_ID: Readonly<
   medicine_pickup: MEDICINE_PICKUP_TEMPLATE,
   tuition: TUITION_TEMPLATE,
   relief: RELIEF_TEMPLATE,
+  freelance_delivery: FREELANCE_DELIVERY_TEMPLATE,
+  rental_deposit: RENTAL_DEPOSIT_TEMPLATE,
+  grant_milestone: GRANT_MILESTONE_TEMPLATE,
   purpose_allowance: PURPOSE_ALLOWANCE_TEMPLATE,
   refundable_link: REFUNDABLE_LINK_TEMPLATE,
 });
@@ -357,9 +441,8 @@ export function getProtectedTransferTemplate(
 }
 
 /**
- * Return all four templates in stable order
- * (family_support, medicine_pickup, tuition, relief). The returned array is
- * the frozen registry; callers must not mutate.
+ * Return all protected-agreement templates in stable order. The returned
+ * array is the frozen registry; callers must not mutate.
  */
 export function listProtectedTransferTemplates(): readonly ProtectedTransferTemplate[] {
   return PROTECTED_TRANSFER_TEMPLATES;

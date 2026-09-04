@@ -96,16 +96,16 @@ type WorkspaceBrief = {
 
 const STARTER_PROMPTS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly StarterPrompt[]> = {
   personal: [
-    { label: "Pay Dave 12 USDC", prompt: "Pay Dave 12 USDC for dinner", detail: "For dinner", icon: MoneyRecive },
-    { label: "Help after a flood", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", detail: "Release after evidence", icon: ShieldTick },
+    { label: "Get paid for work", prompt: "Pay Dave 250 USDC after the freelance design is accepted", detail: "Delivery unlocks payment", icon: MoneyRecive },
+    { label: "Hold a rental deposit", prompt: "Hold 500 USDC as a rental deposit and refund after checkout", detail: "Set fair release terms", icon: Judge },
     { label: "Split this receipt", prompt: "Split this receipt", detail: "Add a photo next", icon: DocumentText },
     { label: "Protect 500 USDC", prompt: "Protect 500 USDC overnight", detail: "Bound an overnight strategy", icon: ShieldTick },
   ],
   ngo: [
     { label: "Review field evidence", prompt: "Review this field report before releasing the aid payment", detail: "Compare evidence first", icon: SearchNormal1 },
     { label: "Release emergency aid", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", detail: "Evidence-gated support", icon: ShieldTick },
+    { label: "Approve a grant", prompt: "Release a 1000 USDC grant after milestone evidence", detail: "Milestone-gated tranche", icon: Judge },
     { label: "Reconcile receipts", prompt: "Check these relief receipts against our funded items", detail: "Prepare an audit trail", icon: DocumentText },
-    { label: "Protect aid reserve", prompt: "Protect 500 USDC of our aid reserve overnight", detail: "Bound the risk", icon: ShieldTick },
   ],
   treasury: [
     { label: "Reimburse Dave", prompt: "Pay Dave 12 USDC for club supplies", detail: "Club supplies", icon: MoneyRecive },
@@ -150,12 +150,15 @@ const EMPTY_ACTIONS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly EmptyAct
     { kind: "link", href: "/verify", label: "Verify a claim", detail: "Compare two independent Gonka reviews", icon: SearchNormal1 },
     { kind: "link", href: "/qr-ferry", label: "Scan or show QR", detail: "Pay, collect, split, or issue a pass", icon: Code1 },
     { kind: "memory", label: "Pay someone new", detail: "Save their Sui address once", icon: Add },
+    { kind: "prompt", prompt: "Pay Dave 250 USDC after the freelance design is accepted", label: "Protect freelance work", detail: "Delivery unlocks payment", icon: ShieldTick },
+    { kind: "prompt", prompt: "Hold 500 USDC as a rental deposit and refund after checkout", label: "Hold a rental deposit", detail: "Set checkout evidence", icon: Judge },
     { kind: "prompt", prompt: "Split dinner with Maya, Idris, and Sam", label: "Split by WhatsApp", detail: "Create one request per person", icon: DocumentText },
     { kind: "contract", label: "View Sui lifecycle", detail: "Replay a real 1 USDC testnet payment", icon: ShieldTick },
   ],
   ngo: [
     { kind: "link", href: "/verify", label: "Review field evidence", detail: "Compare two independent Gonka reviews", icon: SearchNormal1 },
     { kind: "prompt", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", label: "Create aid release", detail: "Set evidence, expiry, and refund", icon: ShieldTick },
+    { kind: "prompt", prompt: "Release a 1000 USDC grant after milestone evidence", label: "Create grant milestone", detail: "Fund one reviewed tranche", icon: Judge },
     { kind: "link", href: "/qr-ferry", label: "Collect donations", detail: "Show or share one QR request", icon: Code1 },
     { kind: "link", href: "/proof", label: "Show donor outcomes", detail: "Trace receipts and releases", icon: Activity },
     { kind: "contract", label: "View Sui lifecycle", detail: "Inspect a real protected release", icon: ShieldTick },
@@ -173,7 +176,7 @@ const WORKSPACE_BRIEFS: Record<CompanionWorkspaceId, WorkspaceBrief> = {
   personal: {
     eyebrow: "Personal companion",
     title: "Say what should happen.",
-    body: "Pay, split, help during an emergency, or set a protected outcome in one conversation.",
+    body: "Pay, split, or set a protected outcome in one conversation. For urgent help, just describe what happened.",
     steps: ["Ask or speak", "Review exact terms", "Approve once"],
     sideEyebrow: "Try asking",
     sideTitle: "Start with one move.",

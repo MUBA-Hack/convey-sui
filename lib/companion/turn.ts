@@ -51,8 +51,20 @@ function buildProposal(candidate: CompanionCandidate, contactLabel: string): Com
   };
 }
 
+function protectedMissionPurpose(message: string): string | null {
+  const hasCondition = /\b(?:after|until|when|evidence|accepted|approved|pickup|checkout|refund|milestone|deliver(?:y|ed))\b/i.test(message);
+  if (!hasCondition) return null;
+  if (/\b(?:relief|flood|disaster|emergency aid)\b/i.test(message)) return "relief support";
+  if (/\b(?:medicine|pharmacy|prescription|pickup)\b/i.test(message)) return "medicine pickup";
+  if (/\b(?:rent|rental|deposit|checkout|landlord|damage)\b/i.test(message)) return "rental deposit";
+  if (/\b(?:grant|grantee|funding tranche)\b/i.test(message)) return "grant milestone";
+  if (/\b(?:freelance|freelancer|client|employer|deliverable|design|work order)\b/i.test(message)) return "freelance delivery";
+  return null;
+}
+
 export function parseCompanionTurn(input: CompanionInput): CompanionResolution {
   const message = input.message.trim();
+  const missionPurpose = protectedMissionPurpose(message);
   const deterministicRouting = {
     provider: "deterministic" as const,
     mode: "fallback" as const,
@@ -80,7 +92,10 @@ export function parseCompanionTurn(input: CompanionInput): CompanionResolution {
       clarification: null,
     };
   }
-  if (/(?:release|unlock).*(?:evidence|pickup|delivery)|(?:medicine|relief).*(?:evidence|pickup|delivery)/i.test(message)) {
+  if (
+    missionPurpose !== null ||
+    /(?:release|unlock|hold).*(?:evidence|pickup|delivery|approval|refund)/i.test(message)
+  ) {
     return {
       toolId: "missions.propose",
       outcome: "unavailable",
@@ -91,7 +106,7 @@ export function parseCompanionTurn(input: CompanionInput): CompanionResolution {
         contactRef: null,
         amountMajor: message.match(AMOUNT_RE)?.[1] ?? null,
         asset: (message.match(ASSET_RE)?.[1]?.toUpperCase() as CompanionAsset | undefined) ?? null,
-        purpose: "evidence-protected support",
+        purpose: missionPurpose ?? "evidence-protected support",
         missingFields: [],
         confidence: 0.93,
         explanation: "A protected support transfer can be prepared with an evidence condition and refund deadline.",

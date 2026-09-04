@@ -9,6 +9,15 @@ import { ReceiptSplitFlow } from "@/components/companion/receipt-split-flow";
 import type { CompanionResolution } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
 
+function protectedScenario(purpose: string | null | undefined) {
+  const normalized = purpose?.toLowerCase() ?? "";
+  if (normalized.includes("freelance") || normalized.includes("deliverable")) return "freelance" as const;
+  if (normalized.includes("rental") || normalized.includes("deposit")) return "rental" as const;
+  if (normalized.includes("grant") || normalized.includes("milestone")) return "grant" as const;
+  if (normalized.includes("relief") || normalized.includes("flood")) return "relief" as const;
+  return "medicine" as const;
+}
+
 function PaymentRisk({ result, message, memory }: { result: CompanionResolution; message: string; memory: CompanionMemory }) {
   if (!result.proposal) return null;
   const contact = memory.contacts.find((entry) => entry.id === result.proposal?.contactId);
@@ -61,7 +70,12 @@ export function CompanionOutcomeCard({ result, message, memory }: { result: Comp
   }
 
   if (result.toolId === "missions.propose") {
-    return <ProtectedSupportDemoCard amountMajor={result.candidate?.amountMajor ?? "25"} />;
+    return (
+      <ProtectedSupportDemoCard
+        amountMajor={result.candidate?.amountMajor ?? "25"}
+        scenario={protectedScenario(result.candidate?.purpose)}
+      />
+    );
   }
 
   if (result.clarification) {

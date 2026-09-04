@@ -275,7 +275,9 @@ describe("CompanionChat", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^pay dave 12 usdc$/i }));
+    expect(screen.queryByRole("button", { name: /help after a flood/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /hold a rental deposit/i }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /^get paid for work$/i }));
     fireEvent.change(screen.getByLabelText(/companion message/i), {
       target: { value: "Pay Dave 12 USDC for dinner" },
     });

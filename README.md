@@ -159,11 +159,11 @@ evidence. The overnight strategy remains a simulation and does not claim a live
 Thetanuts fill.
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey Club Treasury companion workspace on desktop" width="820" />
+  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey personal companion preparing emergency support from a plain-language request on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey Club Treasury companion workspace on mobile" width="300" />
+  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey personal companion preparing emergency support from a plain-language request on mobile" width="300" />
 </p>
 
 <p align="center">
@@ -455,12 +455,17 @@ canonical binding, transport and input bounds, receipt tampering, transaction
 structure, and result-first receipt states. The four-module package passes all
 29 Move tests with Sui CLI v1.79.0.
 
-Six customer workflows now share this exact object and commitment spine:
-family support, medicine pickup, tuition, relief funding, a purpose-restricted
-allowance, and a refundable payment link. Their real-world conditions are
-enforced by the immutable beneficiary/reviewer/deadline roles and the assigned
-reviewer's release decision; the current Move object does not autonomously
-recognize receipts or merchant categories. The same package also implements a
+Nine customer workflows now share this exact object and commitment spine:
+family support, medicine pickup, tuition, relief funding, freelance delivery,
+rental deposits, grant milestones, a purpose-restricted allowance, and a
+refundable payment link. Personal emergency support is not a permanent app
+mode: the person asks for it in the normal text or voice conversation and
+Convey prepares the relevant protected agreement. NGO teams retain a separate
+operations workspace for evidence review, controlled releases, and donor
+outcomes. The workflows' real-world conditions are enforced by the immutable
+beneficiary/reviewer/deadline roles and the assigned reviewer's release
+decision; the current Move object does not autonomously recognize receipts or
+merchant categories. The same package also implements a
 dedicated `ApprovalCollection<T>` with unique M-of-N approvals and a
 `RecurringCap<T>` with per-payment, cumulative, interval, expiry, and revocation
 limits. Their public proofs appear above; companion creation screens are still

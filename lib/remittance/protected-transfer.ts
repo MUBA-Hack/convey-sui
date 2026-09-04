@@ -70,6 +70,9 @@ export const PROTECTED_AGREEMENT_TEMPLATE_IDS = [
   "medicine_pickup",
   "tuition",
   "relief",
+  "freelance_delivery",
+  "rental_deposit",
+  "grant_milestone",
   "purpose_allowance",
   "refundable_link",
 ] as const;

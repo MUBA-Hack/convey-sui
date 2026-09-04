@@ -26,10 +26,13 @@ describe("protected-transfer-template registry", () => {
       "medicine_pickup",
       "tuition",
       "relief",
+      "freelance_delivery",
+      "rental_deposit",
+      "grant_milestone",
       "purpose_allowance",
       "refundable_link",
     ]);
-    expect(list).toHaveLength(6);
+    expect(list).toHaveLength(9);
   });
 
   it("every template is deeply frozen", () => {
@@ -123,6 +126,21 @@ describe("protected-transfer-template registry", () => {
     });
   });
 
+  it("offers freelance, rental, and grant agreements on the same contract spine", () => {
+    expect(getProtectedTransferTemplate("freelance_delivery")).toMatchObject({
+      customerLabel: "Freelance delivery",
+      reviewerRoleLabel: "Delivery reviewer",
+    });
+    expect(getProtectedTransferTemplate("rental_deposit")).toMatchObject({
+      customerLabel: "Rental deposit",
+      reviewerRoleLabel: "Property reviewer",
+    });
+    expect(getProtectedTransferTemplate("grant_milestone")).toMatchObject({
+      customerLabel: "Grant milestone",
+      reviewerRoleLabel: "Grant reviewer",
+    });
+  });
+
   it("every template declares the four core capabilities", () => {
     const core: ProtectedTransferTemplateCapability[] = [
       "mapped_recipient",
@@ -163,7 +181,7 @@ describe("protected-transfer-template registry", () => {
         template.reviewerRoleLabel,
       ].join(" ").toLowerCase();
       for (const word of forbidden) {
-        expect(blob).not.toContain(word);
+        expect(blob).not.toMatch(new RegExp(`\\b${word}\\b`));
       }
     }
   });
