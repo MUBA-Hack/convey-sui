@@ -595,16 +595,18 @@ is true.
 
 ### Public claim verification
 
-`/verify` accepts either pasted text or one public HTTP(S) page and produces a
-transparent Gonka council report. For a public link, Convey performs a bounded
-server-side read, rejects local and private destinations, revalidates each
-redirect, accepts text-like content only, and sends the normalized source text
-to Gonka. The URL itself, browser credentials, wallet details, and transaction
+`/verify` accepts pasted text, one public HTTP(S) page, or a current-events
+question and produces a transparent Gonka council report. Web mode uses a
+server-only Firecrawl search when configured and the public GDELT document
+index as a fallback. Convey rejects tangential headlines, requires at least two
+independent readable sources, and then performs bounded server-side reads with
+private-network and redirect checks. Only normalized source excerpts reach
+Gonka. Search credentials, browser credentials, wallet details, and transaction
 authority never enter a model prompt.
 
 The first Gonka call freezes one exact claim copied from the source. Two
-distinct configured models then review that same claim concurrently against the
-same bounded source. Strict schemas require a 0–100 score, verdict, separate
+distinct configured models then review that same claim against the same bounded
+source. Strict schemas require a 0–100 score, verdict, separate
 reasoning, exact source excerpts, limitations, model identity, latency, and a
 different Gonka request ID for all three calls. Deterministic aggregation shows
 whether reviewers align or disagree; malformed output, duplicate models,
@@ -1051,6 +1053,7 @@ approval, fill, or receipt artifact is claimed.
 | `POST /api/companion/risk` | Deterministic payment risk checks plus two distinct advisory Gonka reviews | Message-only inference; addresses and transaction authority never reach models; disagreement can hold but only deterministic QR/policy mismatch can reject; `no-store`; no signer |
 | `POST /api/companion/receipt/verify` | Re-check one saved companion routing record against Gonka's public receipt | 1 KiB body cap; exact request/model match; fixed provider origin; six-second read; `no-store`; no prompt, key, signer, or transaction data |
 | `POST /api/verify` | Extract one exact claim, run two distinct Gonka reviews, and aggregate a bounded verification report | 18 KiB request cap; guarded public-source read; exact source spans; three distinct request IDs; no URL or transaction authority reaches a model; `no-store`; provider errors fail closed |
+| `POST /api/verification/search` | Search current reporting, open independent sources, and route a query-relevant evidence bundle through the verification council | Server-only Firecrawl key when configured; GDELT fallback; exact-phrase query; title-relevance gate; guarded source reads; at least two sources; grounded citations only; `no-store` |
 | `GET /api/commerce/intent` | Secret-free router readiness | Configuration status is not live-call proof |
 | `POST /api/remittance/quote` | Deterministic MYR-to-PHP reference quote with optional bounded Gonka interpretation | Structured product actions may explicitly bypass inference; interactive Gonka calls use at most a six-second adapter timeout and no retries; server configuration and optional HMAC attestation; no live FX or transaction |
 | `POST /api/remittance/quote/verify` | Validate quote before client transaction building; `?evidence=1` returns historical evidence for an expired-but-genuine quote | Server-side HMAC attestation, recipient, asset, amount, Family Rule, configuration, and expiry checks; never an executable authorization for an expired quote; no wallet signer |
@@ -1482,6 +1485,7 @@ safety route**. Neither fallback proves settlement.
 | `GONKA_VERIFY_MODEL_B` | Server only | Empty; optional reviewer B override; otherwise reuses Family Steward B and must remain distinct from A |
 | `GONKA_REQUEST_TIMEOUT_MS` | Server only | `90000` milliseconds in the hosted app so both council models can finish; the interactive quote route still caps each Gonka attempt at six seconds |
 | `GONKA_MAX_RETRIES` | Server only | `1`; accepted range is 0 or 1 |
+| `FIRECRAWL_API_KEY` | Server only | Optional primary current-web search credential; never exposed to browser code; GDELT remains the fail-closed fallback |
 | `REMITTANCE_MYR_PER_USDC` | Server only | Reference MYR sen per USDC; default `450` |
 | `REMITTANCE_PHP_PER_USDC` | Server only | Reference PHP centavos per USDC; default `5600` |
 | `REMITTANCE_FIXED_FEE_MYR` | Server only | Reference fixed fee in MYR sen; default `200` |

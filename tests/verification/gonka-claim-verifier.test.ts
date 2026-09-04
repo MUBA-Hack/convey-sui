@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ClaimReviewCandidateSchema,
   createGonkaClaimExtractionRouter,
   type ClaimExtractionCandidate,
 } from "@/lib/verification/gonka-claim-verifier.server";
@@ -42,5 +43,24 @@ describe("Gonka claim extraction contract", () => {
       const system = body.messages.find((message) => message.role === "system")?.content ?? "";
       expect(system).toContain("factual, opinion, prediction, or unverifiable");
     }
+  });
+});
+
+describe("Gonka claim review contract", () => {
+  it("bounds a complete long explanation instead of discarding the review", () => {
+    const parsed = ClaimReviewCandidateSchema.safeParse({
+      verdict: "supported",
+      truthScore: 92,
+      reasoningTrace: [
+        `The source directly supports the frozen claim. ${"Relevant context. ".repeat(24)}`,
+        "A second independently retrieved source reports the same outcome.",
+      ],
+      evidence: [{ text: SOURCE, occurrence: 1 }],
+      limitations: ["The earliest report may be revised as officials publish more detail."],
+      confidence: 0.91,
+    });
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.success ? parsed.data.reasoningTrace[0]?.length : 0).toBeLessThanOrEqual(280);
   });
 });

@@ -103,6 +103,54 @@ describe("public claim sources", () => {
     });
   });
 
+  it("keeps readable public HTML when one byte is not valid UTF-8", async () => {
+    const prefix = new TextEncoder().encode(
+      "<html><head><title>Regional update</title></head><body><p>Officials confirmed ",
+    );
+    const suffix = new TextEncoder().encode(
+      " relief deliveries reached the affected district.</p></body></html>",
+    );
+    const body = new Uint8Array(prefix.length + 1 + suffix.length);
+    body.set(prefix);
+    body[prefix.length] = 0x96;
+    body.set(suffix, prefix.length + 1);
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(body, { headers: { "content-type": "text/html" } }),
+    );
+
+    const result = await readPublicClaimSource(
+      { inputType: "url", input: "https://reports.example.org/update" },
+      {
+        fetch: fetchImpl as unknown as typeof fetch,
+        lookup: vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]),
+      },
+    );
+
+    expect(result).toMatchObject({
+      kind: "ready",
+      sourceText: expect.stringContaining("relief deliveries reached the affected district"),
+    });
+  });
+
+  it("accepts a normal news page larger than 160 KB while keeping model text bounded", async () => {
+    const article = "Nepal earthquake response teams published a verified field update. ";
+    const html = `<html><head><title>Field update</title></head><body><p>${article.repeat(3_000)}</p></body></html>`;
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }),
+    );
+
+    const result = await readPublicClaimSource(
+      { inputType: "url", input: "https://news.example.org/field-update" },
+      {
+        fetch: fetchImpl as unknown as typeof fetch,
+        lookup: vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]),
+      },
+    );
+
+    expect(result).toMatchObject({ kind: "ready" });
+    expect(result.kind === "ready" ? result.sourceText.length : 0).toBeLessThanOrEqual(12_000);
+  });
+
   it("rejects a hostname when DNS resolves to a private address", async () => {
     const fetchImpl = vi.fn();
 

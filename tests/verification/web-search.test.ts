@@ -9,6 +9,7 @@ import {
   searchCurrentWeb,
 } from "@/lib/verification/gdelt-search.server";
 import {
+  filterRelevantSearchResults,
   groundReportCitations,
   relevantExcerpt,
   type ReadableEvidenceSource,
@@ -80,9 +81,9 @@ describe("current web query policy", () => {
   it("strictly validates, normalizes, and de-duplicates search results by host", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       articles: [
-        { url: "https://first.example.org/a#fragment", title: "  First report  ", seendate: "20260904T120000Z" },
+        { url: "https://first.example.org/a#fragment", title: "  Nepal earthquake first report  ", seendate: "20260904T120000Z" },
         { url: "https://first.example.org/b", title: "Duplicate host" },
-        { url: "https://second.example.net/b", title: "Second report", seendate: "bad-date" },
+        { url: "https://second.example.net/b", title: "Nepal earthquake second report", seendate: "bad-date" },
         { url: "http://unsafe.example.com/c", title: "Unsafe" },
       ],
     }), { headers: { "content-type": "application/json" } }));
@@ -93,17 +94,28 @@ describe("current web query policy", () => {
       {
         url: "https://first.example.org/a",
         host: "first.example.org",
-        title: "First report",
+        title: "Nepal earthquake first report",
         publishedAt: "2026-09-04T12:00:00.000Z",
       },
       {
         url: "https://second.example.net/b",
         host: "second.example.net",
-        title: "Second report",
+        title: "Nepal earthquake second report",
         publishedAt: null,
       },
     ]);
-    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("sourcelang%3Aenglish");
+    const requestedUrl = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get("query")).toBe('"Nepal earthquake" sourcelang:english');
+  });
+
+  it("rejects nearby stories whose headlines do not answer the query", () => {
+    const results = [
+      { url: "https://one.example.org/quake", host: "one.example.org", title: "Nepal earthquake response continues", publishedAt: null },
+      { url: "https://two.example.net/quake", host: "two.example.net", title: "After Nepal earthquake, agencies assess damage", publishedAt: null },
+      { url: "https://three.example.com/flood", host: "three.example.com", title: "Nepal flood relief reaches three districts", publishedAt: null },
+    ];
+
+    expect(filterRelevantSearchResults(QUERY, results)).toEqual(results.slice(0, 2));
   });
 });
 
@@ -152,13 +164,13 @@ describe("POST /api/verification/search", () => {
   it("searches, opens independent sources, runs the existing council, and returns grounded links", async () => {
     const evidence = "A magnitude 6.5 earthquake struck Nepal on Thursday.";
     const results = [
-      { url: "https://one.example.org/report", host: "one.example.org", title: "Nepal event report", publishedAt: "2026-09-04T10:00:00.000Z" },
-      { url: "https://two.example.net/report", host: "two.example.net", title: "Regional report", publishedAt: "2026-09-04T10:10:00.000Z" },
+      { url: "https://one.example.org/report", host: "one.example.org", title: "Nepal earthquake event report", publishedAt: "2026-09-04T10:00:00.000Z" },
+      { url: "https://two.example.net/report", host: "two.example.net", title: "Nepal earthquake regional report", publishedAt: "2026-09-04T10:10:00.000Z" },
     ];
     const search = vi.fn().mockResolvedValue(results);
     const readSource = vi.fn(async ({ input }: { inputType: "url"; input: string }) => ({
       kind: "ready" as const,
-      source: { kind: "url" as const, url: input, host: new URL(input).hostname, title: input.includes("one") ? "Nepal event report" : "Regional report" },
+      source: { kind: "url" as const, url: input, host: new URL(input).hostname, title: input.includes("one") ? "Nepal earthquake event report" : "Nepal earthquake regional report" },
       sourceText: input.includes("one")
         ? `${evidence} Officials said assessments were continuing and figures could change as field reports arrived.`
         : "Emergency agencies issued an independent public update after regional monitoring centres recorded ground movement and began field assessments.",

@@ -58,7 +58,7 @@ function normalizeQuery(value: string): string {
     .replace(/\s+/gu, " ")
     .trim()
     .split(" ")
-    .filter((word) => !/^(a|an|the|did|do|does|is|was|were|what|when|where|why|how|has|have|had|happen|happened|occur|occurred|known|recent|recently|latest|current|currently)$/iu.test(word));
+    .filter((word) => !/^(a|an|the|about|did|do|does|is|was|were|what|when|where|why|how|has|have|had|happen|happened|occur|occurred|known|recent|recently|latest|current|currently)$/iu.test(word));
   return words.join(" ").slice(0, 240).trim();
 }
 
@@ -128,7 +128,7 @@ export async function searchCurrentWeb(
     if (cached && cached.expiresAt > Date.now()) return cached.results;
   }
   const params = new URLSearchParams({
-    query: `${normalized} sourcelang:english`,
+    query: `${normalized.includes(" ") ? `"${normalized}"` : normalized} sourcelang:english`,
     mode: "artlist",
     maxrecords: String(limit),
     format: "json",

@@ -5,7 +5,7 @@ import { isIP } from "node:net";
 import type { ClaimSource, ClaimVerificationRequest } from "./claim-report";
 
 const SOURCE_TIMEOUT_MS = 8_000;
-const SOURCE_MAX_BYTES = 160 * 1024;
+const SOURCE_MAX_BYTES = 512 * 1024;
 const SOURCE_MODEL_CHARS = 12_000;
 const MAX_REDIRECTS = 2;
 
@@ -128,11 +128,7 @@ async function boundedResponseText(response: Response): Promise<string | null> {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    return "";
-  }
+  return new TextDecoder("utf-8").decode(bytes);
 }
 
 function decodeHtmlEntities(value: string): string {

@@ -2,7 +2,8 @@ import "server-only";
 
 import { ClaimVerificationResponseSchema, type ClaimVerificationReport } from "./claim-report";
 import { readPublicClaimSource, type PublicSourceResult } from "./public-source.server";
-import { classifySearchWindow, searchCurrentWeb, type WebSearchResult } from "./gdelt-search.server";
+import { classifySearchWindow, type WebSearchResult } from "./gdelt-search.server";
+import { searchConfiguredWeb } from "./web-search-provider.server";
 import {
   WebVerificationResponseSchema,
   type GroundedCitation,
@@ -34,7 +35,20 @@ function queryTerms(query: string): string[] {
   return compact(query)
     .toLocaleLowerCase("en")
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((term) => term.length >= 4 && !/^(recent|latest|today|happen|happened|about|there|their|with)$/u.test(term));
+    .filter((term) => term.length >= 3 && !/^(about|after|before|current|currently|from|happen|happened|known|latest|near|recent|recently|tell|their|there|today|what|when|where|which|with)$/u.test(term));
+}
+
+export function filterRelevantSearchResults(
+  query: string,
+  results: WebSearchResult[],
+): WebSearchResult[] {
+  const terms = [...new Set(queryTerms(query))];
+  if (terms.length === 0) return results;
+  const minimumMatches = terms.length === 1 ? 1 : Math.max(2, Math.ceil(terms.length * 0.35));
+  return results.filter((result) => {
+    const title = compact(result.title).toLocaleLowerCase("en");
+    return terms.filter((term) => title.includes(term)).length >= minimumMatches;
+  });
 }
 
 export function relevantExcerpt(text: string, query: string, maximum = EXCERPT_CHARS): string {
@@ -99,7 +113,12 @@ function evidenceBundle(query: string, sources: ReadableEvidenceSource[]): strin
     `Published: ${source.public.publishedAt ?? "Date unavailable"}`,
     `Excerpt: ${source.text}`,
   ].join("\n"));
-  return [`Claim to check: ${compact(query)}`, "Use only these independently retrieved current sources as evidence.", ...sections].join("\n\n").slice(0, 12_000);
+  return [
+    `Claim to check: ${compact(query)}`,
+    "Use only these independently retrieved current sources as evidence.",
+    "The primary claim must directly answer the claim or question above; do not substitute a nearby story.",
+    ...sections,
+  ].join("\n\n").slice(0, 12_000);
 }
 
 export function groundReportCitations(
@@ -130,7 +149,7 @@ export async function runWebVerification(
   dependencies: WebVerificationDependencies = {},
 ): Promise<WebVerificationResponse> {
   const searchWindow = classifySearchWindow(query);
-  const search = dependencies.search ?? ((value, options) => searchCurrentWeb(value, options));
+  const search = dependencies.search ?? ((value, options) => searchConfiguredWeb(value, options));
   const readSource = dependencies.readSource ?? ((request) => readPublicClaimSource(request));
   const verify = dependencies.verify ?? (async (request) => {
     const route = await import("@/app/api/verify/route");
@@ -142,6 +161,7 @@ export async function runWebVerification(
   } catch {
     return { kind: "web_verification_unavailable", reason: "search_unavailable" };
   }
+  results = filterRelevantSearchResults(query, results);
   if (results.length < 2) return { kind: "web_verification_unavailable", reason: "insufficient_sources" };
   const sources = await openEvidenceSources(query, results, readSource);
   if (sources.length < 2) return { kind: "web_verification_unavailable", reason: "insufficient_sources" };
