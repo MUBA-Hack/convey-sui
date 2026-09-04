@@ -174,6 +174,24 @@ describe("VerificationWorkspace", () => {
       reason: "search_unavailable",
     })));
     await waitFor(() => expect(screen.getByText(/Current web search is unavailable/i)).toBeInTheDocument());
-    expect(screen.getByText("Report not completed.")).toBeInTheDocument();
+    expect(screen.getByText("Review interrupted.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it("retries a provider failure without losing the claim", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ kind: "unavailable", reason: "provider_error" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<VerificationWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: /run independent checks/i }));
+    await waitFor(() => expect(screen.getByText("Review interrupted.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect((screen.getByLabelText("Claim or passage") as HTMLTextAreaElement).value).toMatch(
+      /42 water filters/i,
+    );
   });
 });

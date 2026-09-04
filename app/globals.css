@@ -2585,6 +2585,10 @@
 .verify-empty > p,
 .verify-running > p { max-width: 590px; margin-top: 22px; color: rgb(247 247 244 / 60%); font-size: 14px; line-height: 1.65; }
 .verify-empty--error > svg { color: #f7f7f4; }
+.verify-empty--error h2 { max-width: 15ch; font-size: clamp(2rem, 3.2vw, 3.2rem); }
+.verify-retry { display: inline-flex; width: fit-content; min-height: 44px; align-items: center; gap: 10px; margin-top: 28px; border: 1px solid rgb(247 247 244 / 28%); border-radius: 999px; padding: 0 18px; color: #f7f7f4; font-size: 12px; font-weight: 650; transition: background-color 160ms ease-out, color 160ms ease-out, transform 160ms ease-out; }
+.verify-retry:hover { background: #f7f7f4; color: #0a0a0a; }
+.verify-retry:active { transform: scale(0.98); }
 .verify-empty-route { display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center; gap: 12px; margin-top: 46px; color: rgb(247 247 244 / 72%); font: 600 10px/1.2 var(--font-narrow), sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
 .verify-empty-route i { height: 1px; background: rgb(247 247 244 / 22%); }
 .verify-orbit { display: inline-flex; width: 58px; height: 58px; align-items: center; justify-content: center; border: 1px solid rgb(247 247 244 / 22%); border-radius: 50%; }
@@ -2624,6 +2628,7 @@
 .verify-source-link svg:last-child { justify-self: end; }
 .verify-mode button:focus-visible,
 .verify-submit:focus-visible,
+.verify-retry:focus-visible,
 .verify-source-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 
 .remittance-journey {

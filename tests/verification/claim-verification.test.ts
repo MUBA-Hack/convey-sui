@@ -190,6 +190,61 @@ describe("POST /api/verify", () => {
     expect(JSON.stringify(body)).not.toMatch(/test-key|provider\.invalid/i);
   });
 
+  it("runs reviewers sequentially so provider concurrency limits cannot drop a council member", async () => {
+    const events: string[] = [];
+    let activeReviews = 0;
+    const extraction = vi.fn((config: { modelId: string }) => ({
+      run: vi.fn().mockResolvedValue({
+        type: "gonka-run-ok",
+        candidate: {
+          claim: { text: SOURCE, occurrence: 1 },
+          claimType: "factual",
+          detectedLanguage: "en",
+          confidence: 0.94,
+        },
+        metadata: metadata(config.modelId, "request-extract"),
+        attempts: [],
+      }),
+    }));
+    const review = vi.fn((config: { modelId: string }) => ({
+      run: vi.fn(async () => {
+        events.push(`start:${config.modelId}`);
+        activeReviews += 1;
+        if (activeReviews > 1) {
+          activeReviews -= 1;
+          throw new Error("provider concurrency exceeded");
+        }
+        await Promise.resolve();
+        activeReviews -= 1;
+        events.push(`end:${config.modelId}`);
+        return {
+          type: "gonka-run-ok" as const,
+          candidate: {
+            verdict: "supported" as const,
+            truthScore: config.modelId === MODEL_A ? 88 : 82,
+            reasoningTrace: ["The source contains the claim.", "Independent proof is limited."],
+            evidence: [{ text: "42 water filters", occurrence: 1 }],
+            limitations: ["The audit attachment is not included."],
+            confidence: 0.84,
+          },
+          metadata: metadata(config.modelId, `request-${config.modelId}`),
+          attempts: [],
+        };
+      }),
+    }));
+    __setClaimVerificationFactoriesForTest({ extraction, review });
+
+    const result = await POST(request({ inputType: "text", input: SOURCE }));
+
+    expect(await result.json()).toMatchObject({ kind: "verified_report" });
+    expect(events).toEqual([
+      `start:${MODEL_A}`,
+      `end:${MODEL_A}`,
+      `start:${MODEL_B}`,
+      `end:${MODEL_B}`,
+    ]);
+  });
+
   it("fails closed when the review models are not distinct", async () => {
     vi.stubEnv("GONKA_VERIFY_MODEL_B", MODEL_A);
     const extraction = vi.fn();

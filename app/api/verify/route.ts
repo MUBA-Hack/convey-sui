@@ -147,23 +147,26 @@ export async function POST(req: Request) {
   );
   if (extraction === null) return response({ kind: "unavailable", reason: "provider_error" });
 
-  const [first, second] = await Promise.all([
-    runReview(
-      reviewFactory,
-      { ...commonConfig, modelId: ids[0] },
-      source.sourceText,
-      extraction.candidate.claim.text,
-    ),
-    runReview(
-      reviewFactory,
-      { ...commonConfig, modelId: ids[1] },
-      source.sourceText,
-      extraction.candidate.claim.text,
-    ),
-  ]);
-  if (first === null || second === null) {
+  // Gonka applies a low per-key concurrency ceiling. Starting both council
+  // members together can reject one with 429 and turn a valid check into a
+  // provider error. Keep reviewers independent by model, but execute them in
+  // sequence so every accepted request gets a complete audit trail.
+  const first = await runReview(
+    reviewFactory,
+    { ...commonConfig, modelId: ids[0] },
+    source.sourceText,
+    extraction.candidate.claim.text,
+  );
+  if (first === null) {
     return response({ kind: "unavailable", reason: "provider_error" });
   }
+  const second = await runReview(
+    reviewFactory,
+    { ...commonConfig, modelId: ids[1] },
+    source.sourceText,
+    extraction.candidate.claim.text,
+  );
+  if (second === null) return response({ kind: "unavailable", reason: "provider_error" });
 
   const report = aggregateClaimConsensus({
     source: source.source,

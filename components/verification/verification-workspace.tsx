@@ -73,6 +73,7 @@ export function VerificationWorkspace() {
   const [webContext, setWebContext] = useState<WebContext | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => requestRef.current?.abort(), []);
@@ -146,7 +147,7 @@ export function VerificationWorkspace() {
       </header>
 
       <div className="verify-workspace">
-        <form className="verify-input-panel" onSubmit={submit}>
+        <form ref={formRef} className="verify-input-panel" onSubmit={submit}>
           <div
             className="verify-mode"
             role="group"
@@ -235,8 +236,16 @@ export function VerificationWorkspace() {
                 transition={{ duration: reduceMotion ? 0 : 0.2 }}
               >
                 <Warning2 size={24} />
-                <h2>Report not completed.</h2>
+                <h2>Review interrupted.</h2>
                 <p>{error}</p>
+                <button
+                  className="verify-retry"
+                  type="button"
+                  disabled={running}
+                  onClick={() => formRef.current?.requestSubmit()}
+                >
+                  Try again <ArrowRight size={16} />
+                </button>
               </motion.div>
             ) : report ? (
               <motion.article
