@@ -76,10 +76,12 @@ and production build before a commit.
   submitted or unknown. Only an exact independent `Created` event match creates
   the portable receipt and local Activity link. Evidence Council is advisory and
   only available after that fresh match. Reviewer release and post-deadline payer
-  refund remain explicit wallet actions with separate terminal verification. The
-  Move package is published on Sui testnet. Public native-SUI release and
-  expiry-refund references exist, but they are not testnet USDC,
-  product-generated receipts, Evidence Council success, or fiat payout evidence.
+  refund remain explicit wallet actions with separate terminal verification.
+  Enabled plans fail closed unless Seal encryption and Walrus ciphertext storage
+  succeed. Optional Enoki sponsorship requires exact command-graph validation;
+  the customer still signs. The canonical four-module package and public
+  sponsored-USDC, threshold-collection, recurring-cap, release, and refund
+  references are on Sui testnet. None is fiat payout evidence.
 - A demo or prepared transaction is not settlement. A carried transaction ID
   alone is not independent chain verification. Sui settlement is not fiat payout.
 - The remittance settlement verifier is server-only, fixed to Sui testnet, and

@@ -12,6 +12,10 @@ import {
 } from "@/lib/remittance/protected-transfer";
 import type { VerifyRejected } from "@/lib/remittance/quote-schema";
 import { getProtectedTransferTemplate } from "@/lib/remittance/protected-transfer-template";
+import {
+  sealAndStoreEvidence,
+  type SealedEvidenceResult,
+} from "@/lib/remittance/sealed-evidence.server";
 
 /**
  * POST /api/remittance/protected-transfer/plan
@@ -36,6 +40,19 @@ import { getProtectedTransferTemplate } from "@/lib/remittance/protected-transfe
  */
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
+
+type SealedEvidenceFactory = (input: {
+  packageId: string;
+  evidenceText: string;
+}) => Promise<SealedEvidenceResult>;
+
+let sealedEvidenceFactoryForTest: SealedEvidenceFactory | null = null;
+
+export function __setSealedEvidenceFactoryForTest(
+  factory: SealedEvidenceFactory | null,
+): void {
+  sealedEvidenceFactoryForTest = factory;
+}
 
 function reject(reason: VerifyRejected["reason"]): ProtectedTransferPlanResponse {
   return { kind: "rejected", reason };
@@ -140,6 +157,32 @@ export async function POST(req: Request) {
       ? {}
       : { custodyManifestDigest: request.custodyManifestDigest }),
   };
+
+  if (process.env.SEALED_EVIDENCE_ENABLED?.trim().toLowerCase() === "true") {
+    const evidenceText = JSON.stringify({
+      schemaVersion: "convey.private-agreement.v1",
+      originalIntent:
+        authorization.intentBinding?.originalIntent ?? request.reviewNote.trim(),
+      intentBinding: authorization.intentBinding ?? null,
+      recipient: authorization.recipient,
+      recipientAddress: authorization.recipientAddress,
+      usdcMicro: authorization.usdcMicro,
+      purpose: authorization.purpose,
+      maximumFamilyLimitMinor: authorization.maximumFamilyLimitMinor,
+      agreementTemplateId: request.agreementTemplateId ?? null,
+      evidenceRequirements: agreementTemplate?.evidenceChecklist ?? [],
+      reviewNote: request.reviewNote.trim(),
+      reviewerAddress,
+      reviewerName,
+      deadlineMs,
+    });
+    const storeEvidence = sealedEvidenceFactoryForTest ?? sealAndStoreEvidence;
+    const sealedEvidence = await storeEvidence({ packageId, evidenceText });
+    if (sealedEvidence.kind !== "stored") {
+      return response(reject("unverified"));
+    }
+    candidatePlan.sealedEvidence = sealedEvidence;
+  }
 
   // Normalize through the shared parser; any failure fails closed.
   let normalizedPlan: ProtectedTransferExecutionPlan;

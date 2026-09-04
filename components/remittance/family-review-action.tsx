@@ -5,9 +5,11 @@ import Link from "next/link";
 import type { Transaction } from "@mysten/sui/transactions";
 import {
   useCurrentAccount,
+  useCurrentClient,
   useCurrentNetwork,
   useDAppKit,
 } from "@mysten/dapp-kit-react";
+import { toBase64 } from "@mysten/sui/utils";
 import type { QuoteEnvelope } from "@/lib/remittance/quote";
 import {
   buildProtectedTransfer,
@@ -37,6 +39,10 @@ import {
 import { recordActivity } from "@/lib/activity/storage";
 import { formatUsdcGrouped } from "@/lib/remittance/money";
 import { storeProtectedAgreementArtifact } from "@/lib/remittance/protected-agreement-store";
+import {
+  requestSponsoredProtectedTransfer,
+  submitSponsoredProtectedTransfer,
+} from "@/lib/sui/sponsored-transaction-client";
 
 export const NOT_CONFIGURED_COPY =
   "Protected agreements aren't available right now. Send now to continue.";
@@ -112,6 +118,7 @@ export function useFamilyReviewSubmit({
 }: FamilyReviewActionProps) {
   const account = useCurrentAccount();
   const network = useCurrentNetwork();
+  const suiClient = useCurrentClient();
   const dAppKit = useDAppKit();
   const [phase, setPhase] = useState<HoldPhase>({ kind: "idle" });
   const lockRef = useRef(false);
@@ -191,8 +198,40 @@ export function useFamilyReviewSubmit({
   ) {
     setPhase({ kind: "confirming", plan, metadata });
     try {
-      const walletResult = await dAppKit.signAndExecuteTransaction({ transaction });
-      const digest = extractSuccessfulDigest(walletResult);
+      let sponsored:
+        | { kind: "sponsored"; bytes: string; digest: string }
+        | null = null;
+      try {
+        const transactionKindBytes = toBase64(
+          await transaction.build({ client: suiClient, onlyTransactionKind: true }),
+        );
+        const result = await requestSponsoredProtectedTransfer({
+          sender: account!.address,
+          quote,
+          plan,
+          transactionKindBytes,
+        });
+        if (result.kind === "sponsored") sponsored = result;
+      } catch {
+        sponsored = null;
+      }
+
+      let digest: string | null;
+      if (sponsored) {
+        const signed = await dAppKit.signTransaction({ transaction: sponsored.bytes });
+        if (signed.bytes !== sponsored.bytes) {
+          setPhase({ kind: "unknown" });
+          return;
+        }
+        const execution = await submitSponsoredProtectedTransfer({
+          digest: sponsored.digest,
+          signature: signed.signature,
+        });
+        digest = execution.kind === "submitted" ? execution.digest : null;
+      } else {
+        const walletResult = await dAppKit.signAndExecuteTransaction({ transaction });
+        digest = extractSuccessfulDigest(walletResult);
+      }
       if (!digest) {
         setPhase({ kind: "unknown" });
         return;

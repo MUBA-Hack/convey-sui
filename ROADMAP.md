@@ -23,25 +23,33 @@ reproduced.
   outer BLAKE2b-256 commitment preserve the normalized request, live Gonka
   request/model identity or deterministic provenance, deterministic policy
   result, recipient, amount, purpose, workflow, evidence requirements,
-  reviewer, expiry, and review note. After exact `Created` verification, the
-  full canonical artifact is kept in bounded device-local storage and the
-  shared Sui object exposes its 32-byte commitment.
+  reviewer, expiry, and review note. When private evidence is enabled, the
+  canonical artifact is encrypted by a 2-of-2 Seal policy, only ciphertext is
+  stored on Walrus, and the locator, digests, Seal identity, and reader set join
+  the same commitment. After exact `Created` verification, a bounded local copy
+  is retained and the shared Sui object exposes its 32-byte commitment.
 - **Six workflows share one contract spine.** Family support, medicine pickup,
   tuition, relief funding, purpose allowance, and refundable link all use the
   same Protected Transfer object, release/refund lifecycle, and receipt
-  verifier. Group collections with approval thresholds and recurring mandates
-  with cumulative hard caps still require new Move object policies.
+  verifier. The canonical package now also contains `ApprovalCollection<T>` for
+  unique M-of-N authorization and `RecurringCap<T>` for per-payment, cumulative,
+  interval, expiry, and revocation enforcement. Both have public testnet proofs;
+  customer-facing creation flows remain future work.
 - **QR has a connected settlement boundary.** QR carries a request across weak
   signal; the connected device reviews it, the wallet approves, Sui settles,
   and Receipts verifies. The transport envelope is not described as payer
   authorization.
-- **Seedless sign-in is visible without a sponsorship claim.** When Enoki is
-  configured, the sign-in surface explains that Google creates a Sui account
-  without a seed phrase and that each agreement still needs approval. Sponsored
-  transactions remain blocked on a deployed sponsor budget and public proof.
-- **Walrus and Seal remain scoped future infrastructure.** Their intended job is
-  encrypted evidence storage and reviewer-scoped disclosure for medical or
-  relief artifacts. Neither is claimed as shipped.
+- **Enoki sponsorship is public and wallet-controlled.** A private testnet key
+  is server-only. The sponsor route re-verifies the quote and exact command
+  graph before Enoki pays gas; the customer still signs. Public transaction
+  `BWiZmTbtNU6Tm9g3SDNrD6RbmxHsTyjgmssqJxamRM4P` proves distinct payer and gas
+  owner. Production budgets, abuse controls, zkLogin restoration, and recovery
+  remain future work.
+- **Walrus and Seal are integrated into protected planning.** Encryption or
+  storage failure stops plan issuance. The wallet atomically creates the funds
+  object and matching Seal access policy; the public reference ciphertext
+  re-downloads with the exact committed BLAKE2b-256 digest. Reviewer decryption
+  UI, reader rotation, and production retention remain future work.
 
 - **The public landing and companion workspace are separate.** `/` tells the
   product story and `/app` provides a full-height text, voice, and receipt
@@ -210,8 +218,9 @@ FX, fiat funding, or bank disbursement in this path.
 
 Fiat on/off-ramp, payout, recipient intelligence, nearby-commerce Activity, a production
 signed offline envelope, a captured real Thetanuts fill and Sui Earn remain
-future evidence, not shipped outcomes. Protected Transfer now has a tested single-milestone
-Move package, pinned TypeScript transaction core, bounded plan and Created-event
+future evidence, not shipped outcomes. Protected Transfer now leads a canonical
+four-module Move package with a tested single-milestone agreement, pinned
+TypeScript transaction core, bounded plan and Created-event
 verification endpoints, an integrated Pay creation path, terminal action/event
 verification, and a `/proof?t=` terminal receipt lifecycle. After wallet
 submission, only an exact independent Created-event match can produce the
@@ -226,16 +235,16 @@ verification must match before the product builds the receipt and navigates to
 resubmission; `not_found`/`unavailable` retain an explorer link and can retry
 verification only, while mismatched evidence remains review-needed. The
 package is published on Sui testnet; public native-SUI release and
-expiry-refund lifecycles exist, and a separate public 1 testnet-USDC lifecycle
-now proves Created, independent-reviewer Released, exact beneficiary credit,
-and terminal escrow consumption. These are not a product-generated `/proof?t=`
-receipt or fiat payout artifact. The freshly verified Created receipt also embeds the shipped
+expiry-refund lifecycles exist, and a public Enoki-sponsored 1 testnet-USDC
+lifecycle proves Created, a distinct gas owner, independent-reviewer Released,
+exact beneficiary credit, and terminal escrow consumption. This is a public
+testnet transaction proof, not a fiat payout artifact. The freshly verified Created receipt also embeds the shipped
 Evidence Council: bounded pasted text, a repeated Sui Created check, two
 distinct configured Gonka models, server-resolved exact spans, deterministic
 recipient/purpose/bound-MYR-or-PHP checks, and a stable advisory artifact for the human
 reviewer. It has no signing or release authority, and no successful live
-Evidence Council artifact has been captured. The Move package passes 20/20
-tests with Sui CLI v1.78.1.
+Evidence Council artifact has been captured. The canonical package passes 29/29
+tests with Sui CLI v1.79.0.
 The signed-quote handoff wrapper in the tree is a transport envelope
 with no outer signature; a production signed offline envelope with cross-device
 replay authority is future work.
@@ -455,11 +464,12 @@ redirect URI pinned to the origin so a deep-route sign-in does not send an
 unregistered `redirect_uri`. The wallet is identified by Enoki's metadata
 feature, never by display name. When Google is available, the sign-in dialog
 explains the seedless Sui account and per-agreement approval boundary. Live
-session restoration across sessions,
-salt/prover lifecycle handling, and captured restoration evidence remain
-outstanding, so this is not yet a proven onboarding path. No sponsored-gas
-claim is made; sponsor-budget policy and a public sponsored transaction remain
-exit evidence.
+session restoration across sessions, salt/prover lifecycle handling, and
+captured restoration evidence remain outstanding, so zkLogin restoration is
+not yet a proven onboarding path. Testnet gas sponsorship is separately live:
+an exact command-graph policy, server-only Enoki key, customer signature, and
+public sponsored transaction prove the boundary. Production sponsor budgets,
+origins, rate limits, monitoring, and abuse controls remain exit evidence.
 
 This feature does not provide credit-card funding, off-ramping, or autonomous
 control of the customer's funds.
@@ -480,12 +490,15 @@ Exit evidence:
 Complete the narrow, human-reviewed escrow lifecycle already initiated inside
 the existing Pay journey.
 
-**Status: contract published; intent-bound transaction core, bounded verification
-endpoints, creation path, advisory Evidence Council, role/deadline-gated terminal
-wallet bridge, and portable Created/terminal receipt lifecycle implemented;
-public native-SUI release/refund and 1 testnet-USDC reviewer-release references
-captured; a product-generated intent-bound receipt and live council artifact
-remain incomplete.** Executable quotes now default to **Protect outcome** with
+**Status: canonical four-module contract published; intent-bound transaction
+core, strict Enoki sponsorship, 2-of-2 Seal encryption, Walrus ciphertext
+storage, same-transaction access policy, bounded verification endpoints,
+creation path, advisory Evidence Council, role/deadline-gated terminal wallet
+bridge, M-of-N collection, recurring hard caps, and portable Created/terminal
+receipt lifecycle implemented. Public sponsored testnet-USDC release,
+threshold-release, recurring-collection, native-SUI release, and expiry-refund
+references are captured; a product-generated live Evidence Council artifact and
+customer screens for collection/mandate creation remain incomplete.** Executable quotes now default to **Protect outcome** with
 **Send now** one tap away inside Pay. The protected path requests a strict plan, builds the
 pinned `create_escrow` transaction client-side, requires a connected Sui
 testnet wallet, and locks duplicate submission. It remains pending after wallet
@@ -518,17 +531,18 @@ against resubmission and preserves its explorer link. Only `not_found` or
 review-needed. Command-line wallets produced the public native-SUI release
 artifact `D8fXy9g89WqhKKRYQmsxpEdprqSJCtvh24XKsmiFqoi1` and
 deadline-refund artifact `7x5YRgTCSQMadUmswaBqXkfk8EARUwnE7CYkija5GKCv`;
-no product-generated USDC terminal receipt or bank/cash payout is claimed. The
-Move package passes 20/20 tests with Sui CLI v1.78.1.
+no bank/cash payout is claimed. The Move package passes 29/29 tests with Sui CLI
+v1.79.0.
 
 The canonical agreement commitment now covers the original request, live Gonka
 request/model identity or deterministic fallback, policy result, exact payment
 terms, workflow, evidence checklist, reviewer, expiry, and review note. The full
-artifact is retained in bounded device-local storage only after exact Created
+artifact is Seal-encrypted and its ciphertext stored on Walrus before plan
+issuance; a bounded device-local copy is retained only after exact Created
 verification. Family support, medicine pickup, tuition, relief, purpose
-allowance, and refundable link use the same object spine. Multi-approver group
-collections and recurring mandates with cumulative caps are still separate Move
-object work, not implemented screens relabeled as enforcement.
+allowance, and refundable link use the same object spine. Multi-approver
+collections and recurring mandates are distinct on-chain objects in the same
+package, with public proofs rather than relabeled screens.
 
 The implemented Sui Move escrow object records:
 
@@ -742,11 +756,11 @@ this source) and which are **future** (still required for a complete submission)
 
 | Track | Current capability | Future capability | Evidence judges should see |
 | --- | --- | --- | --- |
-| Sui Payments & Stablecoins | Remittance quote, Family Rule binding, pinned testnet-USDC execution path, signed-quote carry, offline commerce handoff, portable direct-settlement proof, published Protected Transfer package, public 1 testnet-USDC reviewer-release lifecycle, public native-SUI release and expiry-refund lifecycles, advisory Evidence Council, role/deadline-gated terminal wallet actions, and strict `/proof?t=` verification | Product-generated `/proof?t=` artifact, production review policy, Convey Earn, real direct-USDC artifact, live FX/funding/payout | Published package plus USDC and native-SUI terminal digests, exact assets, events, beneficiary delivery, and payer reclaim |
-| Sui AI x Sui | Gonka-interpreted remittance intent behind deterministic rebind/policy; publicly verified two-model Family Steward artifact; Created-receipt Evidence Council with server-resolved exact evidence; bounded protected-plan issuance; public human-reviewed Sui release | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, validated schema, deterministic checks, Family Rule binding, human review, and Sui wallet action |
+| Sui Payments & Stablecoins | Canonical four-module package; pinned testnet-USDC execution; public Enoki-sponsored 1 USDC creation/release; same-transaction Seal policy; verified Walrus ciphertext; 2-of-2 collection release; recurring per-payment/cumulative cap; portable receipts | Production audit, sponsor abuse controls, compliant FX/funding/KYC/payout, and customer collection/mandate screens | Package, sponsored gas owner, USDC terminal digests, ciphertext digest, threshold approvals, cap event, exact beneficiary delivery |
+| Sui AI x Sui | Gonka-interpreted intent behind deterministic policy; model/request provenance in the wallet-signed commitment; public human-reviewed Sui release; contract-family policies reuse the committed-intent model | Live Evidence Council artifact joined to a product-generated Created receipt | Distinct model/request provenance, policy digest, wallet signature, sponsor, Sui objects, and verified terminal action |
 | Thetanuts Best Product Built on the SDK | Bounded Base-mainnet discovery; strict 0.000001–3 USDC plan; exact allowance, approval and fill requests; external-wallet authority; durable recovery; direct fill verification; portable `/proof?o=` receipt | Restore official live order-index access and capture a minimal customer-approved fill plus verified receipt | Exact wallet prompts, Base transaction, unique `OrderFilled` evidence, and portable verified receipt |
 | Thetanuts AI x Options | Natural-language risk goal with deterministic rebind, signed-order selection, reviewed wallet boundary, and independently checked outcome | Model-routed constraint extraction and captured live transaction evidence | Bound goal, reviewed terms, customer authorization, and verified Base outcome |
-| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, and a publicly verified live two-model Family Steward artifact with exact evidence, deterministic aggregation, verification questions, and honest unavailable states | Captured multilingual remittance evidence and a live Created-receipt Evidence Council artifact | Real router requests, uncertainty handling, exact evidence, social-impact user path |
+| GonkaRouter AI For Society | Mixed-language remittance interpretation, deterministic rebind, Family Rule, publicly verified two-model Family Steward, and AI-decision provenance carried into an enforceable Sui agreement | Captured multilingual remittance evidence and a live Created-receipt Evidence Council artifact | Real router requests, uncertainty handling, exact evidence, committed decision, and social-impact payment path |
 
 ## Delivery gates
 
@@ -776,8 +790,9 @@ complete:
 - Mainnet stablecoin and execution approval. The current testnet increment
   already pins six-decimal Sui USDC; it does not authorize production deployment.
 - Bridge commercial access and supported payout geography.
-- OAuth provider, zkLogin prover/salt strategy, Enoki use, and sponsored-gas
-  policy.
+- Production zkLogin prover/salt/session recovery, Enoki origin and budget
+  controls, sponsor rate limiting, monitoring, and key rotation. Testnet
+  sponsorship and a public sponsored transaction are complete.
 - GonkaRouter production key policy, distinct Family Steward/Evidence Council model pair,
   provider availability/timeout policy, data policy, and latency target.
 - Protected Transfer policies, reviewer authority, evidence retention, and

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __setGonkaRemittanceRouterFactoryForTest } from "@/app/api/remittance/quote/route";
+import { __setSealedEvidenceFactoryForTest } from "@/app/api/remittance/protected-transfer/plan/route";
 import {
   PROTECTED_TRANSFER_DEADLINE_DURATIONS_MS,
   PROTECTED_TRANSFER_PLAN_MAX_BYTES,
 } from "@/lib/remittance/protected-transfer";
 import { USDC_COIN_TYPE_TESTNET } from "@/lib/remittance/constants";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
+import type { SealedEvidenceStored } from "@/lib/remittance/sealed-evidence";
 
 /**
  * POST /api/remittance/protected-transfer/plan — endpoint adapter tests.
@@ -25,6 +27,24 @@ const ADDR_ANA = "0x" + "ab".repeat(32);
 const PACKAGE = "0x" + "44".repeat(32);
 const REVIEWER = "0x" + "33".repeat(32);
 const NOW = 1_700_000_000_000;
+const SEALED_EVIDENCE: SealedEvidenceStored = {
+  kind: "stored" as const,
+  schemaVersion: "convey.sealed-evidence.v1" as const,
+  packageId: PACKAGE,
+  sealIdHex: "0x" + "55".repeat(32),
+  walrusBlobId: "A_valid_testnet_blob_id_12345",
+  walrusBlobObjectId: "0x" + "66".repeat(32),
+  walrusEndEpoch: 99,
+  walrusUrl:
+    "https://aggregator.walrus-testnet.walrus.space/v1/blobs/A_valid_testnet_blob_id_12345",
+  ciphertextDigestHex: "0x" + "77".repeat(32),
+  plaintextDigestHex: "0x" + "88".repeat(32),
+  threshold: 2 as const,
+  keyServerObjectIds: [
+    "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75",
+    "0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8",
+  ],
+};
 
 function planReq(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/remittance/protected-transfer/plan", {
@@ -70,12 +90,15 @@ beforeEach(() => {
   vi.stubEnv("PROTECTED_TRANSFER_PACKAGE_ID", PACKAGE);
   vi.stubEnv("PROTECTED_TRANSFER_REVIEWER_ADDRESS", REVIEWER);
   vi.stubEnv("PROTECTED_TRANSFER_REVIEWER_NAME", "Convey Review Desk");
+  vi.stubEnv("SEALED_EVIDENCE_ENABLED", "");
   __setGonkaRemittanceRouterFactoryForTest(null);
+  __setSealedEvidenceFactoryForTest(null);
 });
 
 afterEach(() => {
   Date.now = realDateNow;
   __setGonkaRemittanceRouterFactoryForTest(null);
+  __setSealedEvidenceFactoryForTest(null);
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -247,6 +270,67 @@ describe("POST /api/remittance/protected-transfer/plan", () => {
       kind: "rejected",
       reason: "invalid_envelope",
     });
+  });
+
+  it("encrypts the private agreement artifact and binds its Walrus/Seal locator into the plan", async () => {
+    vi.stubEnv("SEALED_EVIDENCE_ENABLED", "true");
+    const storeEvidence = vi.fn(async (input: {
+      packageId: string;
+      evidenceText: string;
+    }) => {
+      void input;
+      return SEALED_EVIDENCE;
+    });
+    __setSealedEvidenceFactoryForTest(storeEvidence);
+    const quote = await getQuote(GOLDEN_EN);
+
+    const res = await postPlan({
+      quote,
+      deadlinePreset: "three_days",
+      reviewNote: "Release after medicine pickup is reviewed",
+      agreementTemplateId: "medicine_pickup",
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("protected_transfer_execution_plan");
+    expect(body.sealedEvidence).toEqual(SEALED_EVIDENCE);
+    expect(storeEvidence).toHaveBeenCalledTimes(1);
+    const input = storeEvidence.mock.calls[0]?.[0];
+    expect(input?.packageId).toBe(PACKAGE);
+    const artifact = JSON.parse(input?.evidenceText ?? "null") as Record<string, unknown>;
+    expect(artifact).toMatchObject({
+      schemaVersion: "convey.private-agreement.v1",
+      originalIntent: GOLDEN_EN,
+      recipient: "Ana",
+      recipientAddress: ADDR_ANA,
+      usdcMicro: "109000000",
+      agreementTemplateId: "medicine_pickup",
+      reviewNote: "Release after medicine pickup is reviewed",
+      reviewerAddress: REVIEWER,
+    });
+    expect(artifact).toHaveProperty("intentBinding", quote.intentBinding);
+    expect(artifact).toHaveProperty("evidenceRequirements", [
+      "Pharmacy pickup confirmed",
+      "Recipient identity verified at pickup",
+      "Item count matched at handover",
+      "Payment receipt captured",
+    ]);
+  });
+
+  it("fails closed when encrypted evidence cannot be stored", async () => {
+    vi.stubEnv("SEALED_EVIDENCE_ENABLED", "true");
+    __setSealedEvidenceFactoryForTest(async () => ({
+      kind: "unavailable",
+      reason: "storage_failed",
+    }));
+    const quote = await getQuote(GOLDEN_EN);
+    const res = await postPlan({
+      quote,
+      deadlinePreset: "tomorrow",
+      reviewNote: "Release after review",
+    });
+    expect(await res.json()).toEqual({ kind: "rejected", reason: "unverified" });
   });
 
   it("omits custodyManifestDigest from the plan when the request omits it", async () => {

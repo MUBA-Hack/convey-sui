@@ -1,8 +1,8 @@
 # Convey — agent guide
 
-Minimal black-and-white Sui money movement built around one family-transfer
-journey. **Pay** is primary: a spoken or typed request becomes a transparent
-quote, Transfer checks, one wallet approval, and a portable receipt.
+Minimal black-and-white protected-intent companion built around enforceable Sui
+agreements. **Pay** is primary: a spoken or typed request becomes a transparent
+quote, deterministic checks, one wallet approval, and a portable receipt.
 **Continue elsewhere** and **Activity** are contextual branches of that
 journey. **Treasury** is separate conceptual planning and never implies that it
 protects the remittance rate or payout.
@@ -32,15 +32,18 @@ pnpm dev           # app on :3000
   testnet wallet, and explicit approval. Prepared or carried states are not
   settlement.
 - Protected Transfer accepts only a verified quote, deadline preset, and review
-  note; package/reviewer coordinates remain server-only and fail closed. The
-  client builds and approves the pinned `create_escrow` call. Submission alone
-  remains submitted or unknown. Only an exact independent `Created` event match
-  creates the portable receipt and local Activity link. Freshly verified Created
-  receipts may request a bounded two-model advisory Evidence Council review;
-  models cannot release funds. Reviewer release and post-deadline payer refund
-  remain explicit wallet actions with separate terminal verification. The Move
-  package is still unpublished and unconfigured by default, so no live lifecycle
-  artifact is claimed.
+  note; package/reviewer coordinates remain server-only and fail closed. When
+  enabled, Seal encryption and Walrus storage must succeed before the evidence
+  coordinates enter the plan. The client builds the pinned `create_escrow` plus
+  matching `evidence_access::create` calls. Enoki sponsorship is optional and
+  allowed only after an exact server-side command-graph check; the customer
+  still signs. Submission alone remains submitted or unknown. Only an exact
+  independent `Created` event match creates the portable receipt and Activity
+  link. Evidence Council cannot release funds. Reviewer release and
+  post-deadline payer refund remain explicit wallet actions with separate
+  terminal verification. The canonical four-module package is published on
+  Sui testnet with public sponsored-USDC, threshold-collection, recurring-cap,
+  release, and refund evidence.
 - A carried receipt or digest alone is not independent chain evidence. The
   server-only settlement route is fixed to Sui testnet and one read-only lookup;
   verified requires a successful transaction plus exact digest, pinned USDC,
@@ -49,8 +52,8 @@ pnpm dev           # app on :3000
   the active receipt before verified UI or share/export is allowed. Malformed,
   extra, stale, mismatched, not-found, and unavailable evidence fails closed.
 - Sui settlement is never family bank or cash payout. Keep **Confirmed on Sui**
-  and **Awaiting family payout** separate; no live real-digest release artifact
-  is currently claimed.
+  and **Awaiting family payout** separate. Public testnet digests prove only the
+  exact on-chain outcomes documented in README.
 - The offline commerce envelope is a TRANSPORT envelope, not cryptographic payer
   authorization. The checksum detects tampering; the nonce registry defends
   against replay. No signature or authorization is implied.
@@ -67,8 +70,10 @@ pnpm dev           # app on :3000
   verification; 16 KiB streamed body cap, one lookup, six-second abort,
   `no-store`, strict safe response, and no signer or payout authority.
 - `app/api/remittance/protected-transfer/plan/` — bounded, no-store plan
-  issuance from a verified quote plus server-only candidate coordinates; no
-  signer, RPC, submission, or deployment proof.
+  issuance from a verified quote plus server-only coordinates and optional
+  fail-closed Seal/Walrus storage; no signer.
+- `app/api/sui/sponsor/` — exact-command sponsorship request and signed-digest
+  execution through a server-only Enoki private key.
 - `lib/http/` — shared server-only bounded UTF-8 request reader used by typed
   remittance APIs.
 - `lib/activity/` — strict bounded device-local receipt-link history. It is
@@ -77,8 +82,12 @@ pnpm dev           # app on :3000
   verification.
 - `lib/remittance/` — quote, transfer, and receipt rules plus the shared
   settlement response schema, pure exact-match evaluator, and server-only Sui
-  reader; Protected Transfer includes the strict plan client and pinned
-  `create_escrow` builder.
+  reader; Protected Transfer includes the strict plan client, Seal/Walrus
+  adapter, and pinned agreement builder.
+- `lib/sui/` — sponsor request schemas, exact transaction-kind inspection, and
+  server-only Enoki adapter.
+- `move/protected_transfer/` — published protected transfer, evidence access,
+  M-of-N approval collection, and recurring-cap modules plus Move tests.
 - `lib/protocol/hash.ts` — shared blake2b256 used by the QR Ferry checksum.
 - `components/remittance/` — the primary request, quote, Transfer checks,
   direct wallet approval, family-review creation, cross-device carry, and

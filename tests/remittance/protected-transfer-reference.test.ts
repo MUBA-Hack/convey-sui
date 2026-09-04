@@ -12,8 +12,8 @@ describe("published Protected Transfer reference", () => {
     expect(reference.amountMicro).toBe("1000000");
     expect(reference.amountDisplay).toBe("1 USDC");
     expect(reference.beneficiaryAddress).toBe("0x705c6669bbf247264d7344fead9a8371fbf6aa818379fc84a4ba2538578a587b");
-    expect(reference.createdDigest).toBe("DMuGFRfWvYtXUZHFXsftvQEk69BzdukeZ3SSqwoWydok");
-    expect(reference.releasedDigest).toBe("CkE9cGZaWR5A4UrskdK2Wd58XQCEy5BU7tcKxLBaYGhB");
+    expect(reference.createdDigest).toBe("BWiZmTbtNU6Tm9g3SDNrD6RbmxHsTyjgmssqJxamRM4P");
+    expect(reference.releasedDigest).toBe("HUcinKrEMfwcSf3XRcyWabRFWYroXrVdg6umdZChPgcV");
   });
 
   it("binds explorer links to the exact public digests", () => {

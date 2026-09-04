@@ -43,7 +43,7 @@ describe("Companion demo lifecycles", () => {
 
     expect(screen.getByRole("link", { name: /release/i })).toHaveAttribute(
       "href",
-      "https://suiscan.xyz/testnet/tx/CkE9cGZaWR5A4UrskdK2Wd58XQCEy5BU7tcKxLBaYGhB",
+      "https://suiscan.xyz/testnet/tx/HUcinKrEMfwcSf3XRcyWabRFWYroXrVdg6umdZChPgcV",
     );
     expect(screen.getByRole("link", { name: /refund/i })).toHaveAttribute(
       "href",
@@ -61,15 +61,15 @@ describe("Companion demo lifecycles", () => {
     expect(screen.getByText(/completed on sui testnet/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /lock transaction/i })).toHaveAttribute(
       "href",
-      "https://suiscan.xyz/testnet/tx/DMuGFRfWvYtXUZHFXsftvQEk69BzdukeZ3SSqwoWydok",
+      "https://suiscan.xyz/testnet/tx/BWiZmTbtNU6Tm9g3SDNrD6RbmxHsTyjgmssqJxamRM4P",
     );
     expect(screen.getByRole("link", { name: /release transaction/i })).toHaveAttribute(
       "href",
-      "https://suiscan.xyz/testnet/tx/CkE9cGZaWR5A4UrskdK2Wd58XQCEy5BU7tcKxLBaYGhB",
+      "https://suiscan.xyz/testnet/tx/HUcinKrEMfwcSf3XRcyWabRFWYroXrVdg6umdZChPgcV",
     );
     expect(screen.getByRole("link", { name: /view contract/i })).toHaveAttribute(
       "href",
-      "https://suiscan.xyz/testnet/object/0x265dcb32526bbe87973752b6164d1860a2f7e6fa16520948a83c4c9de60212c7",
+      "https://suiscan.xyz/testnet/object/0xcf84c52207baff1b193bd01d7700aefb92c1232de3fdce8dd5cd0898600bbb5f",
     );
   });
 

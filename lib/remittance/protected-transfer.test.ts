@@ -825,3 +825,76 @@ describe("buildProtectedTransfer — optional custody manifest digest", () => {
     expect(result.metadata.commitmentBytes.length).toBe(32);
   });
 });
+
+describe("buildProtectedTransfer — sealed Walrus evidence", () => {
+  const artifact = {
+    kind: "stored",
+    schemaVersion: "convey.sealed-evidence.v1",
+    packageId: PACKAGE,
+    sealIdHex: "0x" + "10".repeat(32),
+    walrusBlobId: "M4hsZGQ1oCktdzegB6HnI6Mi28S2nqOPHxK-W7_4BUk",
+    walrusBlobObjectId: "0x" + "55".repeat(32),
+    walrusEndEpoch: 123,
+    walrusUrl:
+      "https://aggregator.walrus-testnet.walrus.space/v1/blobs/M4hsZGQ1oCktdzegB6HnI6Mi28S2nqOPHxK-W7_4BUk",
+    ciphertextDigestHex: "0x" + "66".repeat(32),
+    plaintextDigestHex: "0x" + "77".repeat(32),
+    threshold: 2,
+    keyServerObjectIds: [
+      "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75",
+      "0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8",
+    ],
+  };
+
+  it("creates the evidence access object in the same transaction as the escrow", () => {
+    const input = baseInput({
+      plan: { sealedEvidence: artifact } as unknown as Partial<ProtectedTransferExecutionPlan>,
+    });
+    const result = buildProtectedTransfer(input);
+    const data = result.transaction.getData() as TxData;
+    const calls = data.commands.filter(
+      (command): command is MoveCallCommand => command.$kind === "MoveCall",
+    );
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.MoveCall).toMatchObject({
+      package: PACKAGE,
+      module: "evidence_access",
+      function: "create",
+      typeArguments: [],
+    });
+    expect(calls[1]!.MoveCall.arguments).toHaveLength(3);
+  });
+
+  it("binds the sealed artifact into the protected intent commitment", () => {
+    const first = buildProtectedTransfer(
+      baseInput({
+        plan: { sealedEvidence: artifact } as unknown as Partial<ProtectedTransferExecutionPlan>,
+      }),
+    );
+    const second = buildProtectedTransfer(
+      baseInput({
+        plan: {
+          sealedEvidence: {
+            ...artifact,
+            walrusBlobId: "N4hsZGQ1oCktdzegB6HnI6Mi28S2nqOPHxK-W7_4BUk",
+            walrusUrl:
+              "https://aggregator.walrus-testnet.walrus.space/v1/blobs/N4hsZGQ1oCktdzegB6HnI6Mi28S2nqOPHxK-W7_4BUk",
+          },
+        } as unknown as Partial<ProtectedTransferExecutionPlan>,
+      }),
+    );
+    expect(first.metadata.commitmentHex).not.toBe(second.metadata.commitmentHex);
+  });
+
+  it("rejects evidence encrypted under a different package namespace", () => {
+    expect(() =>
+      buildProtectedTransfer(
+        baseInput({
+          plan: {
+            sealedEvidence: { ...artifact, packageId: "0x" + "99".repeat(32) },
+          } as unknown as Partial<ProtectedTransferExecutionPlan>,
+        }),
+      ),
+    ).toThrow(/evidence package/i);
+  });
+});

@@ -1,10 +1,10 @@
 /**
  * Protected Transfer — pure, client-safe, deterministic transaction core.
  *
- * Builds exactly one `protected_transfer::create_escrow<T>` Move call that locks
- * pinned testnet USDC into an escrow controlled by a reviewer and released to a
- * beneficiary. The escrow is bound to a 32-byte blake2b256 commitment over a
- * canonical fixed-order JSON encoding of every bound term.
+ * Builds a pinned `protected_transfer::create_escrow<T>` Move call and, when
+ * sealed evidence is present, its matching `evidence_access::create` policy.
+ * The escrow is bound to a 32-byte blake2b256 commitment over a canonical
+ * fixed-order JSON encoding of every bound term.
  *
  * This module contains no React, fetch, environment access, secrets, HMAC,
  * storage, signing, submission, RPC, or fake lifecycle state. It validates every
@@ -40,8 +40,12 @@ import {
   VerifyRejectedSchema,
   type CanonicalAuthorization,
 } from "./quote-schema";
-import { blake2b256, toHex } from "../protocol/hash";
+import { blake2b256, fromHex, toHex } from "../protocol/hash";
 import { CustodyManifestDigestSchema } from "../pharmacy/custody-evidence";
+import {
+  SealedEvidenceStoredSchema,
+  type SealedEvidenceStored,
+} from "./sealed-evidence";
 
 /** Schema/domain version bound into every commitment. */
 export const PROTECTED_TRANSFER_SCHEMA_VERSION = "convey.protected-transfer.v1";
@@ -113,6 +117,7 @@ export interface ProtectedTransferExecutionPlan {
    * the strict runtime schema inference; the regex is the fail-closed guard.
    */
   custodyManifestDigest?: string;
+  sealedEvidence?: SealedEvidenceStored;
 }
 
 /**
@@ -146,6 +151,7 @@ export const ProtectedTransferExecutionPlanSchema = z.strictObject({
   // property is accepted (ordinary transfers); a present-but-malformed value
   // fails closed through the strict schema.
   custodyManifestDigest: CustodyManifestDigestSchema.optional(),
+  sealedEvidence: SealedEvidenceStoredSchema.optional(),
 });
 
 /**
@@ -272,6 +278,7 @@ export interface ProtectedTransferMetadata {
    * authorized, or approved artifact.
    */
   readonly custodyManifestDigest?: string;
+  readonly sealedEvidence?: SealedEvidenceStored;
 }
 
 export interface BuildProtectedTransferResult {
@@ -517,6 +524,28 @@ export function parseProtectedTransferExecutionPlan(
   const canonicalBeneficiary = canonicalizeAddress(auth.recipientAddress, "beneficiary");
   const canonicalPackage = canonicalizeAddress(plan.packageId, "packageId");
   const canonicalReviewer = canonicalizeAddress(plan.reviewerAddress, "reviewerAddress");
+  let sealedEvidence: SealedEvidenceStored | undefined;
+  if (plan.sealedEvidence !== undefined) {
+    const evidencePackage = canonicalizeAddress(
+      plan.sealedEvidence.packageId,
+      "evidence packageId",
+    );
+    if (evidencePackage !== canonicalPackage) {
+      throw new Error("Sealed evidence package must match the agreement package.");
+    }
+    sealedEvidence = {
+      ...plan.sealedEvidence,
+      packageId: evidencePackage,
+      ...(plan.sealedEvidence.walrusBlobObjectId === undefined
+        ? {}
+        : {
+            walrusBlobObjectId: canonicalizeAddress(
+              plan.sealedEvidence.walrusBlobObjectId,
+              "Walrus blob objectId",
+            ),
+          }),
+    };
+  }
 
   // Enforce amount, deadline window, authorization freshness, and note
   // semantics against the caller-supplied current time.
@@ -561,6 +590,7 @@ export function parseProtectedTransferExecutionPlan(
     ...(plan.custodyManifestDigest === undefined
       ? {}
       : { custodyManifestDigest: plan.custodyManifestDigest }),
+    ...(sealedEvidence === undefined ? {} : { sealedEvidence }),
   };
 }
 
@@ -640,6 +670,26 @@ export function buildProtectedTransfer(
     ...(plan.custodyManifestDigest === undefined
       ? {}
       : { custodyManifestDigest: plan.custodyManifestDigest }),
+    ...(plan.sealedEvidence === undefined
+      ? {}
+      : {
+          sealedEvidence: {
+            kind: plan.sealedEvidence.kind,
+            schemaVersion: plan.sealedEvidence.schemaVersion,
+            packageId: plan.sealedEvidence.packageId,
+            sealIdHex: plan.sealedEvidence.sealIdHex,
+            walrusBlobId: plan.sealedEvidence.walrusBlobId,
+            ...(plan.sealedEvidence.walrusBlobObjectId === undefined
+              ? {}
+              : { walrusBlobObjectId: plan.sealedEvidence.walrusBlobObjectId }),
+            walrusEndEpoch: plan.sealedEvidence.walrusEndEpoch,
+            walrusUrl: plan.sealedEvidence.walrusUrl,
+            ciphertextDigestHex: plan.sealedEvidence.ciphertextDigestHex,
+            plaintextDigestHex: plan.sealedEvidence.plaintextDigestHex,
+            threshold: plan.sealedEvidence.threshold,
+            keyServerObjectIds: plan.sealedEvidence.keyServerObjectIds,
+          },
+        }),
   };
   const canonicalJson = JSON.stringify(encoding);
   const digest = blake2b256(new TextEncoder().encode(canonicalJson));
@@ -672,6 +722,20 @@ export function buildProtectedTransfer(
     ],
   });
 
+  if (plan.sealedEvidence !== undefined) {
+    transaction.moveCall({
+      target: `${canonicalPackage}::evidence_access::create`,
+      arguments: [
+        transaction.pure.vector("u8", fromHex(plan.sealedEvidence.sealIdHex)),
+        transaction.pure.vector(
+          "u8",
+          new TextEncoder().encode(plan.sealedEvidence.walrusBlobId),
+        ),
+        transaction.pure.vector("address", [canonicalBeneficiary, canonicalReviewer]),
+      ],
+    });
+  }
+
   const metadata: ProtectedTransferMetadata = {
     schemaVersion: PROTECTED_TRANSFER_SCHEMA_VERSION,
     packageId: canonicalPackage,
@@ -692,6 +756,9 @@ export function buildProtectedTransfer(
     ...(plan.custodyManifestDigest === undefined
       ? {}
       : { custodyManifestDigest: plan.custodyManifestDigest }),
+    ...(plan.sealedEvidence === undefined
+      ? {}
+      : { sealedEvidence: plan.sealedEvidence }),
   };
   Object.freeze(metadata);
 
