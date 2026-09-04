@@ -58,6 +58,23 @@ describe("companion contracts", () => {
     }).success).toBe(false);
   });
 
+  it("accepts only known workspace routing context", () => {
+    const base = {
+      message: "Pay Dave 6 SUI",
+      localeHint: "en-MY",
+      memory: {
+        version: "convey.companion-memory.v1" as const,
+        ownerLabel: null,
+        contacts: [],
+        interactions: [],
+      },
+    };
+
+    expect(CompanionInputSchema.safeParse({ ...base, workspaceId: "ngo" }).success).toBe(true);
+    expect(CompanionInputSchema.safeParse({ ...base, workspaceId: "relief" }).success).toBe(false);
+    expect(CompanionInputSchema.safeParse({ ...base, workspaceId: "admin" }).success).toBe(false);
+  });
+
   it("requires every payment proposal to remain approval-gated", () => {
     const proposal = {
       toolId: "payments.propose",

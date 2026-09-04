@@ -53,12 +53,20 @@ reproduced.
 
 - **The public landing and companion workspace are separate.** `/` tells the
   product story and `/app` provides a full-height text, voice, and receipt
-  workspace with desktop context rail and mobile safe-area navigation. Requests route
-  through a strict Gonka candidate contract with pinned-model no-fallback
-  routing and deterministic rebind. The public build labels Dave as sample
-  context until the user deliberately remembers it. Bounded device-local
-  Agentic Memory is now integrated with schema validation, inspect, forget, and
-  clear controls. Encrypted multi-device sync and production contact onboarding
+  workspace with desktop context rail and mobile safe-area navigation. Personal,
+  NGO operations, and Club treasury are persistent device-local contexts with
+  distinct starter requests, operational briefs, main actions, and destination
+  rails. Emergency response remains a plain-language request inside Personal.
+  Customers can create up to eight device-local NGO, club, business, or
+  community workspaces. Bounded workspace and organization context enter the
+  redacted Gonka manifest for routing but grant no authority. Requests route
+  through a strict Gonka candidate contract with
+  pinned-model no-fallback routing and deterministic rebind. The public build
+  labels Dave as sample context until the user deliberately remembers it.
+  Bounded device-local Agentic Memory is integrated with schema validation,
+  inspect, forget, and clear controls. Encrypted multi-device sync, production
+  server-backed organization membership, invitations, role-based authorization,
+  encrypted cross-device sync, and contact onboarding
   remain future work.
 - **Payment risk checks are implemented as advisory policy.** Known/new
   recipient, changed address, unusual amount, duplicate invoice, QR mismatch,

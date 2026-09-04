@@ -8,6 +8,13 @@ const INPUT = {
   message: "Pay Dave 12 USDC for dinner",
   prompt: "Pay Dave 12 USDC for dinner",
   localeHint: "en",
+  workspaceId: "ngo" as const,
+  organization: {
+    id: "river-aid-1",
+    name: "River Aid",
+    kind: "ngo" as const,
+    memberRole: "owner" as const,
+  },
   memory: {
     version: "convey.companion-memory.v1" as const,
     ownerLabel: null,
@@ -58,5 +65,21 @@ describe("Gonka companion prompt contract", () => {
     expect(system).toContain('"missingFields"');
     expect(system).toContain('"confidence"');
     expect(system).toContain("Return exactly one JSON object");
+    const user = request.messages?.find((message) => message.role === "user")?.content ?? "";
+    expect(JSON.parse(user)).toMatchObject({
+      memory: {
+        workspace: {
+          id: "ngo",
+          label: "River Aid",
+          role: "NGO operations",
+          organization: {
+            id: "river-aid-1",
+            name: "River Aid",
+            kind: "ngo",
+            memberRole: "owner",
+          },
+        },
+      },
+    });
   });
 });

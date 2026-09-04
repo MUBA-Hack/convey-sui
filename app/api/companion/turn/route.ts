@@ -10,6 +10,9 @@ import { EMPTY_COMPANION_MEMORY, CompanionMemorySchema } from "@/lib/companion/m
 import { parseCompanionTurn, resolveCompanionCandidate } from "@/lib/companion/turn";
 import { createGonkaCompanionRouter, resolveCompanionGonkaConfig } from "@/lib/gonka/companion";
 import type { CompanionMemory } from "@/lib/companion/memory";
+import { DEFAULT_COMPANION_WORKSPACE_ID } from "@/lib/companion/workspaces";
+import type { CompanionWorkspaceId } from "@/lib/companion/workspaces";
+import type { CompanionOrganizationContext } from "@/lib/companion/organizations";
 
 const TEST_ROUTER_FACTORY: { current: null | ((config: { apiKey: string; modelId: string; baseUrl?: string }) => { run: (input: unknown) => Promise<unknown> }) } = {
   current: null,
@@ -56,17 +59,22 @@ export async function POST(req: Request) {
   const input = {
     ...parsed.data,
     memory: CompanionMemorySchema.parse(parsed.data.memory ?? EMPTY_COMPANION_MEMORY),
+    workspaceId: parsed.data.workspaceId ?? DEFAULT_COMPANION_WORKSPACE_ID,
   };
   const routerInput: CompanionMemory extends never ? never : {
     message: string;
     prompt: string;
     localeHint: string;
     memory: CompanionMemory;
+    workspaceId: CompanionWorkspaceId;
+    organization?: CompanionOrganizationContext;
   } = {
     message: input.message,
     prompt: input.message,
     localeHint: input.localeHint,
     memory: input.memory,
+    workspaceId: input.workspaceId,
+    organization: input.organization,
   };
 
   const deterministic = CompanionResolutionSchema.parse(parseCompanionTurn(input));

@@ -5,6 +5,8 @@ import {
   CompanionInteractionSchema,
   CompanionMemorySchema,
 } from "./memory";
+import { CompanionWorkspaceIdSchema } from "./workspaces";
+import { CompanionOrganizationContextSchema } from "./organizations";
 
 export const CompanionToolIdSchema = z.enum([
   "contacts.resolve",
@@ -19,6 +21,8 @@ export const CompanionInputSchema = z.strictObject({
   message: z.string().min(1).max(1_280),
   localeHint: z.string().min(1).max(32),
   memory: CompanionMemorySchema,
+  workspaceId: CompanionWorkspaceIdSchema.optional(),
+  organization: CompanionOrganizationContextSchema.optional(),
 });
 
 export const CompanionTurnRequestSchema = CompanionInputSchema;

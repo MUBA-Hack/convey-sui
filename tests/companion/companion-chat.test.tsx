@@ -112,10 +112,39 @@ describe("Companion demo lifecycles", () => {
 });
 
 describe("CompanionChat", () => {
+  it("keeps emergency relief in personal chat and exposes a distinct NGO workspace", () => {
+    render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /switch workspace.*personal/i }));
+    expect(screen.queryByRole("button", { name: /^relief team/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /ngo operations/i }));
+
+    expect(screen.getByText(/describe what the ngo should fund/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /review field evidence/i }).length).toBeGreaterThan(0);
+    expect(window.localStorage.getItem("convey.companion-workspace.v1")).toBe(
+      '{"version":"convey.companion-workspace.v1","workspaceId":"ngo"}',
+    );
+  });
+
+  it("creates and selects a device-local organization with specialized UI", () => {
+    render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /switch workspace.*personal/i }));
+    fireEvent.click(screen.getByRole("button", { name: /create organization/i }));
+    fireEvent.change(screen.getByLabelText(/organization name/i), { target: { value: "River Aid" } });
+    fireEvent.change(screen.getByLabelText(/organization type/i), { target: { value: "ngo" } });
+    fireEvent.click(screen.getByRole("button", { name: /create workspace/i }));
+
+    expect(screen.getByRole("button", { name: /switch workspace.*river aid/i })).toBeInTheDocument();
+    expect(screen.getByText(/owner.*ngo operations/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /review field evidence/i }).length).toBeGreaterThan(0);
+    expect(window.localStorage.getItem("convey.companion-organizations.v1")).toContain('"name":"River Aid"');
+  });
+
   it("opens the smart contract demo without requiring a chat prompt", () => {
     render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /demo smart contract/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view sui lifecycle/i }));
 
     expect(screen.getByRole("dialog", { name: /smart contract demo/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /1 usdc moved by contract/i })).toBeInTheDocument();
@@ -124,7 +153,7 @@ describe("CompanionChat", () => {
 
   it("keeps every promoted recipient available in sample memory", () => {
     render(<CompanionChat memoryMode="sample" initialMemory={SAMPLE_COMPANION_MEMORY} />);
-    expect(screen.getByText(/sample people · dave, ana/i)).toBeInTheDocument();
+    expect(screen.getByText(/sample people: dave, ana/i)).toBeInTheDocument();
     expect(SAMPLE_COMPANION_MEMORY.contacts.map((contact) => contact.displayName)).toEqual(["Dave", "Ana"]);
   });
 
@@ -137,7 +166,7 @@ describe("CompanionChat", () => {
     };
     const view = render(<CompanionChat memoryMode="sample" initialMemory={memory} />);
 
-    expect(screen.getByText(/sample person · dave/i)).toBeInTheDocument();
+    expect(screen.getByText(/sample person: dave/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /manage remembered people/i }));
     fireEvent.click(screen.getByRole("button", { name: /remember on this device/i }));
 
@@ -258,6 +287,8 @@ describe("CompanionChat", () => {
         expect.objectContaining({ method: "POST" }),
       ),
     );
+    const request = vi.mocked(globalThis.fetch).mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toMatchObject({ workspaceId: "personal" });
     await waitFor(() =>
       expect(screen.getByText(/ready to review/i)).toBeInTheDocument(),
     );
@@ -274,7 +305,7 @@ describe("CompanionChat", () => {
         }}
       />,
     );
-    expect(screen.getByText(/sample person · dave/i)).toBeInTheDocument();
+    expect(screen.getByText(/sample person: dave/i)).toBeInTheDocument();
   });
 
   it("shows a receipt intake as the next step for a split request", async () => {

@@ -89,7 +89,18 @@ sync.
 ## One companion, many governed outcomes
 
 The `/app` companion combines text, voice, bounded contact context, strict tool
-contracts, and approval-first outcomes in a dedicated responsive workspace.
+contracts, and approval-first outcomes in a dedicated responsive workspace. A
+device-local switcher separates **Personal**, **NGO operations**, and **Club
+treasury** contexts. Emergency help remains a natural request inside Personal,
+not a separate product mode. NGO operations can review field evidence, gate aid
+releases, collect donations by QR, and show donor outcomes. Club treasury can
+collect dues, reimburse members, review claims, and protect reserves. Customers
+can also create up to eight device-local NGO, club, business, or community
+workspaces; each gets specialized actions and its own name in the companion.
+The bounded workspace and organization context enter the redacted Gonka
+manifest for routing only. They never grant payment, wallet, reviewer, member,
+or treasury authority.
+
 Wide desktop adds a contextual action rail; tablet and mobile switch to one
 full-height conversation canvas, fixed safe-area navigation, and a
 thumb-reachable composer instead of compressing desktop columns. Its current
@@ -148,11 +159,11 @@ evidence. The overnight strategy remains a simulation and does not claim a live
 Thetanuts fill.
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey companion workspace on desktop" width="820" />
+  <img src="docs/screenshots/convey-app-desktop.png" alt="Convey Club Treasury companion workspace on desktop" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey companion workspace on mobile" width="300" />
+  <img src="docs/screenshots/convey-app-mobile.png" alt="Convey Club Treasury companion workspace on mobile" width="300" />
 </p>
 
 <p align="center">
@@ -980,7 +991,7 @@ approval, fill, or receipt artifact is claimed.
 | Route | Purpose | Network / authority |
 | --- | --- | --- |
 | `/` — **Product site** | Explain Convey's value, trust model, and primary customer journeys before opening the product | Public, read-only presentation; no transaction authority |
-| `/app` — **Companion** | Chat or speak to Convey; prepare a bounded payment, receipt split, protected support mission, or treasury policy | Gonka sees a redacted contact manifest; deterministic code rebinds opaque IDs; no signer or transaction submission |
+| `/app` — **Companion** | Switch between Personal, NGO operations, Club treasury, and device-local custom organizations; chat or speak to prepare a bounded payment, receipt split, aid release, or treasury policy | Gonka sees a redacted contact manifest plus bounded workspace and organization context; deterministic code rebinds opaque IDs; context grants no signer, membership, or transaction authority |
 | `/verify` — **Verify** | Paste text or a public page and inspect claim extraction, two independent reviews, truth score, reasoning, evidence, disagreement, and request IDs | All inference runs through Gonka; bounded source text only; strict fail-closed report; no wallet or transaction authority |
 | `/pay` — **Pay** | Send abroad / Family Rule remittance; Buy nearby catalog purchases | Separate testnet-USDC and native-SUI paths; customer wallet alone signs |
 | `/qr-ferry` — **Scan and Pay** | Scan, receive, request, split by personal QR or WhatsApp link, propose a purpose allowance or payment pass, carry a signed remittance quote, or transport an offline commerce request | QR task proposals are local; settlement and enforced conditions still require connection, policy support, and wallet approval |

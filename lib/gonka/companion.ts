@@ -6,8 +6,25 @@ import { CompanionCandidateSchema, CompanionInputSchema } from "@/lib/companion/
 import type { CompanionCandidate } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
 import { CompanionMemorySchema } from "@/lib/companion/memory";
+import {
+  DEFAULT_COMPANION_WORKSPACE_ID,
+  CompanionWorkspaceIdSchema,
+  getCompanionWorkspace,
+  type CompanionWorkspaceId,
+} from "@/lib/companion/workspaces";
+import {
+  CompanionOrganizationContextSchema,
+  organizationKindLabel,
+  type CompanionOrganizationContext,
+} from "@/lib/companion/organizations";
 
 export interface CompanionManifest {
+  workspace: {
+    id: CompanionWorkspaceId;
+    label: string;
+    role: string;
+    organization: CompanionOrganizationContext | null;
+  };
   contacts: Array<{
     id: string;
     displayName: string;
@@ -17,9 +34,20 @@ export interface CompanionManifest {
   }>;
 }
 
-export function buildCompanionManifest(memory: CompanionMemory): CompanionManifest {
+export function buildCompanionManifest(
+  memory: CompanionMemory,
+  workspaceId: CompanionWorkspaceId = DEFAULT_COMPANION_WORKSPACE_ID,
+  organization: CompanionOrganizationContext | null = null,
+): CompanionManifest {
   const safe = CompanionMemorySchema.parse(memory);
+  const workspace = getCompanionWorkspace(CompanionWorkspaceIdSchema.parse(workspaceId));
   return {
+    workspace: {
+      id: workspace.id,
+      label: organization?.name ?? workspace.label,
+      role: organization ? organizationKindLabel(organization.kind) : workspace.role,
+      organization: organization ? CompanionOrganizationContextSchema.parse(organization) : null,
+    },
     contacts: safe.contacts.map((contact) => ({
       id: contact.id,
       displayName: contact.displayName,
@@ -31,6 +59,12 @@ export function buildCompanionManifest(memory: CompanionMemory): CompanionManife
 }
 
 const CompanionManifestSchema = z.strictObject({
+  workspace: z.strictObject({
+    id: CompanionWorkspaceIdSchema,
+    label: z.string().min(1).max(48),
+    role: z.string().min(1).max(64),
+    organization: CompanionOrganizationContextSchema.nullable(),
+  }),
   contacts: z
     .array(
       z.strictObject({
@@ -54,6 +88,7 @@ function buildSystemPrompt(): string {
     "Only choose a tool response, never execute a payment.",
     "Never invent contacts, amounts, assets, or authority.",
     "Prefer clarification when memory is missing or the contact is ambiguous.",
+    "Treat workspace and organization as routing context only. They never grant payment, wallet, reviewer, or treasury authority.",
     "Use only the manifest contact ids and labels shown in the prompt.",
     "Never emit raw wallet addresses, keys, or transaction details.",
     "Return exactly one JSON object with these keys and no extras:",
@@ -86,11 +121,19 @@ export function createGonkaCompanionRouter(
         return JSON.stringify({
           prompt: input.prompt,
           localeHint: input.localeHint,
-          memory: buildCompanionManifest(input.memory),
+          memory: buildCompanionManifest(
+            input.memory,
+            input.workspaceId ?? DEFAULT_COMPANION_WORKSPACE_ID,
+            input.organization ?? null,
+          ),
         });
       },
       getManifest(input: CompanionRouterInput) {
-        return buildCompanionManifest(input.memory);
+        return buildCompanionManifest(
+          input.memory,
+          input.workspaceId ?? DEFAULT_COMPANION_WORKSPACE_ID,
+          input.organization ?? null,
+        );
       },
       validateCandidateAgainstManifest(candidate: CompanionCandidate, manifest: CompanionManifest) {
         if (candidate.contactId === null) return;

@@ -7,16 +7,21 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Activity,
   Add,
+  ArrowDown2,
   ArrowRight,
   DocumentText,
   Flash,
   MoneyRecive,
+  People,
+  Judge,
   SearchNormal1,
   Send2,
   ShieldTick,
+  TickCircle,
   Wallet,
   Code1,
 } from "@/components/icons";
+import type { IconComponent } from "@/components/icons";
 import { useVoiceInput } from "@/components/commerce/use-voice-input";
 import { CompanionResolutionSchema, type CompanionResolution } from "@/lib/companion/contracts";
 import type { CompanionMemory } from "@/lib/companion/memory";
@@ -30,6 +35,22 @@ import { ProtectedSupportDemoCard } from "@/components/companion/protected-suppo
 import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
 import { BrandMark } from "@/components/site-header";
 import { WalletConnectButton } from "@/components/wallet/connect-button";
+import {
+  COMPANION_WORKSPACES,
+  DEFAULT_COMPANION_WORKSPACE_ID,
+  createCompanionWorkspaceStore,
+  getCompanionWorkspace,
+  type CompanionWorkspaceId,
+  type CompanionWorkspaceStore,
+} from "@/lib/companion/workspaces";
+import {
+  createCompanionOrganizationStore,
+  organizationKindLabel,
+  workspaceIdForOrganization,
+  type CompanionOrganization,
+  type CompanionOrganizationKind,
+  type CompanionOrganizationStore,
+} from "@/lib/companion/organizations";
 
 type Message = {
   id: number;
@@ -39,20 +60,147 @@ type Message = {
   resolution?: CompanionResolution;
 };
 
-const STARTER_PROMPTS = [
-  { label: "Pay Dave 12 USDC", prompt: "Pay Dave 12 USDC for dinner", detail: "For dinner", icon: MoneyRecive },
-  { label: "Support Ana safely", prompt: "Send Ana 25 USDC for medicine, release after pickup evidence", detail: "Release after pickup", icon: ShieldTick },
-  { label: "Split this receipt", prompt: "Split this receipt", detail: "Add a photo next", icon: DocumentText },
-  { label: "Protect 500 USDC", prompt: "Protect 500 USDC overnight", detail: "Bound an overnight strategy", icon: ShieldTick },
-] as const;
+type StarterPrompt = {
+  label: string;
+  prompt: string;
+  detail: string;
+  icon: IconComponent;
+};
 
-const DESTINATIONS = [
-  { href: "/pay", label: "Send money", detail: "Local or abroad", icon: Wallet },
-  { href: "/verify", label: "Verify a claim", detail: "Two independent Gonka reviews", icon: SearchNormal1 },
-  { href: "/qr-ferry", label: "Scan and pay", detail: "Pay, collect, or split by QR", icon: Code1 },
-  { href: "/proof", label: "Recent activity", detail: "Receipts and status", icon: Activity },
-  { href: "/settings", label: "Settings", detail: "Preferences and privacy", icon: ShieldTick },
-] as const;
+type Destination = {
+  href: string;
+  label: string;
+  detail: string;
+  icon: IconComponent;
+};
+
+type EmptyAction = {
+  kind: "link" | "prompt" | "memory" | "contract";
+  label: string;
+  detail: string;
+  icon: IconComponent;
+  href?: string;
+  prompt?: string;
+};
+
+type WorkspaceBrief = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  steps: readonly string[];
+  sideEyebrow: string;
+  sideTitle: string;
+  trustTitle: string;
+  trustBody: string;
+};
+
+const STARTER_PROMPTS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly StarterPrompt[]> = {
+  personal: [
+    { label: "Pay Dave 12 USDC", prompt: "Pay Dave 12 USDC for dinner", detail: "For dinner", icon: MoneyRecive },
+    { label: "Help after a flood", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", detail: "Release after evidence", icon: ShieldTick },
+    { label: "Split this receipt", prompt: "Split this receipt", detail: "Add a photo next", icon: DocumentText },
+    { label: "Protect 500 USDC", prompt: "Protect 500 USDC overnight", detail: "Bound an overnight strategy", icon: ShieldTick },
+  ],
+  ngo: [
+    { label: "Review field evidence", prompt: "Review this field report before releasing the aid payment", detail: "Compare evidence first", icon: SearchNormal1 },
+    { label: "Release emergency aid", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", detail: "Evidence-gated support", icon: ShieldTick },
+    { label: "Reconcile receipts", prompt: "Check these relief receipts against our funded items", detail: "Prepare an audit trail", icon: DocumentText },
+    { label: "Protect aid reserve", prompt: "Protect 500 USDC of our aid reserve overnight", detail: "Bound the risk", icon: ShieldTick },
+  ],
+  treasury: [
+    { label: "Reimburse Dave", prompt: "Pay Dave 12 USDC for club supplies", detail: "Club supplies", icon: MoneyRecive },
+    { label: "Split club receipt", prompt: "Split this club receipt", detail: "Prepare reimbursements", icon: DocumentText },
+    { label: "Pay Ana after pickup", prompt: "Send Ana 25 USDC for medicine, release after pickup evidence", detail: "Require evidence", icon: ShieldTick },
+    { label: "Protect club reserve", prompt: "Protect 500 USDC of our club reserve overnight", detail: "Bound the risk", icon: ShieldTick },
+  ],
+};
+
+const DESTINATIONS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly Destination[]> = {
+  personal: [
+    { href: "/pay", label: "Send money", detail: "Local or abroad", icon: Wallet },
+    { href: "/verify", label: "Verify a claim", detail: "Two independent Gonka reviews", icon: SearchNormal1 },
+    { href: "/qr-ferry", label: "Scan and pay", detail: "Pay, collect, or split by QR", icon: Code1 },
+    { href: "/proof", label: "Recent activity", detail: "Receipts and status", icon: Activity },
+    { href: "/settings", label: "Settings", detail: "Preferences and privacy", icon: ShieldTick },
+  ],
+  ngo: [
+    { href: "/verify", label: "Verify evidence", detail: "Compare independent reviews", icon: SearchNormal1 },
+    { href: "/pay", label: "Release aid", detail: "Add evidence and expiry", icon: ShieldTick },
+    { href: "/qr-ferry", label: "Collect donations", detail: "QR for field or campaign", icon: Code1 },
+    { href: "/proof", label: "Donor outcomes", detail: "Trace every released payment", icon: Activity },
+    { href: "/settings", label: "Organization settings", detail: "Members and controls", icon: ShieldTick },
+  ],
+  treasury: [
+    { href: "/pay", label: "Send or reimburse", detail: "Prepare an exact payment", icon: Wallet },
+    { href: "/verify", label: "Review a claim", detail: "Compare independent reviews", icon: SearchNormal1 },
+    { href: "/qr-ferry", label: "Collect by QR", detail: "Dues, events, or sales", icon: Code1 },
+    { href: "/strategy", label: "Protect reserves", detail: "Bound a treasury strategy", icon: Judge },
+    { href: "/settings", label: "Treasury settings", detail: "Preferences and privacy", icon: ShieldTick },
+  ],
+};
+
+const WORKSPACE_ICONS: Record<CompanionWorkspaceId, IconComponent> = {
+  personal: People,
+  ngo: ShieldTick,
+  treasury: Judge,
+};
+
+const EMPTY_ACTIONS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly EmptyAction[]> = {
+  personal: [
+    { kind: "link", href: "/verify", label: "Verify a claim", detail: "Compare two independent Gonka reviews", icon: SearchNormal1 },
+    { kind: "link", href: "/qr-ferry", label: "Scan or show QR", detail: "Pay, collect, split, or issue a pass", icon: Code1 },
+    { kind: "memory", label: "Pay someone new", detail: "Save their Sui address once", icon: Add },
+    { kind: "prompt", prompt: "Split dinner with Maya, Idris, and Sam", label: "Split by WhatsApp", detail: "Create one request per person", icon: DocumentText },
+    { kind: "contract", label: "View Sui lifecycle", detail: "Replay a real 1 USDC testnet payment", icon: ShieldTick },
+  ],
+  ngo: [
+    { kind: "link", href: "/verify", label: "Review field evidence", detail: "Compare two independent Gonka reviews", icon: SearchNormal1 },
+    { kind: "prompt", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", label: "Create aid release", detail: "Set evidence, expiry, and refund", icon: ShieldTick },
+    { kind: "link", href: "/qr-ferry", label: "Collect donations", detail: "Show or share one QR request", icon: Code1 },
+    { kind: "link", href: "/proof", label: "Show donor outcomes", detail: "Trace receipts and releases", icon: Activity },
+    { kind: "contract", label: "View Sui lifecycle", detail: "Inspect a real protected release", icon: ShieldTick },
+  ],
+  treasury: [
+    { kind: "link", href: "/qr-ferry", label: "Collect dues by QR", detail: "Create a request members can scan", icon: Code1 },
+    { kind: "prompt", prompt: "Pay Dave 12 USDC for club supplies", label: "Reimburse a member", detail: "Prepare an exact payment", icon: MoneyRecive },
+    { kind: "link", href: "/verify", label: "Review a claim", detail: "Compare two independent reviews", icon: SearchNormal1 },
+    { kind: "link", href: "/strategy", label: "Protect reserves", detail: "Set hard limits before approval", icon: Judge },
+    { kind: "contract", label: "View Sui lifecycle", detail: "Inspect a real protected release", icon: ShieldTick },
+  ],
+};
+
+const WORKSPACE_BRIEFS: Record<CompanionWorkspaceId, WorkspaceBrief> = {
+  personal: {
+    eyebrow: "Personal companion",
+    title: "Say what should happen.",
+    body: "Pay, split, help during an emergency, or set a protected outcome in one conversation.",
+    steps: ["Ask or speak", "Review exact terms", "Approve once"],
+    sideEyebrow: "Try asking",
+    sideTitle: "Start with one move.",
+    trustTitle: "You stay in control.",
+    trustBody: "Convey prepares. You review and approve.",
+  },
+  ngo: {
+    eyebrow: "Aid operations",
+    title: "From field evidence to donor proof.",
+    body: "Review reports, gate releases, collect donations, and trace each outcome without losing the human context.",
+    steps: ["Review evidence", "Approve release", "Share outcome"],
+    sideEyebrow: "Aid desk",
+    sideTitle: "Fund, verify, release.",
+    trustTitle: "Every release stays reviewable.",
+    trustBody: "Team context helps routing. Wallet authority stays explicit.",
+  },
+  treasury: {
+    eyebrow: "Shared treasury",
+    title: "Collect together. Approve together.",
+    body: "Route dues, reimbursements, claims, and reserve policies through one accountable workspace.",
+    steps: ["Collect funds", "Review request", "Record approval"],
+    sideEyebrow: "Treasury desk",
+    sideTitle: "Collect, review, approve.",
+    trustTitle: "Shared money needs clear authority.",
+    trustBody: "Workspace context never replaces required wallet approvals.",
+  },
+};
 
 function MicGlyph({ active }: { active: boolean }) {
   return (
@@ -85,7 +233,7 @@ function responseText(result: CompanionResolution): string {
     return "I prepared a limited overnight protection policy for you to shape.";
   }
   if (result.toolId === "missions.propose") {
-    return "I mapped a protected medicine payment that releases after pickup evidence is approved.";
+    return "I mapped a protected payment that releases after the agreed evidence is approved.";
   }
   if (result.outcome === "proposal" && result.proposal) {
     return `I prepared ${result.proposal.amountMajor} ${result.proposal.asset} for ${result.proposal.contactLabel}.`;
@@ -110,6 +258,16 @@ export function CompanionChat({
   const [loading, setLoading] = useState(false);
   const [memory, setMemory] = useState(initialMemory);
   const [activeMemoryMode, setActiveMemoryMode] = useState(memoryMode);
+  const [workspaceId, setWorkspaceId] = useState<CompanionWorkspaceId>(
+    DEFAULT_COMPANION_WORKSPACE_ID,
+  );
+  const [organizations, setOrganizations] = useState<CompanionOrganization[]>([]);
+  const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [creatingOrganization, setCreatingOrganization] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationKind, setOrganizationKind] = useState<CompanionOrganizationKind>("ngo");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [addingPerson, setAddingPerson] = useState(false);
   const [personName, setPersonName] = useState("");
@@ -124,25 +282,132 @@ export function CompanionChat({
   const reduceMotion = useReducedMotion();
   const voice = useVoiceInput({ onFinal: setInput });
   const memoryStoreRef = useRef<CompanionMemoryStore | null>(null);
+  const workspaceStoreRef = useRef<CompanionWorkspaceStore | null>(null);
+  const organizationStoreRef = useRef<CompanionOrganizationStore | null>(null);
   const rememberedPeople = useMemo(() => memory.contacts.slice(0, 4), [memory.contacts]);
+  const activeOrganization = organizations.find((organization) => organization.id === activeOrganizationId) ?? null;
+  const baseWorkspace = getCompanionWorkspace(workspaceId);
+  const workspaceLabel = activeOrganization?.name ?? baseWorkspace.label;
+  const workspaceRole = activeOrganization
+    ? `Owner, ${organizationKindLabel(activeOrganization.kind)}`
+    : baseWorkspace.role;
+  const starterPrompts = STARTER_PROMPTS_BY_WORKSPACE[workspaceId];
+  const destinations = DESTINATIONS_BY_WORKSPACE[workspaceId];
+  const emptyActions = EMPTY_ACTIONS_BY_WORKSPACE[workspaceId];
+  const workspaceBrief = WORKSPACE_BRIEFS[workspaceId];
+  const WorkspaceIcon = WORKSPACE_ICONS[workspaceId];
+  const memorySummary = rememberedPeople.length > 0
+    ? activeMemoryMode === "sample"
+      ? rememberedPeople.length === 1
+        ? `Sample person: ${rememberedPeople[0]?.displayName}`
+        : `Sample people: ${rememberedPeople.map((person) => person.displayName).join(", ")}`
+      : `${rememberedPeople.length} remembered ${rememberedPeople.length === 1 ? "person" : "people"}`
+    : "No people saved yet";
 
   useEffect(() => {
     const store = createCompanionMemoryStore(window.localStorage);
+    const workspaceStore = createCompanionWorkspaceStore(window.localStorage);
+    const organizationStore = createCompanionOrganizationStore(window.localStorage);
     memoryStoreRef.current = store;
+    workspaceStoreRef.current = workspaceStore;
+    organizationStoreRef.current = organizationStore;
     const persisted = store.read();
+    const persistedWorkspaceId = workspaceStore.read();
+    const persistedOrganizations = organizationStore.read();
+    const persistedOrganization = persistedOrganizations.organizations.find(
+      (organization) => organization.id === persistedOrganizations.activeOrganizationId,
+    ) ?? null;
     const sharedRequest = new URLSearchParams(window.location.search).get("request");
     const hydrationTimer = window.setTimeout(() => {
       if (persisted.contacts.length > 0 || persisted.interactions.length > 0) {
         setMemory(persisted);
         setActiveMemoryMode("live");
       }
+      setOrganizations(persistedOrganizations.organizations);
+      setActiveOrganizationId(persistedOrganization?.id ?? null);
+      const nextWorkspaceId = persistedOrganization
+        ? workspaceIdForOrganization(persistedOrganization.kind)
+        : persistedWorkspaceId;
+      setWorkspaceId(nextWorkspaceId);
+      setMessages([{ id: 1, role: "assistant", text: persistedOrganization
+        ? `I’m ready. Describe what ${persistedOrganization.name} should collect, verify, protect, or release.`
+        : getCompanionWorkspace(nextWorkspaceId).welcome }]);
       if (sharedRequest) setInput(sharedRequest.slice(0, 500));
     }, 0);
     return () => {
       window.clearTimeout(hydrationTimer);
       memoryStoreRef.current = null;
+      workspaceStoreRef.current = null;
+      organizationStoreRef.current = null;
     };
   }, []);
+
+  function switchWorkspace(nextWorkspaceId: CompanionWorkspaceId) {
+    if (nextWorkspaceId === workspaceId && activeOrganizationId === null) {
+      setWorkspaceOpen(false);
+      return;
+    }
+
+    workspaceStoreRef.current?.write(nextWorkspaceId);
+    organizationStoreRef.current?.select(null);
+    setActiveOrganizationId(null);
+    setWorkspaceId(nextWorkspaceId);
+    setWorkspaceOpen(false);
+    setMemoryOpen(false);
+    setAddingPerson(false);
+    setContractDemoOpen(false);
+    setInput("");
+    const id = nextId.current;
+    nextId.current += 1;
+    setMessages([{ id, role: "assistant", text: getCompanionWorkspace(nextWorkspaceId).welcome }]);
+  }
+
+  function selectOrganization(organizationId: string) {
+    const organization = organizations.find((item) => item.id === organizationId);
+    if (!organization || !organizationStoreRef.current?.select(organizationId)) return;
+    const nextWorkspaceId = workspaceIdForOrganization(organization.kind);
+    workspaceStoreRef.current?.write(nextWorkspaceId);
+    setActiveOrganizationId(organization.id);
+    setWorkspaceId(nextWorkspaceId);
+    setWorkspaceOpen(false);
+    setCreatingOrganization(false);
+    setMemoryOpen(false);
+    setInput("");
+    const id = nextId.current;
+    nextId.current += 1;
+    setMessages([{ id, role: "assistant", text: `I’m ready. Describe what ${organization.name} should collect, verify, protect, or release.` }]);
+  }
+
+  function createOrganization() {
+    const result = organizationStoreRef.current?.create({
+      name: organizationName,
+      kind: organizationKind,
+    });
+    if (!result?.ok) {
+      setOrganizationError(
+        result?.reason === "duplicate"
+          ? "An organization with that name already exists."
+          : result?.reason === "limit"
+            ? "This device already has eight organizations."
+            : "Enter an organization name between 2 and 48 characters.",
+      );
+      return;
+    }
+    setOrganizations(result.state.organizations);
+    setOrganizationName("");
+    setOrganizationError(null);
+    const organization = result.organization;
+    const nextWorkspaceId = workspaceIdForOrganization(organization.kind);
+    workspaceStoreRef.current?.write(nextWorkspaceId);
+    setActiveOrganizationId(organization.id);
+    setWorkspaceId(nextWorkspaceId);
+    setWorkspaceOpen(false);
+    setCreatingOrganization(false);
+    setInput("");
+    const id = nextId.current;
+    nextId.current += 1;
+    setMessages([{ id, role: "assistant", text: `I’m ready. Describe what ${organization.name} should collect, verify, protect, or release.` }]);
+  }
 
   function rememberSamplePeople() {
     const store = memoryStoreRef.current;
@@ -229,6 +494,15 @@ export function CompanionChat({
           message,
           localeHint: typeof navigator === "undefined" ? "en" : navigator.language,
           memory,
+          workspaceId,
+          organization: activeOrganization
+            ? {
+                id: activeOrganization.id,
+                name: activeOrganization.name,
+                kind: activeOrganization.kind,
+                memberRole: activeOrganization.memberRole,
+              }
+            : undefined,
         }),
       });
       if (!response.ok) throw new Error("request_failed");
@@ -261,7 +535,7 @@ export function CompanionChat({
             <header className="companion-app-header">
               <Link href="/" aria-label="Convey website" className="flex items-center gap-2.5">
                 <BrandMark size={31} />
-                <span><b>Convey</b><small>Good evening</small></span>
+                <span><b>Convey</b><small>{workspaceLabel}</small></span>
               </Link>
               <WalletConnectButton />
             </header>
@@ -288,24 +562,30 @@ export function CompanionChat({
           </header>}
 
           <div className="companion-people">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="companion-live-dot" aria-hidden />
-              <p className="truncate text-xs font-medium text-black">
-                {rememberedPeople.length > 0
-                  ? activeMemoryMode === "sample"
-                    ? rememberedPeople.length === 1
-                      ? `Sample person · ${rememberedPeople[0]?.displayName}`
-                      : `Sample people · ${rememberedPeople.map((person) => person.displayName).join(", ")}`
-                    : `${rememberedPeople.length} remembered ${rememberedPeople.length === 1 ? "person" : "people"}`
-                  : "Ready for your first request"}
-              </p>
-            </div>
+            <button
+              type="button"
+              aria-expanded={workspaceOpen}
+              aria-controls="companion-workspace-panel"
+              aria-label={`Switch workspace. Current: ${workspaceLabel}`}
+              onClick={() => {
+                setWorkspaceOpen((current) => !current);
+                setMemoryOpen(false);
+              }}
+              className="companion-workspace-trigger"
+            >
+              <span className="companion-workspace-icon"><WorkspaceIcon size={17} /></span>
+              <span className="min-w-0 text-left">
+                <strong>{workspaceLabel}</strong>
+                <small>{workspaceRole}. {memorySummary}</small>
+              </span>
+              <ArrowDown2 size={15} />
+            </button>
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => { setMemoryOpen(true); setAddingPerson(true); }}
+                onClick={() => { setWorkspaceOpen(false); setMemoryOpen(true); setAddingPerson(true); }}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-black/10 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
-                aria-label="Add a person"
+                aria-label={workspaceId === "personal" ? "Add a person" : "Add a member or payee"}
               >
                 <Add size={18} />
               </button>
@@ -314,7 +594,7 @@ export function CompanionChat({
                 type="button"
                 aria-expanded={memoryOpen}
                 aria-controls="companion-memory-panel"
-                onClick={() => setMemoryOpen((current) => !current)}
+                onClick={() => { setWorkspaceOpen(false); setMemoryOpen((current) => !current); }}
                 className="flex min-h-11 items-center -space-x-1.5 rounded-full px-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
               >
                 {rememberedPeople.map((person) => (
@@ -328,11 +608,122 @@ export function CompanionChat({
             </div>
           </div>
 
+          {workspaceOpen && (
+              <section
+                id="companion-workspace-panel"
+                aria-label="Choose workspace"
+                className="companion-workspace-panel"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setWorkspaceOpen(false);
+                }}
+              >
+                <div className="companion-workspace-panel-head">
+                  <strong>Choose where you are working</strong>
+                  <span>Personal requests stay personal. Organizations keep their own context.</span>
+                </div>
+                <div className="companion-workspace-options">
+                  {COMPANION_WORKSPACES.map((option) => {
+                    const OptionIcon = WORKSPACE_ICONS[option.id];
+                    const selected = option.id === workspaceId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => switchWorkspace(option.id)}
+                        className="companion-workspace-option"
+                      >
+                        <span className="companion-workspace-option-icon"><OptionIcon size={17} /></span>
+                        <span className="min-w-0 flex-1 text-left">
+                          <strong>{option.label}</strong>
+                          <small>{option.description}</small>
+                        </span>
+                        {selected && <TickCircle size={17} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {organizations.length > 0 && (
+                  <div className="companion-organization-list" aria-label="Your organizations">
+                    <p>Your organizations</p>
+                    <div>
+                      {organizations.map((organization) => (
+                        <button
+                          key={organization.id}
+                          type="button"
+                          aria-pressed={organization.id === activeOrganizationId}
+                          onClick={() => selectOrganization(organization.id)}
+                          className="companion-organization-option"
+                        >
+                          <span className="companion-workspace-option-icon"><People size={17} /></span>
+                          <span className="min-w-0 flex-1 text-left">
+                            <strong>{organization.name}</strong>
+                            <small>Owner, {organizationKindLabel(organization.kind)}</small>
+                          </span>
+                          {organization.id === activeOrganizationId && <TickCircle size={17} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {creatingOrganization ? (
+                  <div className="companion-organization-form">
+                    <label>
+                      Organization name
+                      <input
+                        value={organizationName}
+                        onChange={(event) => {
+                          setOrganizationName(event.target.value);
+                          setOrganizationError(null);
+                        }}
+                        maxLength={48}
+                        autoFocus
+                      />
+                    </label>
+                    <label>
+                      Organization type
+                      <select
+                        value={organizationKind}
+                        onChange={(event) => setOrganizationKind(event.target.value as CompanionOrganizationKind)}
+                      >
+                        <option value="ngo">NGO</option>
+                        <option value="club">Student club</option>
+                        <option value="business">Business</option>
+                        <option value="community">Community group</option>
+                      </select>
+                    </label>
+                    <div className="companion-organization-form-actions">
+                      <button type="button" className="cv-btn-ghost" onClick={() => { setCreatingOrganization(false); setOrganizationError(null); }}>
+                        Cancel
+                      </button>
+                      <button type="button" className="cv-btn-solid" onClick={createOrganization}>
+                        Create workspace
+                      </button>
+                    </div>
+                    {organizationError && <p role="alert">{organizationError}</p>}
+                    <small>Saved on this device. Team membership and wallet approvals remain separate.</small>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="companion-create-organization"
+                    onClick={() => setCreatingOrganization(true)}
+                  >
+                    <Add size={17} />
+                    <span><strong>Create organization</strong><small>Set up an NGO, club, business, or community workspace</small></span>
+                    <ArrowRight size={16} />
+                  </button>
+                )}
+              </section>
+          )}
+
           {memoryOpen && (
-            <section id="companion-memory-panel" className="companion-memory-panel" aria-label="Remembered people">
+            <section id="companion-memory-panel" className="companion-memory-panel" aria-label={workspaceId === "personal" ? "Remembered people" : `People in ${workspaceLabel}`}>
               <div>
                 <p className="companion-eyebrow text-black/45">
-                  {activeMemoryMode === "sample" ? "Sample context" : "Remembered on this device"}
+                  {workspaceId === "personal"
+                    ? activeMemoryMode === "sample" ? "Sample context" : "Remembered on this device"
+                    : `People for ${workspaceLabel}`}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-black/58">
                   Names help prepare a request. Your wallet still approves every payment.
@@ -345,7 +736,7 @@ export function CompanionChat({
                     <span className="min-w-0 flex-1">
                       <strong className="block truncate text-sm font-medium text-black">{person.displayName}</strong>
                       <small className="block truncate text-[11px] text-black/45">
-                        {person.relationshipLabel ?? "Contact"} · {person.confirmation === "confirmed" ? "address confirmed" : "address not confirmed"}
+                        {person.relationshipLabel ?? "Contact"}: {person.confirmation === "confirmed" ? "address confirmed" : "address not confirmed"}
                       </small>
                     </span>
                     {activeMemoryMode === "live" && (
@@ -422,32 +813,61 @@ export function CompanionChat({
               )}
             </AnimatePresence>
             {messages.length === 1 && !loading && !contractDemoOpen && (
-              <div className="companion-empty-actions">
-                <Link href="/verify" className="companion-empty-action companion-empty-action--primary">
-                  <SearchNormal1 size={22} />
-                  <span><strong>Verify a claim</strong><small>Compare two independent Gonka reviews</small></span>
-                  <ArrowRight size={17} />
-                </Link>
-                <Link href="/qr-ferry" className="companion-empty-action">
-                  <Code1 size={22} />
-                  <span><strong>Scan or show QR</strong><small>Pay, collect, split, or issue a pass</small></span>
-                  <ArrowRight size={17} />
-                </Link>
-                <button type="button" onClick={() => { setMemoryOpen(true); setAddingPerson(true); }} className="companion-empty-action">
-                  <Add size={20} />
-                  <span><strong>Pay someone new</strong><small>Save their Sui address once</small></span>
-                  <ArrowRight size={17} />
-                </button>
-                <button type="button" onClick={() => setInput("Split dinner with Maya, Idris, and Sam")} className="companion-empty-action">
-                  <DocumentText size={20} />
-                  <span><strong>Split by WhatsApp</strong><small>Create one request per person</small></span>
-                  <ArrowRight size={17} />
-                </button>
-                <button type="button" onClick={() => setContractDemoOpen(true)} className="companion-empty-action companion-empty-action--contract">
-                  <ShieldTick size={20} />
-                  <span><strong>Demo smart contract</strong><small>Replay a real 1 USDC testnet payment</small></span>
-                  <ArrowRight size={17} />
-                </button>
+              <div className="companion-empty-state">
+                {workspaceId !== "personal" && (
+                  <section className="companion-workspace-brief" aria-label={`${workspaceLabel} workspace overview`}>
+                    <div>
+                      <p className="companion-eyebrow">{workspaceBrief.eyebrow}</p>
+                      <h2>{workspaceBrief.title}</h2>
+                      <p>{workspaceBrief.body}</p>
+                    </div>
+                    <ol>
+                      {workspaceBrief.steps.map((step, index) => (
+                        <li key={step}><span>0{index + 1}</span>{step}</li>
+                      ))}
+                    </ol>
+                  </section>
+                )}
+                <div className="companion-empty-actions">
+                  {emptyActions.map((action, index) => {
+                  const Icon = action.icon;
+                  const className = [
+                    "companion-empty-action",
+                    index === 0 ? "companion-empty-action--primary" : "",
+                    action.kind === "contract" ? "companion-empty-action--contract" : "",
+                  ].filter(Boolean).join(" ");
+                  const content = (
+                    <>
+                      <Icon size={index === 0 ? 22 : 20} />
+                      <span><strong>{action.label}</strong><small>{action.detail}</small></span>
+                      <ArrowRight size={17} />
+                    </>
+                  );
+
+                  if (action.kind === "link" && action.href) {
+                    return <Link key={action.label} href={action.href} className={className}>{content}</Link>;
+                  }
+
+                  return (
+                    <button
+                      key={action.label}
+                      type="button"
+                      className={className}
+                      onClick={() => {
+                        if (action.kind === "prompt" && action.prompt) setInput(action.prompt);
+                        if (action.kind === "memory") {
+                          setWorkspaceOpen(false);
+                          setMemoryOpen(true);
+                          setAddingPerson(true);
+                        }
+                        if (action.kind === "contract") setContractDemoOpen(true);
+                      }}
+                    >
+                      {content}
+                    </button>
+                  );
+                  })}
+                </div>
               </div>
             )}
             {loading && (
@@ -458,7 +878,7 @@ export function CompanionChat({
           </div>
 
           <div className="companion-quick-row" aria-label="Suggested requests">
-            {STARTER_PROMPTS.map(({ label, prompt }) => (
+            {starterPrompts.map(({ label, prompt }) => (
               <button key={label} type="button" onClick={() => setInput(prompt)} className="companion-quick-chip">
                 {label}
               </button>
@@ -504,7 +924,7 @@ export function CompanionChat({
             <div className="min-h-5 px-2 pt-1 text-center text-[10px] text-black/48" aria-live="polite">
               {voice.listening
                 ? voice.interimTranscript
-                  ? `Listening · ${voice.interimTranscript}`
+                  ? `Listening: ${voice.interimTranscript}`
                   : "Listening…"
                 : voice.error
                   ? voice.error === "not-allowed"
@@ -525,13 +945,13 @@ export function CompanionChat({
           <div className="companion-side-card companion-side-card--actions">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="companion-eyebrow text-black/42">Try asking</p>
-                <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-black">Start with one move.</h2>
+                <p className="companion-eyebrow text-black/42">{workspaceBrief.sideEyebrow}</p>
+                <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-black">{workspaceBrief.sideTitle}</h2>
               </div>
               <span className="companion-spark"><Flash size={18} /></span>
             </div>
             <div className="mt-5 grid gap-2.5">
-              {STARTER_PROMPTS.map(({ label, prompt, detail, icon: Icon }) => (
+              {starterPrompts.map(({ label, prompt, detail, icon: Icon }) => (
                 <button key={label} type="button" onClick={() => setInput(prompt)} className="companion-action-row">
                   <span className="companion-action-icon"><Icon size={17} /></span>
                   <span className="min-w-0 flex-1 text-left">
@@ -545,9 +965,9 @@ export function CompanionChat({
           </div>
 
           <div className="companion-side-card companion-side-card--continue">
-            <p className="companion-eyebrow text-black/42">Continue</p>
+            <p className="companion-eyebrow text-black/42">{workspaceId === "personal" ? "Continue" : `${workspaceLabel} tools`}</p>
             <div className="mt-3 divide-y divide-black/8">
-              {DESTINATIONS.map(({ href, label, detail, icon: Icon }) => (
+              {destinations.map(({ href, label, detail, icon: Icon }) => (
                 <Link key={href} href={href} className="companion-destination">
                   <span className="companion-destination-icon"><Icon size={16} /></span>
                   <span className="min-w-0 flex-1">
@@ -563,8 +983,8 @@ export function CompanionChat({
           <div className="companion-trust-card">
             <div className="companion-trust-mark"><ShieldTick size={18} /></div>
             <div>
-              <p className="text-sm font-medium text-white">You stay in control.</p>
-              <p className="mt-1 text-[11px] leading-5 text-white/52">Convey prepares. You review and approve.</p>
+              <p className="text-sm font-medium text-white">{workspaceBrief.trustTitle}</p>
+              <p className="mt-1 text-[11px] leading-5 text-white/52">{workspaceBrief.trustBody}</p>
             </div>
           </div>
         </aside>

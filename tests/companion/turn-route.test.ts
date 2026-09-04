@@ -69,6 +69,13 @@ describe("POST /api/companion/turn", () => {
       request({
         message: "Please take care of dinner for David",
         localeHint: "en",
+        workspaceId: "treasury",
+        organization: {
+          id: "robotics-club-1",
+          name: "Robotics Club",
+          kind: "club",
+          memberRole: "owner",
+        },
         memory: {
           ...EMPTY_COMPANION_MEMORY,
           contacts: [
@@ -88,6 +95,15 @@ describe("POST /api/companion/turn", () => {
     );
 
     expect(run).toHaveBeenCalledOnce();
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: "treasury",
+      organization: {
+        id: "robotics-club-1",
+        name: "Robotics Club",
+        kind: "club",
+        memberRole: "owner",
+      },
+    }));
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toMatchObject({
       outcome: "proposal",
