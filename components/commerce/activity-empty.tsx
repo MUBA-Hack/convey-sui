@@ -50,14 +50,23 @@ export function ActivityEmpty() {
             {ACTIVITY_PAGE_COPY.emptyBody}
           </p>
         </div>
-        <Link
-          href="/"
-          data-testid="activity-send-money"
-          className="mt-8 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none sm:w-auto"
-        >
-          <Send2 size="15" variant="Linear" aria-hidden="true" />
-          {ACTIVITY_PAGE_COPY.sendMoney}
-        </Link>
+        <div className="mt-8 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Link
+            href="/"
+            data-testid="activity-send-money"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
+          >
+            <Send2 size="15" variant="Linear" aria-hidden="true" />
+            {ACTIVITY_PAGE_COPY.sendMoney}
+          </Link>
+          <Link
+            href="/proof/reference"
+            data-testid="activity-open-example"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-xs font-semibold uppercase tracking-[0.12em] text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
+          >
+            {ACTIVITY_PAGE_COPY.openExample}
+          </Link>
+        </div>
       </div>
     </motion.div>
   );

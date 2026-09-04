@@ -72,4 +72,108 @@ describe("VerificationWorkspace", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("searches current reporting and renders only server-grounded clickable sources", async () => {
+    const report = {
+      kind: "verified_report",
+      source: { kind: "text", label: "Pasted text" },
+      primaryClaim: "What is known about the recent Nepal earthquake?",
+      claimType: "factual",
+      truthScore: 79,
+      verdict: "supported",
+      consensus: { status: "aligned", scoreSpread: 6 },
+      reasoningTrace: [
+        { reviewer: "review_a", text: "Current reporting describes the event." },
+        { reviewer: "review_a", text: "Location is explicit." },
+        { reviewer: "review_b", text: "A second publisher corroborates it." },
+        { reviewer: "review_b", text: "Early estimates may change." },
+      ],
+      evidence: [
+        { reviewer: "review_a", text: "An earthquake struck Nepal on Thursday." },
+        { reviewer: "review_b", text: "Emergency agencies issued an update." },
+      ],
+      limitations: ["Early reports may change."],
+      steps: [
+        { step: "claim_extraction", requestId: "web-extract", modelId: "model-a", latencyMs: 20 },
+        { step: "review_a", requestId: "web-review-a", modelId: "model-a", latencyMs: 24 },
+        { step: "review_b", requestId: "web-review-b", modelId: "model-b", latencyMs: 29 },
+      ],
+      assessedAt: "2026-09-04T06:00:00.000Z",
+    };
+    const response = {
+      kind: "web_verified_report",
+      query: "What is known about the recent Nepal earthquake?",
+      searchWindow: "30d",
+      searchedAt: "2026-09-04T06:00:00.000Z",
+      report,
+      sources: [
+        {
+          id: "source-1",
+          url: "https://news-one.example.org/nepal",
+          host: "news-one.example.org",
+          title: "Nepal earthquake update",
+          publishedAt: "2026-09-04T05:00:00.000Z",
+          snippet: "An earthquake struck Nepal on Thursday.",
+        },
+        {
+          id: "source-2",
+          url: "https://news-two.example.net/nepal",
+          host: "news-two.example.net",
+          title: "Regional emergency update",
+          publishedAt: null,
+          snippet: "Emergency agencies issued an update.",
+        },
+      ],
+      citations: [
+        {
+          sourceId: "source-1",
+          url: "https://news-one.example.org/nepal",
+          title: "Nepal earthquake update",
+          quote: "An earthquake struck Nepal on Thursday.",
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<VerificationWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: /search web/i }));
+    fireEvent.click(screen.getByRole("button", { name: /run independent checks/i }));
+
+    await waitFor(() => expect(screen.getByText("Current sources")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /Nepal earthquake update/i })).toHaveAttribute(
+      "href",
+      "https://news-one.example.org/nepal",
+    );
+    expect(screen.getByRole("link", { name: /Regional emergency update/i })).toHaveAttribute(
+      "href",
+      "https://news-two.example.net/nepal",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/verification/search",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("shows web-search progress and a recoverable unavailable state", async () => {
+    let resolveFetch!: (response: Response) => void;
+    const fetchMock = vi.fn().mockReturnValue(
+      new Promise<Response>((resolve) => { resolveFetch = resolve; }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<VerificationWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: /search web/i }));
+    fireEvent.click(screen.getByRole("button", { name: /run independent checks/i }));
+    expect(screen.getByText("Current evidence is being gathered.")).toBeInTheDocument();
+
+    resolveFetch(new Response(JSON.stringify({
+      kind: "web_verification_unavailable",
+      reason: "search_unavailable",
+    })));
+    await waitFor(() => expect(screen.getByText(/Current web search is unavailable/i)).toBeInTheDocument());
+    expect(screen.getByText("Report not completed.")).toBeInTheDocument();
+  });
 });

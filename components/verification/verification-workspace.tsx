@@ -16,11 +16,16 @@ import {
   type ClaimVerificationReport,
   type ClaimVerificationResponse,
 } from "@/lib/verification/claim-report";
+import {
+  requestWebVerification,
+  type WebVerificationResponse,
+} from "@/lib/verification/web-evidence";
 
-type InputMode = "text" | "url";
+type InputMode = "text" | "web" | "url";
 
 const RELIEF_EXAMPLE =
   "Independent auditors confirmed the flood relief fund paid for 42 water filters delivered to three evacuation centres.";
+const CURRENT_EVENT_EXAMPLE = "What is known about the recent Nepal earthquake?";
 
 const FAILURE_COPY: Record<
   Exclude<ClaimVerificationResponse, ClaimVerificationReport>["reason"],
@@ -34,6 +39,18 @@ const FAILURE_COPY: Record<
   provider_error: "The Gonka reviewers did not return a complete report. Try again.",
   insufficient_consensus: "The reviewers could not produce an independent consensus.",
 };
+
+const WEB_FAILURE_COPY: Record<
+  Extract<WebVerificationResponse, { kind: "web_verification_unavailable" }>["reason"],
+  string
+> = {
+  invalid_input: "Ask a complete question about a current claim or event.",
+  search_unavailable: "Current web search is unavailable. Try again in a moment or paste a public link.",
+  insufficient_sources: "Convey could not open enough independent public sources. Try a more specific question.",
+  verification_unavailable: "Sources were found, but the Gonka council could not complete its review. Try again.",
+};
+
+type WebContext = Extract<WebVerificationResponse, { kind: "web_verified_report" }>;
 
 function verdictCopy(report: ClaimVerificationReport): string {
   if (report.verdict === "supported") return "Supported";
@@ -53,6 +70,7 @@ export function VerificationWorkspace() {
   const [mode, setMode] = useState<InputMode>("text");
   const [input, setInput] = useState(RELIEF_EXAMPLE);
   const [report, setReport] = useState<ClaimVerificationReport | null>(null);
+  const [webContext, setWebContext] = useState<WebContext | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
@@ -62,8 +80,9 @@ export function VerificationWorkspace() {
   const changeMode = (next: InputMode) => {
     requestRef.current?.abort();
     setMode(next);
-    setInput(next === "text" ? RELIEF_EXAMPLE : "");
+    setInput(next === "text" ? RELIEF_EXAMPLE : next === "web" ? CURRENT_EVENT_EXAMPLE : "");
     setReport(null);
+    setWebContext(null);
     setError(null);
     setRunning(false);
   };
@@ -81,10 +100,24 @@ export function VerificationWorkspace() {
     setRunning(true);
     setError(null);
     setReport(null);
+    setWebContext(null);
     try {
+      const fetchWithSignal: typeof fetch = (url, init) =>
+        fetch(url, { ...init, signal: controller.signal });
+      if (mode === "web") {
+        const result = await requestWebVerification({ query: value }, fetchWithSignal);
+        if (controller.signal.aborted) return;
+        if (result.kind === "web_verified_report") {
+          setWebContext(result);
+          setReport(result.report);
+        } else {
+          setError(WEB_FAILURE_COPY[result.reason]);
+        }
+        return;
+      }
       const result = await requestClaimVerification(
         { inputType: mode, input: value },
-        (url, init) => fetch(url, { ...init, signal: controller.signal }),
+        fetchWithSignal,
       );
       if (controller.signal.aborted) return;
       if (result.kind === "verified_report") setReport(result);
@@ -114,9 +147,17 @@ export function VerificationWorkspace() {
 
       <div className="verify-workspace">
         <form className="verify-input-panel" onSubmit={submit}>
-          <div className="verify-mode" role="group" aria-label="Verification input type">
+          <div
+            className="verify-mode"
+            role="group"
+            aria-label="Verification input type"
+            style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
+          >
             <button type="button" aria-pressed={mode === "text"} onClick={() => changeMode("text")}>
               <DocumentText size={17} /> Text
+            </button>
+            <button type="button" aria-label="Search web" aria-pressed={mode === "web"} onClick={() => changeMode("web")}>
+              <SearchNormal1 size={17} /> Web
             </button>
             <button type="button" aria-pressed={mode === "url"} onClick={() => changeMode("url")}>
               <Global size={17} /> Public link
@@ -124,16 +165,16 @@ export function VerificationWorkspace() {
           </div>
 
           <label htmlFor="verification-input">
-            {mode === "text" ? "Claim or passage" : "Public page URL"}
+            {mode === "text" ? "Claim or passage" : mode === "web" ? "Current question" : "Public page URL"}
           </label>
-          {mode === "text" ? (
+          {mode !== "url" ? (
             <textarea
               id="verification-input"
               value={input}
               maxLength={12_000}
               rows={9}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Paste a claim, message, or article passage"
+              placeholder={mode === "web" ? "Ask about a recent event or changing claim" : "Paste a claim, message, or article passage"}
               disabled={running}
             />
           ) : (
@@ -152,7 +193,9 @@ export function VerificationWorkspace() {
           <p className="verify-input-note">
             {mode === "url"
               ? "Convey reads the public page now, then sends only bounded source text to Gonka."
-              : "Convey checks the supplied text against the source itself and model knowledge."}
+              : mode === "web"
+                ? "Convey searches current public reporting first, opens independent sources, then gives grounded excerpts to the Gonka council."
+                : "Convey checks the supplied text against the source itself and model knowledge."}
           </p>
 
           <button className="verify-submit" type="submit" disabled={running || input.trim().length < 8}>
@@ -174,10 +217,11 @@ export function VerificationWorkspace() {
                 transition={{ duration: reduceMotion ? 0 : 0.2 }}
               >
                 <span className="verify-orbit"><ShieldSearch size={26} /></span>
-                <h2>Three traceable steps are running.</h2>
-                <p>Claim extraction first. Two distinct model reviews next.</p>
+                <h2>{mode === "web" ? "Current evidence is being gathered." : "Three traceable steps are running."}</h2>
+                <p>{mode === "web" ? "Search and safe source reads first. Three Gonka decisions next." : "Claim extraction first. Two distinct model reviews next."}</p>
                 <ol>
-                  <li data-active="true">Freeze the exact claim</li>
+                  {mode === "web" && <li data-active="true">Search current public reporting</li>}
+                  <li data-active={mode === "web" ? undefined : "true"}>Freeze the exact claim</li>
                   <li>Review with model A</li>
                   <li>Cross-check with model B</li>
                 </ol>
@@ -240,6 +284,39 @@ export function VerificationWorkspace() {
                     {report.evidence.map((evidence, index) => (
                       <q key={`${evidence.reviewer}-${index}`}>{evidence.text}</q>
                     ))}
+                  </section>
+                )}
+
+                {webContext && (
+                  <section className="verify-evidence" aria-labelledby="current-sources-title">
+                    <h2 id="current-sources-title">Current sources</h2>
+                    <p className="mt-3 text-xs leading-5 text-white/55">
+                      URLs come from server-run search and safe page reads. Quotes must exist in an opened source; models cannot add links.
+                    </p>
+                    <div className="mt-4 grid gap-3">
+                      {webContext.sources.map((source) => {
+                        const grounded = webContext.citations.filter((citation) => citation.sourceId === source.id);
+                        return (
+                          <a
+                            key={source.id}
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-2xl border border-white/15 p-4 transition-colors hover:border-white/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                          >
+                            <span className="flex items-start justify-between gap-4 text-sm font-medium text-white/90">
+                              {source.title}<ArrowRight size={15} className="mt-0.5 shrink-0" />
+                            </span>
+                            <small className="mt-2 block text-[10px] uppercase tracking-[0.12em] text-white/40">
+                              {source.host}{source.publishedAt ? ` · ${new Date(source.publishedAt).toLocaleDateString()}` : ""}
+                            </small>
+                            <q className="mt-3 block text-xs leading-5 text-white/65">
+                              {grounded[0]?.quote ?? source.snippet}
+                            </q>
+                          </a>
+                        );
+                      })}
+                    </div>
                   </section>
                 )}
 

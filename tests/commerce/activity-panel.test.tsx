@@ -46,6 +46,9 @@ describe("ActivityPanel — no-query /proof", () => {
     const send = screen.getByTestId("activity-send-money");
     expect(send).toHaveAttribute("href", "/");
     expect(send).toHaveTextContent(/send money/i);
+    const example = screen.getByTestId("activity-open-example");
+    expect(example).toHaveAttribute("href", "/proof/reference");
+    expect(example).toHaveTextContent(/verified example/i);
     expect(screen.queryByLabelText(/receipt json/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /advanced details/i })).toBeInTheDocument();
   });

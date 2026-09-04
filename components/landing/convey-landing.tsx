@@ -29,14 +29,7 @@ const WORLDS = [
 
 export function ConveyLanding() {
   const reduceMotion = useReducedMotion();
-  const reveal = reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0 },
-        whileInView: { opacity: 1 },
-        viewport: { once: true, amount: 0.22 },
-        transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] as const },
-      };
+  const reveal = { initial: false } as const;
 
   return (
     <div className="landing-page">
@@ -140,13 +133,10 @@ export function ConveyLanding() {
           <Link href="/app" className="landing-stage-link">Start a conversation <ArrowRight size={17} /></Link>
         </motion.div>
         <motion.div {...reveal} className="landing-request-stack">
-          {REQUESTS.map(({ icon: Icon, text, meta }, index) => (
+          {REQUESTS.map(({ icon: Icon, text, meta }) => (
             <motion.div
               key={text}
-              initial={reduceMotion ? false : { opacity: 1, transform: "translateX(18px)" }}
-              whileInView={{ opacity: 1, transform: "translateX(0)" }}
-              viewport={{ once: true, amount: 0.5 }}
-              transition={{ duration: reduceMotion ? 0 : 0.5, delay: index * 0.1 }}
+              initial={false}
               className="landing-request-card"
             >
               <span><Icon size={19} /></span><div><strong>{text}</strong><small>{meta}</small></div><ArrowRight size={16} />

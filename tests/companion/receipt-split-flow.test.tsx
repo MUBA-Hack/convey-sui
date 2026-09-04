@@ -35,11 +35,8 @@ await import("@testing-library/jest-dom/vitest");
 const { ReceiptSplitFlow } = await import("@/components/companion/receipt-split-flow");
 
 beforeEach(() => {
-  vi.stubGlobal("URL", {
-    ...URL,
-    createObjectURL: vi.fn(() => "blob:receipt-preview"),
-    revokeObjectURL: vi.fn(),
-  });
+  vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:receipt-preview");
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
@@ -115,5 +112,48 @@ describe("ReceiptSplitFlow", () => {
       "Requested",
     ]);
     expect(screen.queryByTestId("settled-obligation")).not.toBeInTheDocument();
+  });
+
+  it("creates one exact review-first WhatsApp request for every prepared obligation", () => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-09-04T12:00:00.000Z").getTime());
+    render(<ReceiptSplitFlow />);
+    loadSample();
+    confirmReceipt();
+
+    expect(screen.queryByRole("link", { name: /send .* on whatsapp/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /prepare requests/i }));
+
+    const links = screen.getAllByRole("link", { name: /send .* on whatsapp/i });
+    expect(links).toHaveLength(3);
+    expect(links.map((link) => link.getAttribute("aria-label"))).toEqual([
+      "Send Ana on WhatsApp",
+      "Send Dave · Home on WhatsApp",
+      "Send Dave · Work on WhatsApp",
+    ]);
+
+    const payloads = links.map((link) => {
+      const whatsappUrl = new URL(link.getAttribute("href")!);
+      const message = whatsappUrl.searchParams.get("text")!;
+      const reviewUrl = message.match(/https?:\/\/\S+$/)?.[0];
+      expect(reviewUrl).toBeDefined();
+      return JSON.parse(new URL(reviewUrl!).searchParams.get("code")!);
+    });
+
+    expect(payloads).toEqual([
+      expect.objectContaining({ recipient: "Ana", amount: "3.45", asset: "USDC" }),
+      expect.objectContaining({ recipient: "Dave · Home", amount: "3.45", asset: "USDC" }),
+      expect.objectContaining({ recipient: "Dave · Work", amount: "3.45", asset: "USDC" }),
+    ]);
+    for (const payload of payloads) {
+      expect(payload).toMatchObject({
+        kind: "convey.qr-task",
+        version: 1,
+        task: "split",
+        createdAt: "2026-09-04T12:00:00.000Z",
+        reviewRequired: true,
+        note: "River Cafe receipt split",
+        expiresAt: "2026-09-11T12:00:00.000Z",
+      });
+    }
   });
 });

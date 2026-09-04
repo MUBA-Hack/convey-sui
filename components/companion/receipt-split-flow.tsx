@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Add, DocumentText, People, TickCircle, Trash, Warning2 } from "@/components/icons";
+import { Add, DocumentText, People, Send2, TickCircle, Trash, Warning2 } from "@/components/icons";
 import {
   applyObligationEvent,
   createReceiptObligationDraft,
@@ -10,6 +10,7 @@ import {
   type ReceiptObligationDraft,
 } from "@/lib/companion/receipt-obligations";
 import { formatUsdc } from "@/lib/remittance/money";
+import { createReceiptSplitShare } from "@/lib/remittance/receipt-split-share";
 import { parseUsdcDecimalToMicro } from "@/lib/remittance/receipt-split";
 
 type EditableItem = { id: string; label: string; amount: string };
@@ -20,6 +21,7 @@ const INITIAL_PARTICIPANTS: EditableParticipant[] = [
   { id: "person_1", displayName: "Ana", detail: "Personal" },
   { id: "person_2", displayName: "Dave", detail: "Personal" },
 ];
+const REQUEST_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
 function majorToMicro(value: string): string {
   const parsed = parseUsdcDecimalToMicro(value === "" ? "0" : value);
@@ -48,6 +50,7 @@ export function ReceiptSplitFlow() {
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
   const [checked, setChecked] = useState(false);
   const [draft, setDraft] = useState<ReceiptObligationDraft | null>(null);
+  const [preparedAt, setPreparedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => () => {
@@ -57,6 +60,7 @@ export function ReceiptSplitFlow() {
   const invalidate = () => {
     setChecked(false);
     setDraft(null);
+    setPreparedAt(null);
     setError(null);
   };
 
@@ -116,6 +120,7 @@ export function ReceiptSplitFlow() {
     setAssignments({ coffee: ["ana", "dave_home"], cake: ["dave_work"] });
     setChecked(false);
     setDraft(null);
+    setPreparedAt(null);
     setError(null);
   };
 
@@ -170,6 +175,7 @@ export function ReceiptSplitFlow() {
         userConfirmedCandidate: checked,
       });
       setDraft(nextDraft);
+      setPreparedAt(null);
       setError(null);
     } catch (cause) {
       setDraft(null);
@@ -179,6 +185,7 @@ export function ReceiptSplitFlow() {
 
   const prepareRequests = () => {
     if (!draft) return;
+    setPreparedAt(Date.now());
     setDraft({
       ...draft,
       obligations: draft.obligations.map((obligation) => applyObligationEvent(
@@ -358,12 +365,43 @@ export function ReceiptSplitFlow() {
                 <TickCircle size={22} />
               </div>
               <div className="divide-y divide-white/10">
-                {draft.obligations.map((obligation) => (
-                  <div key={obligation.id} className="flex items-center justify-between gap-4 px-4 py-3.5 sm:px-5">
-                    <div><p className="text-sm font-medium">{obligation.participantLabel}</p><p className="mt-0.5 text-[10px] text-white/42">Share + tax + service</p></div>
-                    <div className="text-right"><p className="text-sm font-semibold">{formatUsdc(obligation.amountMicro)} {obligation.currency}</p><p data-testid="obligation-state" className="mt-0.5 text-[10px] text-white/48">{stateLabel(obligation.state)}</p>{obligation.state === "settled" && <span data-testid="settled-obligation" />}</div>
-                  </div>
-                ))}
+                {draft.obligations.map((obligation) => {
+                  const participant = participants.find((entry) => entry.id === obligation.participantId);
+                  const shareLabel = participant && !["Personal", "You"].includes(participant.detail)
+                    ? `${obligation.participantLabel} · ${participant.detail}`
+                    : obligation.participantLabel;
+                  const share = obligation.state !== "draft" && preparedAt !== null && BigInt(obligation.amountMicro) > 0n
+                    ? createReceiptSplitShare({
+                      origin: window.location.origin,
+                      participant: shareLabel,
+                      amountMicro: obligation.amountMicro,
+                      asset: obligation.currency,
+                      note: `${draft.merchantLabel} receipt split`,
+                      createdAt: preparedAt,
+                      expiresAt: preparedAt + REQUEST_LIFETIME_MS,
+                    })
+                    : null;
+                  return (
+                    <div key={obligation.id} className="px-4 py-3.5 sm:px-5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div><p className="text-sm font-medium">{shareLabel}</p><p className="mt-0.5 text-[10px] text-white/42">Share + tax + service</p></div>
+                        <div className="text-right"><p className="text-sm font-semibold">{formatUsdc(obligation.amountMicro)} {obligation.currency}</p><p data-testid="obligation-state" className="mt-0.5 text-[10px] text-white/48">{stateLabel(obligation.state)}</p>{obligation.state === "settled" && <span data-testid="settled-obligation" />}</div>
+                      </div>
+                      {share && (
+                        <a
+                          href={share.whatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Send ${shareLabel} on WhatsApp`}
+                          className="mt-3 flex min-h-11 w-full items-center justify-between rounded-full bg-white px-4 text-xs font-semibold text-black transition hover:-translate-y-0.5 active:scale-[0.99]"
+                        >
+                          <span>Send on WhatsApp</span>
+                          <Send2 size={16} />
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div className="grid gap-2 p-4 sm:grid-cols-2 sm:p-5">
                 {draft.obligations.every((obligation) => obligation.state === "draft") ? (

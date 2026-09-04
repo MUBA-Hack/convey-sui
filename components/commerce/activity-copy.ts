@@ -10,6 +10,7 @@ export const ACTIVITY_PAGE_COPY = {
   emptyTitle: "No transfers on this device yet.",
   emptyBody: "Send money home, then come back to open the receipt from here.",
   sendMoney: "Send money",
+  openExample: "Open a verified example",
   openReceipt: "Open receipt",
   listCaveat: "Saved on this device. Open to check current status.",
   savedPlanPrefix: "Saved plan",
