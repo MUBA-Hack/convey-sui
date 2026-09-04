@@ -113,8 +113,14 @@ export const gonkaRemittanceCandidateSchema = z.strictObject({
   destinationCity: boundedName,
   destinationCountry: boundedName,
   sendAmountMyr: decimalMyr,
-  purpose: z.optional(purposeString),
-  maxAmountMyr: z.optional(decimalMyr),
+  purpose: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z.optional(purposeString),
+  ),
+  maxAmountMyr: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z.optional(decimalMyr),
+  ),
   detectedLanguage: z
     .string()
     .min(1)
@@ -192,7 +198,7 @@ const REMITTANCE_SYSTEM_PROMPT = [
   "Return JSON only and follow the supplied output contract exactly.",
   "The object must contain EXACTLY these keys and no others:",
   '{"recipientAlias","destinationCity","destinationCountry","sendAmountMyr","purpose","maxAmountMyr","detectedLanguage","explanation","confidence","uncertain","needsReview"}.',
-  "purpose and maxAmountMyr are optional; omit them when not stated. All other keys are required.",
+  "purpose and maxAmountMyr are optional; omit them or return null when not stated. All other keys are required.",
   "recipientAlias MUST be taken ONLY from the supplied recipient manifest.",
   "destinationCity MUST be one of the recipient's listed destination cities and within the corridor.",
   "destinationCountry MUST match the corridor destination country.",

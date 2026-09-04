@@ -72,7 +72,7 @@ import { isGonkaRunErr, isGonkaRunOk } from "@/lib/gonka/types";
  * This caps only the adapter's per-call timeout contract; it does not promise
  * that every response completes within this bound end-to-end.
  */
-export const GONKA_INFERENCE_TIMEOUT_CAP_MS = 6_000;
+export const GONKA_INFERENCE_TIMEOUT_CAP_MS = 30_000;
 
 const RequestSchema = z.strictObject({
   text: z.string().max(MAX_REMITTANCE_INPUT_LENGTH),

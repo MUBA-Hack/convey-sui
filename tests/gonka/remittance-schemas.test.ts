@@ -135,6 +135,17 @@ describe("gonkaRemittanceCandidateSchema — exact keys, no authority", () => {
     expect(() => gonkaRemittanceCandidateSchema.parse(rest)).not.toThrow();
   });
 
+  it("normalizes provider nulls for optional purpose and max cap", () => {
+    const parsed = gonkaRemittanceCandidateSchema.parse({
+      ...VALID_CANDIDATE,
+      purpose: null,
+      maxAmountMyr: null,
+    });
+
+    expect(parsed.purpose).toBeUndefined();
+    expect(parsed.maxAmountMyr).toBeUndefined();
+  });
+
   it("rejects forbidden authority fields (wallet, transaction bytes, digest, signature)", () => {
     for (const extra of [
       { walletAddress: "0xabc" },
