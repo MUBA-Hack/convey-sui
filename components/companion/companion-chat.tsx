@@ -16,6 +16,7 @@ import {
   Judge,
   SearchNormal1,
   Send2,
+  SecuritySafe,
   ShieldTick,
   TickCircle,
   Wallet,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/companion/memory-store";
 import { CompanionOutcomeCard } from "@/components/companion/companion-outcome-card";
 import { ConflictResolutionCard } from "@/components/companion/conflict-resolution-card";
+import { ApprovalCollectionBuilder } from "@/components/companion/approval-collection-builder";
 import { ProtectedSupportDemoCard } from "@/components/companion/protected-support-demo-card";
 import { recordAiDecisionReceipt } from "@/lib/activity/ai-decision-receipt";
 import { BrandMark } from "@/components/site-header";
@@ -77,7 +79,7 @@ type Destination = {
 };
 
 type EmptyAction = {
-  kind: "link" | "prompt" | "memory" | "contract" | "dispute";
+  kind: "link" | "prompt" | "memory" | "contract" | "dispute" | "collection";
   label: string;
   detail: string;
   icon: IconComponent;
@@ -160,6 +162,7 @@ const EMPTY_ACTIONS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly EmptyAct
   ngo: [
     { kind: "link", href: "/verify", label: "Review field evidence", detail: "Compare two independent Gonka reviews", icon: SearchNormal1 },
     { kind: "prompt", prompt: "Send Ana 25 USDC for flood supplies, release after delivery evidence", label: "Create aid release", detail: "Set evidence, expiry, and refund", icon: ShieldTick },
+    { kind: "collection", label: "Create approval collection", detail: "Fund a release that needs M of N approvals", icon: SecuritySafe },
     { kind: "prompt", prompt: "Release a 1000 USDC grant after milestone evidence", label: "Create grant milestone", detail: "Fund one reviewed tranche", icon: Judge },
     { kind: "link", href: "/qr-ferry", label: "Collect donations", detail: "Show or share one QR request", icon: Code1 },
     { kind: "link", href: "/proof", label: "Show donor outcomes", detail: "Trace receipts and releases", icon: Activity },
@@ -169,6 +172,7 @@ const EMPTY_ACTIONS_BY_WORKSPACE: Record<CompanionWorkspaceId, readonly EmptyAct
   treasury: [
     { kind: "link", href: "/qr-ferry", label: "Collect dues by QR", detail: "Create a request members can scan", icon: Code1 },
     { kind: "prompt", prompt: "Pay Dave 12 USDC for club supplies", label: "Reimburse a member", detail: "Prepare an exact payment", icon: MoneyRecive },
+    { kind: "collection", label: "Create approval collection", detail: "Fund a release that needs M of N approvals", icon: SecuritySafe },
     { kind: "link", href: "/verify", label: "Review a claim", detail: "Compare two independent reviews", icon: SearchNormal1 },
     { kind: "dispute", label: "Resolve a dispute", detail: "Prepare a neutral human review", icon: Judge },
     { kind: "link", href: "/strategy", label: "Protect reserves", detail: "Set hard limits before approval", icon: Judge },
@@ -284,6 +288,7 @@ export function CompanionChat({
   const [personError, setPersonError] = useState<string | null>(null);
   const [contractDemoOpen, setContractDemoOpen] = useState(false);
   const [conflictReviewOpen, setConflictReviewOpen] = useState(false);
+  const [collectionBuilderOpen, setCollectionBuilderOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: "assistant", text: "I’m ready. Tell me what should happen with your money." },
   ]);
@@ -368,6 +373,7 @@ export function CompanionChat({
     setAddingPerson(false);
     setContractDemoOpen(false);
     setConflictReviewOpen(false);
+    setCollectionBuilderOpen(false);
     setOrganizationView("chat");
     setInput("");
     const id = nextId.current;
@@ -386,6 +392,7 @@ export function CompanionChat({
     setCreatingOrganization(false);
     setMemoryOpen(false);
     setConflictReviewOpen(false);
+    setCollectionBuilderOpen(false);
     setOrganizationView("chat");
     setInput("");
     const id = nextId.current;
@@ -419,6 +426,7 @@ export function CompanionChat({
     setWorkspaceOpen(false);
     setCreatingOrganization(false);
     setConflictReviewOpen(false);
+    setCollectionBuilderOpen(false);
     setOrganizationView("chat");
     setInput("");
     const id = nextId.current;
@@ -501,6 +509,7 @@ export function CompanionChat({
     setWorkspaceOpen(false);
     setMemoryOpen(false);
     setContractDemoOpen(false);
+    setCollectionBuilderOpen(false);
     setOrganizationView("chat");
     setConflictReviewOpen(true);
   };
@@ -640,7 +649,10 @@ export function CompanionChat({
                 <button
                   type="button"
                   aria-pressed={organizationView === "chat"}
-                  onClick={() => setOrganizationView("chat")}
+                  onClick={() => {
+                    setCollectionBuilderOpen(false);
+                    setOrganizationView("chat");
+                  }}
                 >
                   Chat
                 </button>
@@ -651,6 +663,7 @@ export function CompanionChat({
                     setWorkspaceOpen(false);
                     setMemoryOpen(false);
                     setConflictReviewOpen(false);
+                    setCollectionBuilderOpen(false);
                     setOrganizationView("controls");
                   }}
                 >
@@ -878,10 +891,12 @@ export function CompanionChat({
                         }
                         if (action.kind === "contract") {
                           setConflictReviewOpen(false);
+                          setCollectionBuilderOpen(false);
                           setOrganizationView("chat");
                           setContractDemoOpen(true);
                         }
                         if (action.kind === "dispute") openConflictReview();
+                        if (action.kind === "collection") setCollectionBuilderOpen(true);
                       }}
                     >
                       {content}
@@ -997,9 +1012,11 @@ export function CompanionChat({
                         }
                         if (action.kind === "contract") {
                           setConflictReviewOpen(false);
+                          setCollectionBuilderOpen(false);
                           setContractDemoOpen(true);
                         }
                         if (action.kind === "dispute") openConflictReview();
+                        if (action.kind === "collection") setCollectionBuilderOpen(true);
                       }}
                     >
                       {content}
@@ -1078,10 +1095,17 @@ export function CompanionChat({
               <ShieldTick size={12} />
               Nothing moves without your approval.
             </p>
-          </form>
+            </form>
             </>
           )}
         </div>
+
+        {collectionBuilderOpen && (
+          <ApprovalCollectionBuilder
+            organizationName={workspaceLabel}
+            onClose={() => setCollectionBuilderOpen(false)}
+          />
+        )}
 
         {!directControls && <aside className="companion-sidebar">
           <div className="companion-side-card companion-side-card--actions">
