@@ -288,6 +288,7 @@ export function CompanionChat({
     { id: 1, role: "assistant", text: "I’m ready. Tell me what should happen with your money." },
   ]);
   const nextId = useRef(2);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const reduceMotion = useReducedMotion();
   const voice = useVoiceInput({ onFinal: setInput });
   const memoryStoreRef = useRef<CompanionMemoryStore | null>(null);
@@ -912,7 +913,7 @@ export function CompanionChat({
                   <div className={message.role === "user" ? "companion-bubble companion-bubble--user" : "companion-bubble"}>
                     {message.text}
                   </div>
-                  {message.resolution && <CompanionOutcomeCard result={message.resolution} message={message.sourceMessage ?? message.text} memory={memory} />}
+                  {message.resolution && <CompanionOutcomeCard result={message.resolution} message={message.sourceMessage ?? message.text} memory={memory} onRequestRevision={() => composerRef.current?.focus()} />}
                 </motion.article>
               ))}
               {contractDemoOpen && (
@@ -1042,6 +1043,7 @@ export function CompanionChat({
                 <MicGlyph active={voice.listening} />
               </button>
               <textarea
+                ref={composerRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {

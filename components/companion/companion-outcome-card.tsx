@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, ShieldTick } from "@/components/icons";
 import { OvernightProtectionCard } from "@/components/companion/overnight-protection-card";
+import { CompanionIntentSummary } from "@/components/companion/companion-intent-summary";
 import { PaymentRiskReview } from "@/components/companion/payment-risk-review";
 import { ProtectedSupportDemoCard } from "@/components/companion/protected-support-demo-card";
 import { ReceiptSplitFlow } from "@/components/companion/receipt-split-flow";
@@ -36,17 +37,20 @@ function PaymentRisk({ result, message, memory }: { result: CompanionResolution;
   );
 }
 
-export function CompanionOutcomeCard({ result, message, memory }: { result: CompanionResolution; message: string; memory: CompanionMemory }) {
+export function CompanionOutcomeCard({ result, message, memory, onRequestRevision }: { result: CompanionResolution; message: string; memory: CompanionMemory; onRequestRevision?: () => void }) {
   if (result.outcome === "proposal" && result.proposal) {
+    const contact = memory.contacts.find((entry) => entry.id === result.proposal?.contactId) ?? null;
     return (
       <div className="companion-result companion-result--dark">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="companion-eyebrow text-white/55">Ready to review</p>
             <p className="mt-2 text-2xl font-medium tracking-[-0.035em] text-white">{result.proposal.amountMajor} {result.proposal.asset}</p>
-            <p className="mt-1 text-sm text-white/65">To {result.proposal.contactLabel}{result.proposal.purpose ? ` · ${result.proposal.purpose}` : ""}</p>
           </div>
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-black"><ShieldTick size={17} /></span>
+        </div>
+        <div className="mt-4">
+          <CompanionIntentSummary proposal={result.proposal} contact={contact} onRequestRevision={onRequestRevision} />
         </div>
         <PaymentRisk result={result} message={message} memory={memory} />
         {result.routing.mode === "live" && result.routing.requestId && (

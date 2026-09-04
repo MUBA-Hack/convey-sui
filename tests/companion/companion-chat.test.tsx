@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { CompanionChat } from "@/components/companion/companion-chat";
 import { SAMPLE_COMPANION_MEMORY } from "@/components/companion/sample-context";
@@ -369,5 +369,76 @@ describe("CompanionChat", () => {
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
     expect(await screen.findByRole("heading", { name: /turn one bill into clear requests/i })).toBeInTheDocument();
     expect(screen.getByText(/choose receipt photo/i)).toBeInTheDocument();
+  });
+
+  it("shows what Convey understood, returns focus to the composer on Change request, and keeps Review payment the only forward link", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        toolId: "payments.propose",
+        outcome: "proposal",
+        routing: {
+          provider: "deterministic",
+          mode: "fallback",
+          requestId: null,
+          responseModel: null,
+          fallbackReason: "deterministic_only",
+        },
+        candidate: null,
+        proposal: {
+          toolId: "payments.propose",
+          contactId: "dave",
+          contactLabel: "Dave",
+          amountMajor: "12",
+          asset: "USDC",
+          purpose: null,
+          requiresUserApproval: true,
+        },
+        clarification: null,
+      }),
+    } as Response);
+
+    const { container } = render(
+      <CompanionChat
+        initialMemory={{
+          version: "convey.companion-memory.v1",
+          ownerLabel: null,
+          contacts: [
+            {
+              id: "dave",
+              displayName: "Dave",
+              aliases: [],
+              relationshipLabel: "friend",
+              address: "0x" + "1".repeat(64),
+              previousAddress: null,
+              confirmation: "confirmed",
+              confirmedAt: 1_700_000_000_000,
+            },
+          ],
+          interactions: [],
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/companion message/i), {
+      target: { value: "Pay Dave 12 USDC" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByText(/ready to review/i)).toBeInTheDocument());
+    expect(screen.getByText("Not specified")).toBeInTheDocument();
+    expect(screen.getByText("Saved, address confirmed")).toBeInTheDocument();
+    expect(screen.getByText("You review and approve")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change request" }));
+    expect(screen.getByLabelText(/companion message/i)).toHaveFocus();
+
+    const card = container.querySelector<HTMLElement>(".companion-result");
+    expect(card).not.toBeNull();
+    if (!card) return;
+    const cardLinks = within(card).getAllByRole("link");
+    expect(cardLinks).toHaveLength(1);
+    expect(cardLinks[0]).toHaveAttribute("href", "/pay");
+    expect(within(card).getByRole("link", { name: /review payment/i })).toBeInTheDocument();
   });
 });
